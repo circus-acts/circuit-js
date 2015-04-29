@@ -223,8 +223,9 @@ signal.prototype.compact = function(){
 // Take the first n values from the signal
 // The signal will not propagate after n
 signal.prototype.take = function (n) {
+  var _this = this
   return this.map(function (v) {
-    return (n-- > 0)? v : circus.FALSE
+    return (n-- > 0)? v: circus.FALSE
   })
 }
 
@@ -328,7 +329,7 @@ signal.prototype.sampleAll = function() {
 function circus(){
 }
 
-circus.signal = function(name,seed){return new signal(name,seed)}
+circus.signal = function(seed){return new signal(undefined,seed)}
 circus.foldp = function(m,v,i){}
 circus.domEvent = function (elem,eventNameOn, eventNameOff) {
   var s =  circus.signal()

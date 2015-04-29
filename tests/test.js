@@ -31,6 +31,7 @@ function test(condition) {
 	catch (e) {
 		result = false
 		console.error(e)
+		console.log(e.stack)
 		test.failures.push(condition)
 	}
 	if (typeof performance != "undefined" && performance.now) {
@@ -59,8 +60,14 @@ function test(condition) {
 test.total = 0
 test.failures = []
 test.print = function(print) {
+	var node = document.createElement('DIV')
+	node.appendChild(document.createTextNode("tests: " + test.total + "\nfailures: " + test.failures.length))
+	document.body.appendChild(node)
 	for (var i = 0; i < test.failures.length; i++) {
 		print(test.failures[i].toString())
+		node = document.createElement('PRE')
+		node.appendChild(document.createTextNode(test.failures[i].toString()))
+		document.body.appendChild(node)
 	}
 	print("tests: " + test.total + "\nfailures: " + test.failures.length)
 
