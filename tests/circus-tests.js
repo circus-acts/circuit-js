@@ -2,7 +2,7 @@ function runtests(mock) {
 
 	// named signal
 	test(function() {
-		return circus.signal('sig1').name() === 'sig1'
+		return circus.signal('sig1').name('sig1').name() === 'sig1'
 	})
 
 	// unnamed signal
@@ -87,14 +87,14 @@ function runtests(mock) {
 		return r.value() === 123
 	})
 
-	// tap
+	// tap / lift
 	test(function() {
 		var e = 0,e1,e2
 		var inc = function(v){return v+1}
 		var t1 = function(v) {e1=v}
 		var t2 = function(v) {e2=v}
 		var s = circus.signal()
-		s.map(inc).tap(t1).map(inc).tap(t2)
+		s.map(inc).lift(t1).map(inc).tap(t2)
 		s.value(e)
 		return e1 === 1 && e2 === 2
 	})
@@ -144,7 +144,7 @@ function runtests(mock) {
 		return s.value() === 3
 	})
 
-	// active - off event
+	// active - on off event
 	test(function() {
 		var e = 'xyz'
 		var s = circus.signal('',1).off(function(v){e=v})
@@ -152,21 +152,12 @@ function runtests(mock) {
 		return e === 1
 	})
 
-	// active - on event
+	// active - on on event
 	test(function() {
 		var e = 'xyz'
 		var s = circus.signal('',1).on(function(v){e=v})
 		s.active(false).active(true)
 		return e === 1
-	})
-
-	// to array
-	test(function() {
-		var s = circus.signal()
-		s.value(1)
-		s.value(2)
-		s.value(3)
-		return s.toArray()[0] === 3
 	})
 
 	// depth
@@ -189,22 +180,53 @@ function runtests(mock) {
 		return v.length === 2 && v[0]===2
 	})
 
-	// join - all active
+	// to array
+	test(function() {
+		var s = circus.signal()
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		return s.toArray()[0] === 3
+	})
+
+	// to array - signal
+	test(function() {
+		var a,s = circus.signal().keep()
+		s.toArray(function(v){
+		 	a = v
+		})
+		s.value(1)
+		 .value(2)
+		 .value(3)
+
+		return a.length === 3
+	})
+
+	// to array - keep
+	test(function() {
+		var s = circus.signal().keep()
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		return s.toArray().length === 3
+	})
+
+	// join all
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
-		var j = s1.join(s2)
+		var j = s1.joinAll(s2)
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
 		return typeof r === 'object' && r[0] === 1 && r[1] === 2
 	})
 
-	// join - not all active
+	// join all - not all active
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal().active(false)
-		var j = s1.join(s2)
+		var j = s1.joinAll(s2)
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
@@ -213,55 +235,102 @@ function runtests(mock) {
 
 	// named key join
 	test(function() {
-		var s1 = circus.signal('k1')
-		var s2 = circus.signal('k2')
-		var j = s1.join(s2)
+		var s1 = circus.signal().name('k1')
+		var s2 = circus.signal().name('k2')
+		var j = s1.joinAll(s2)
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
 		return r.k1 === 1 && r.k2 === 2
 	})
 
-	// merge - all active
-	test(function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = s1.merge(s2)
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return typeof r === 'object' && r[0] === 1 && r[1] === 2
-	})
-
-	// merge - not all active
+	// join any
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal().active(false)
-		var m = s1.merge(s2)
+		var j = s1.join(s2)
 		s1.value(1)
 		s2.value(2)
-		var r = m.value()
+		var r = j.value()
 		return typeof r === 'object' && r[0] === 1 && r[1] === undefined
 	})
 
-	// sample
+
+	// merge all
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
-		var s = s1.sample(s2)
+		var m = s1.mergeAll(s2)
+		s1.value(1)
+		var r1 = m.value()
+		s2.value(2)
+		var r2 = m.value()
+		return r1 === undefined && r2 === 2
+	})
+
+	// merge all - not all active
+	test(function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal().active(false)
+		var m = s1.mergeAll(s2)
+		s1.value(1)
+		s2.value(2)
+		var r = m.value()
+		return r === undefined
+	})
+
+	// merge any
+	test(function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal().active(false)
+		var s3 = circus.signal()
+		var m = s1.merge(s2,s3)
+		s1.value(1)
+		var r1 = m.value()
+		s2.value(2)
+		var r2 = m.value()
+		s3.value(3)
+		var r3 = m.value()
+		return r1 === 1 && r2 === 1 && r3 === 3
+	})
+
+	// sample all
+	test(function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var s3 = circus.signal()
+		var s = s1.sampleAll(s2,s3)
 		var r1 = s.value()
 		s1.value(1)
 		var r2 = s.value()
 		s2.value(2)
 		var r3 = s.value()
-		return r1 === undefined && r2 === undefined && r3 === 1
+		s3.value(3)
+		var r4 = s.value()
+		return r1 === undefined && r2 === undefined && r3 === undefined && r4 === 1
+	})
+
+	// sample any
+	test(function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var s3 = circus.signal()
+		var s = s1.sample(s2,s3)
+		var r1 = s.value()
+		s1.value(1)
+		var r2 = s.value()
+		s2.value(2)
+		var r3 = s.value()
+		s3.value(3)
+		var r4 = s.value()
+		return r1 === undefined && r2 === undefined && r3 === 1 && r4 === 1
 	})
 
 	// sample - truthy
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
-		var s = s1.sample(s2,function(v2){return v2 === 2})
+		var s = s1.sampleAll(s2,function(v2){return v2 === 2})
 		var r1 = s.value()
 		s1.value(1)
 		var r2 = s.value()
@@ -274,7 +343,7 @@ function runtests(mock) {
 	test(function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
-		var s = s1.sample(s2,function(v2){return v2 === 'x'})
+		var s = s1.sampleAll(s2,function(v2){return v2 === 'x'})
 		var r1 = s.value()
 		s1.value(1)
 		var r2 = s.value()

@@ -1,25 +1,29 @@
 var circus = (function(){
   
 var cid=0
-
+var pulse = {}
 var noop = function(){}
+
 function signal(c,seed){
   var _v = []
   var _l = 0
   var _i = 0
   var _f = []
-  var _chan = typeof c == 'object' && c || {name:c,id:++cid,head:this,off:false}
+  var _chan = typeof c == 'object' && c || {id:++cid,head:this,off:false}
   var _depth = _chan.keep
-  var _pulse = {}
   var _dirty
+  var _next
   
+  this.head = _chan.head
+  _chan.tail = this
+
   function next() {
     if (_i < _l) {
       var item = _depth? _v[_i++]:_v
       for (var j = 0, fl = _f.length; j < fl; j += 1) {
         _f[j].apply(null, [item])
       }
-      if (_chan.on === _pulse) {
+      if (_chan.on === pulse) {
         _chan.on = undefined
       }
     }
@@ -34,10 +38,10 @@ function signal(c,seed){
   }
 
   function value(v,k){
+    var cv = _depth? _v[_l]:_v
+    _dirty = k? v!==cv[k] : v!==cv
     if (v!==circus.FALSE) {
       // shallow copy value into signal
-      var cv = _depth? _v[_l]:_v
-      _dirty = k? v!==cv[k] : v!==cv
       var no = nv = v.length? v.slice(0): v === circus.UNDEFINED? undefined : typeof v === 'object'? scopy(v) : v
       if (k!==undefined) {
         no = scopy(cv)
@@ -53,15 +57,20 @@ function signal(c,seed){
     }
   }
   
-  if (seed!=undefined) {
+  if (seed!==undefined) {
     _depth = seed.length
     _chan.seed = true
     value(seed)
   }
   
-  this.name = function(){
+  this.name = function(n){
+    if (n!==undefined) {
+      _chan.name = n
+      return this
+    }
     return _chan.name
   }
+
   // Set the value of a signal. The new value will propagate through the signal channel
   // If the signal depth is undefined the new value replaces the existing one.
   // If the number of values == the depth the first value is dropped.
@@ -74,23 +83,28 @@ function signal(c,seed){
       }
       return this
     } else {
-    var v = _l
-      ? _depth? _v[_l-1]:_v
-      : _depth? []:undefined
+      v = _l
+        ? _depth? _v[_l-1]:_v
+        : _depth? []:undefined
     }
     return k!==undefined? v[k] : v
   }
   
   // Lift a function into a signal. 
   // The function will be called in global context
-  // the function arguments will be the current signal value(s)
+  // the function arguments will be the current signal value
   this.lift = function(f) {
     _f.push(f)
     return this
   }
 
-  // Add a new signal to the signal channel at the current signal position
-  // signal value will be propagated though all signals at this point
+  // Tap the current value of the signal
+  // Value is dependent on the channel position of the signal
+  // Synonym for lift
+  this.tap = this.lift
+  
+  // Add a new signal to the signal channel after the current signal position
+  // Signal value will be propagated though all signals at this point
   this.signal = function(seed){
     return new signal(_chan,seed)
   }
@@ -144,18 +158,21 @@ function signal(c,seed){
 
   this.pulse = function() {
     return this.lift(function(){
-      _chan.on = _pulse
+      _chan.on = pulse
     })
   }
   
-  this.toArray = function() {
+  this.toArray = function(f) {
+    var _this = this
+    if (typeof f === 'function') {
+      return this.lift(function(){
+        f(_this.toArray())
+      })
+    }
     return _l
-      ? _depth? _v.slice():[_v]
+      ? _depth? _v:[_v]
       : []
   }
-  
-  this.head = _chan.head
-  _chan.tail = this
 }
 
 // Feed signal values into new signal channel
@@ -171,12 +188,6 @@ signal.prototype.map = function(f) {
     s.value(f.apply(null,arguments))
   })
   return s
-}
-
-// Tap the current value of the signal
-// value is dependent on the channel position of the signal
-signal.prototype.tap = function(f){
-  return this.lift(f)
 }
 
 // A steady state signal
@@ -202,64 +213,98 @@ signal.prototype.reduce = function(f,accum) {
   return s
 }
 
-// remove undefined signal values from the channel
+// Remove undefined values from the signal
 signal.prototype.compact = function(){
   return this.map(function(v){
     return v || circus.FALSE
   })
 }
 
-// take the first n values from the signal
-// the signal will not propagate after n
+// Take the first n values from the signal
+// The signal will not propagate after n
 signal.prototype.take = function (n) {
   return this.map(function (v) {
     return (n-- > 0)? v : circus.FALSE
   })
 }
 
-function merge(m,active) {
-  var isOn, s = this.signal(), n = []
+// Skip the first n values from the signal
+// The signal will not propagate until n + 1
+signal.prototype.skip = function (n) {
+  return this.map(function (v) {
+    return (n-- > 0)? circus.FALSE : v
+  })
+}
+
+function allActive (r,a) { return r && a.active() }
+
+function merge() {
+  var _this = this, s = this.signal()
+  var args = [].slice.apply(arguments)
+  var anyActive = args.shift()
+  var sampleOnly = args.shift()
+  var joinOnly = args.shift()
+  var f = args.pop()
+  if (typeof f !== 'function') {
+    args.push(f)
+    f = undefined
+  }
+
+  var isOn, n = []
   function valueOf(i) {
-    var ni = n[i] = m[i].name() || i
+    var ni = n[i] = joinOnly? args[i].name() || i : undefined
     return function(v) {
-      var _on = active() 
+      var _on = anyActive || args.reduce(allActive,true)
       if (_on){
-        if (!isOn) {
-          m.forEach(function(a,j){s.value(a.value(),n[j])})
-        }
-        else {
-          s.value(v,ni)
+        if (!f || f.apply(null,arguments)) {
+          if (sampleOnly) s.value(_this.value() )
+          else {
+            if (!isOn && joinOnly) {
+              args.forEach(function(a,j){s.value(a.value(),n[j])})
+            }
+            else {
+              s.value(v,ni)
+            }
+          }
         }
       }
       isOn = _on
     }
   }
-  for (var i=0,l = m.length; i<l; i++) {
-    m[i].tap(valueOf(i))
+  for (var i=0,l = args.length; i<l; i++) {
+    args[i].tap(valueOf(i))
   }
   return s
 }
 
-// Join 2 or more input signals to form 1 output signal 
-// Output signal will be keyed on input name or index
-// The output signal will be active when all input signals are active
+// Join 2 or more input signals into 1 output signal group
+// Input signal values will be preserved as keyed or indexed output values
+// The output signal will be active when any of the input signals are active
 signal.prototype.join = function(){
-  var m = [this].concat([].slice.apply(arguments));
-
-  return merge.call(this,m,function(){
-    return m.reduce(function(r,a){return r && a.active()},true)
-  })
+  var args = [true,false,true,this].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
 }
 
-// Merge 2 or more input signals into 1 output signal 
-// Output signal will be keyed on input name or index
+// Join 2 or more input signals to form 1 output signal group
+// Input signal values will be preserved as keyed or indexed output values
+// The output signal will be active when all input signals are active
+signal.prototype.joinAll = function() {
+  var args = [false,false,true,this].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
+}
+
+// Merge 2 or more input signal values into 1 output signal value
 // The output signal will be active when any of the input signals are active
 signal.prototype.merge = function(){
-  var m = [this].concat([].slice.apply(arguments));
+  var args = [true,false,false,this].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
+}
 
-  return merge.call(this,m,function(){
-    return m.reduce(function(r,a){return r || a.active()},false)
-  })
+// Merge 2 or more input signal values into 1 output signal value
+// The output signal will be active when all input signals are active
+signal.prototype.mergeAll = function() {
+  var args = [false,false,false,this].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
 }
 
 // Sample input signal(s) and optionally test for truthyness but 
@@ -267,25 +312,24 @@ signal.prototype.merge = function(){
 // The output signal will be active when any of the input signals 
 // are active [and truthy]
 signal.prototype.sample = function() {
-  var _this=this,args = [].slice.apply(arguments), s = this.signal()
-  var f = args.pop()
-  if (typeof f !== 'function') {
-    args.push(f)
-    f=undefined
-  }
-  for (var i=0,l = args.length; i<l; i++) {
-    args[i].tap(function(){
-      if (!f || f.apply(null,arguments)) s.value(_this.value())
-    })
-  }
-  return s
+  var args = [true,true,false].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
+}
+
+// Sample input signal(s) and optionally test for truthyness but 
+// do not take the sample value(s)
+// The output signal will be active when all of the input signals 
+// are active [and truthy]
+signal.prototype.sampleAll = function() {
+  var args = [false,true,false].concat([].slice.apply(arguments));
+  return merge.apply(this,args)
 }
 
 function circus(){
 }
 
 circus.signal = function(name,seed){return new signal(name,seed)}
-circus.foldp = function(v){}
+circus.foldp = function(m,v,i){}
 circus.domEvent = function (elem,eventNameOn, eventNameOff) {
   var s =  circus.signal()
   elem.addEventListener(eventNameOn, function(e){s.active(true).value(e)});
