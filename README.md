@@ -1,15 +1,19 @@
 [![Build Status](https://travis-ci.org/philtoms/circus.svg?branch=master)](https://travis-ci.org/philtoms/circus)
 
-# circus
+# Circus-Signal
 
-An MVI frp library for JavaScript
+A Javascript frp library for front end developers.
 
-Circus takes an event such as a keypress and maps it onto a signal whose value change descretely over time. Signals can be connected together to form logical cicuits that can be reasoned sequentially making it easier to understand the overall state of a program at any given point in time. 
+Circus-Signal takes an event such as a keypress and maps it onto a signal whose value change descretely over time. Signals can be connected together to form logical cicuits that turn asynchronous speghetti into sequential code making it easier to understand the overall state of a program at any given point in time. 
 
-Circus also provides 
+Circus-Signal is part of the CircusJS set of class acts that fit together to create modern web applicatins, but it can be used independently.
 
-Circus uses established functional patterns like map, reduce and merge to transform signal values from one signal to another. Using these terms complex circuits can be constructed from simple descrete and testable units of code.
+Circus-Signal uses established functional patterns like map, reduce and merge to transform signal values from one signal to another. Using these familiar terms and patterns, complex circuits can be constructed from descrete, testable units of code.
 
+```javascript
+	var searchTerm = circus.signal('keypress').skip(3).concat().model()
+	var searchResuts = circus.signal()
+```
 
 ## Installation
  ```shell
