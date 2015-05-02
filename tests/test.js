@@ -16,11 +16,25 @@ if (!this.console) {
 	this.console = {log: log, error: log}
 }
 
+function runTests(tests) {
+	testSetup = function(){}
+	test.total = 0
+	test.failures = []
+	tests(mock.window)
+}
+
+var testSetup
+function setup(fn){
+	testSetup = fn
+}
+
 function test(condition) {
 	var duration = 0
 	var start = 0
 	var result = true
 	test.total++
+
+	testSetup()
 
 	if (typeof performance != "undefined" && performance.now) {
 		start = performance.now()
@@ -59,17 +73,20 @@ function test(condition) {
 }
 test.total = 0
 test.failures = []
-test.print = function(print) {
-	var node = document.createElement('DIV')
-	node.appendChild(document.createTextNode("tests: " + test.total + "\nfailures: " + test.failures.length))
-	document.body.appendChild(node)
-	for (var i = 0; i < test.failures.length; i++) {
-		print(test.failures[i].toString())
-		node = document.createElement('PRE')
-		node.appendChild(document.createTextNode(test.failures[i].toString()))
+test.print = function(title, print) {
+	try {
+		var node = document.createElement('DIV')
+		node.appendChild(document.createTextNode(title + " tests: " + test.total + "\nfailures: " + test.failures.length))
 		document.body.appendChild(node)
+		for (var i = 0; i < test.failures.length; i++) {
+			print(test.failures[i].toString())
+			node = document.createElement('PRE')
+			node.appendChild(document.createTextNode(test.failures[i].toString()))
+			document.body.appendChild(node)
+		}
 	}
-	print("tests: " + test.total + "\nfailures: " + test.failures.length)
+	catch (e) {}
+	print(title + " tests: " + test.total + "\nfailures: " + test.failures.length)
 
 	if (test.failures.length > 0) {
 		throw new Error(test.failures.length + " tests did not pass")

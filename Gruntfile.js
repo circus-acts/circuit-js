@@ -68,7 +68,17 @@ module.exports = function(grunt) {
 	grunt.initConfig({
 	    pkg: grunt.file.readJSON("package.json"),
 		concat: {
-			test: {src: ["./node_modules/mithril/mithril.js", "./tests/test.js", "./tests/mock.js", "circus.js", "./tests/circus-tests.js"], dest: currentVersionArchiveFolder + "/circus-tests.js"}
+			test: {
+				src: [
+				"./node_modules/mithril/mithril.js", 
+				"./tests/test.js", "./tests/mock.js", 
+				"signal.js", "./tests/signal-tests.js",
+				"model.js", "./tests/model-tests.js",
+				"view.js", "./tests/view-tests.js",
+				"intent.js", "./tests/intent-tests.js",
+				"circus.js", "./tests/circus-tests.js"
+				], 
+				dest: currentVersionArchiveFolder + "/circus-tests.js"}
 		},
 		replace: {
 			options: {force: true, patterns: [{match: /\.md/g, replacement: ".html"}, {match: /\$version/g, replacement: version}]},
