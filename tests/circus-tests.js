@@ -1,65 +1,61 @@
-runTests(function(mock) {
+runTests('circus', function(mock) {
 
-	var app, Signal, Model, View, Intent
+	var app, Signal
 
-	function double(v) {
-		return v==='xxxxxxxx'? v : v + v
+	function doubleUp(v) {
+		return v<8? v + v : v
 	}
 
+    function render(model) {
+        return app.intent.head(model)
+    }
+
 	setup(function(){
-		app = circus(
+		app = circus.stage(
 			circus.model(),
-			circus.view(),
+			circus.view(render),
 			circus.intent()
 		)
 		
 		Signal = circus.signal().__proto__
 	})	
 
-	// app
-	test(function(){
+	test('app',function(){
 		return app.model.__proto__ === Signal &&
 				app.view.__proto__ === Signal &&
 				app.intent.__proto__ === Signal;
 	})
 
-	// model state change
-	test(function(){
-		app.model.push('x')
+	test('model state change', function(){
+		app.model.head('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
 				app.intent.value() === 'x'
 	})
 
-	// view state change
-	test(function(){
-		app.view.push('x')
+	test('view state change', function(){
+		app.view.head('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
 				app.intent.value() === 'x'
 	})
 
-	// intent state change
-	test(function(){
-		app.intent.push('x')
+	test('intent state change', function(){
+		app.intent.head('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
 				app.intent.value() === 'x'
 	})
 
-	// model channel extension
-	test(function(){
-		var model = app.model.map(double)
-		var view = app.view.map(double)
-		var intent = app.intent.map(double)
-		model.push('x')
-		return model.value() === 'xxxxxxxx' && 
-				view.value() === 'xxxxxxxx' && 
-				intent.value() === 'xxxxxxxx'
+	test('composition', function(){
+		app.model.map(doubleUp)
+		app.view.map(doubleUp)
+		app.intent.map(doubleUp)
+		app.model.head(1)
+		return app.model.value() === 8 && 
+			   app.view.value() === 8 && 
+			   app.intent.value() === 8
 	})
 
 
 })
-
-
-test.print('circus', function(value) {console.log(value)})

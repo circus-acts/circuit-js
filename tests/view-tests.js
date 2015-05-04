@@ -1,6 +1,3 @@
-runTests(function(mock) {
+runTests('view', function(mock) {
 	
 })
-
-
-test.print('view', function(value) {console.log(value)})

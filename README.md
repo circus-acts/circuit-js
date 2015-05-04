@@ -19,9 +19,26 @@ Signal uses established functional patterns like map, reduce and merge to transf
  ```shell
 npm install --save-dev circus
 ```
+## Model === application state
+In Circus MVI, the model represents the application state - all of it. If an aplication needs to act on mouse state, then mouse state must be signaled to the model.
+
+## Immutable characteristics
+Circus values are plain old javascript so they have core language mutability. That is to say that simple values are immutable by default but complex values like arrays and objects have immutable reference characteristics - they can be compared for equality very cheaply.
+
+## Circus acts
+Acts are circuit patterns
 
 ## Hot or cold?
-If you had to describe Circus in terms of hot or cold observables, it would be hot by default. That is to say, Circus signals always provide the latest value. 
+If you had to describe Circus in terms of hot or cold observables, it would be hot by default. That is to say, Circus signals always provide the latest value. Late subscribers get the latest value. The cold observable pattern is available through composition:
+
+```javascript
+	// seed a signal. Because it is hot by default, the signal value will not
+	// be propogated
+
+	var signalA = circus.signal(['X','Y','Z'])
+
+	var signalB = circus.signal(signalA.toArray).
+```
 
 ### Copyright
 

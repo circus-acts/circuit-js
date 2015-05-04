@@ -1,6 +1,3 @@
-runTests(function(mock) {
+runTests('intent', function(mock) {
 	
 })
-
-
-test.print('intent', function(value) {console.log(value)})

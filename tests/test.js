@@ -16,67 +16,121 @@ if (!this.console) {
 	this.console = {log: log, error: log}
 }
 
-function runTests(tests) {
-	testSetup = function(){}
-	test.total = 0
-	test.failures = []
-	tests(mock.window)
-}
+function xrunTests() {}
+function xtest() {}
 
-var testSetup
-function setup(fn){
-	testSetup = fn
-}
-
-function test(condition) {
-	var duration = 0
-	var start = 0
-	var result = true
-	test.total++
-
-	testSetup()
-
-	if (typeof performance != "undefined" && performance.now) {
-		start = performance.now()
+var testQueue = [], curTest
+function runTests(name,tests) {
+	var test = function(){
+		this.setup = function(){}
+		this.total = 0
+		this.title = name
+		this.failures = []
+		this.tests = []
+		curTest = this
+		tests(mock.window)
+		this.tests.unshift(0)
+		this.tests.unshift(0)
+		Array.prototype.splice.apply(testQueue,this.tests)
+		testQueue.push(function(){
+			print(test, function(value) {this.console.log(value)})
+		})
 	}
+	testQueue.push(test)
+	if (testQueue.length==1) wait()
+}
+var testRunning=0, waitCount=0
+function wait(){
+	if (!testRunning) {
+		if (testQueue.length) {
+			waitCount = 0
+			var test = testQueue.shift()
+			test.apply(test)
+		}
+		if (testQueue.length){
+			setTimeout(wait)
+		}
+	}
+}
+
+function setup(fn){
+	curTest.setup = fn
+}
+
+function test(name,condition) {
+	var test = curTest
+	curTest.tests.push(function() {
+		test.total++
+		var duration = 0
+		var start = 0
+
+		if (typeof performance != "undefined" && performance.now) {
+			start = performance.now()
+		}
+		var fn = condition.toString()
+		var async = /function\s*\(\s*\)/m.test(fn) === false
+		var result = runTest.call(test,name + '\n' + fn, condition, async)
+
+		if (typeof performance != "undefined" && performance.now) {
+			duration = performance.now() - start
+		}
+
+		if (typeof window != "undefined") {
+			window.test_obj = {
+				name: "" + test.total,
+				result: result,
+				duration: duration
+			}
+
+			if (!result) {
+				window.global_test_results.tests.push(window.test_obj)
+			}
+
+			window.global_test_results.duration += duration
+			if (result) {
+				window.global_test_results.passed++
+			} else {
+				window.global_test_results.failed++
+			}
+		}	
+
+	})
+}
+
+function runTest(name,condition, async) {
+
+	testRunning++
+
+	var test = this
+	var result = true
+	var duration = 0
+	if (!async) {
+		test.setup()
+	}
+
 	try {
-		if (!condition()) throw new Error("failed")
+		if (!condition(function(done){
+			testQueue.unshift(runTest.bind(test,name,done))
+			return true
+		})) {
+			throw new Error("failed")
+		}
 	}
 	catch (e) {
 		result = false
 		console.error(e)
 		console.log(e.stack)
-		test.failures.push(condition)
-	}
-	if (typeof performance != "undefined" && performance.now) {
-		duration = performance.now() - start
+		test.failures.push(name)
 	}
 
-	window.test_obj = {
-		name: "" + test.total,
-		result: result,
-		duration: duration
-	}
-
-	if (typeof window != "undefined") {
-		if (!result) {
-			window.global_test_results.tests.push(window.test_obj)
-		}
-
-		window.global_test_results.duration += duration
-		if (result) {
-			window.global_test_results.passed++
-		} else {
-			window.global_test_results.failed++
-		}
-	}
+	testRunning--
+	return result
 }
-test.total = 0
-test.failures = []
-test.print = function(title, print) {
+
+function print(test, print) {
 	try {
 		var node = document.createElement('DIV')
-		node.appendChild(document.createTextNode(title + " tests: " + test.total + "\nfailures: " + test.failures.length))
+		node.appendChild(document.createTextNode(test.title + " tests: " + test.total + "\nfailures: " + test.failures.length))
 		document.body.appendChild(node)
 		for (var i = 0; i < test.failures.length; i++) {
 			print(test.failures[i].toString())
@@ -86,7 +140,7 @@ test.print = function(title, print) {
 		}
 	}
 	catch (e) {}
-	print(title + " tests: " + test.total + "\nfailures: " + test.failures.length)
+	print(test.title + " tests: " + test.total + "\nfailures: " + test.failures.length)
 
 	if (test.failures.length > 0) {
 		throw new Error(test.failures.length + " tests did not pass")

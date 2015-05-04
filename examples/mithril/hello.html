@@ -1,0 +1,86 @@
+<html>
+<script ></script>
+<script>
+
+  /*
+  *  Circus.MVI
+  *  Application state and logic is completely expressed by and manipulated through
+  *  circus signals, arranged as M(odel) V(iew) I(ntent) circuit that cyclically
+  *  feed each other values folded over time.
+  *
+  *  The direction of information travel is strictly M -> V -> I
+  *
+  *            +--> Model--+
+  *            ^           |  
+  *            |           v
+  *          Intent  <--  View
+  *
+  *  The values in the circuit form the application state and are manipulated
+  *  through functional composition using map / reduce semantics.
+  *
+  *  I -> Model -> V
+  *  The purpose of the model is to aggregate and map intention signals
+  *  onto application model state and pass this into the view.
+  *  The model is usually the place to tap the current application state 
+  *  into the domain. E.g., to save the application state to storage, to call
+  *  external services etc.
+  */
+  var model = circus.model().map(greet)
+
+  /* 
+  *  M -> View -> I
+  *  Generates the view by applying the current model state to a render
+  *  function. The render is a mapping function that takes a model state and 
+  *  returns a view state suitable for mounting. The mounted view feeds the 
+  *  intention channel.
+  */ 
+  var view = circus.view(render)
+
+  /*
+  *  V -> Intent > M
+  *  Intentions are signals generated from user actions and system events.
+  *  Most of the application's logic is expressed through intentions that
+  *  join together to form a single channel that feeds the model.
+  */
+  var intent = circus.intent().filter(dups)
+
+  /*
+  *  Application
+  *  Folds MVI values over time and converts it to a component suitable 
+  *  for mounting.
+  */
+  var app = circus.fold(model, view, intent)
+
+  /*
+  *  Pass the component on to mithril. The workflow works equally with 
+  *  m.route.
+  */
+  m.module(document.body,app)
+
+  /*
+  *  These helper functions will be lifted into the appropriate signals. 
+  *  They would typically be defined in Model, View or Intent module scope.
+  */
+  var registered = []
+  function dups(v) {
+    return !~registered.indexOf(v)) &&
+      registered.push(v)
+  }
+
+  function greet(v) {
+    return v[0].toUpperCase() + v.substr(1) + '!!'
+  }
+
+  function render(model) {
+    return app.mutateOn('name', 'div', [
+      m('h1', 'Please enter a unique registration name'),
+      m('label','hello'),
+      model.name? m('input', {
+        input:m.withAttr('value',intent)
+        value:model.name
+      }) : ''
+    ])
+  }
+
+</script>
+</html>

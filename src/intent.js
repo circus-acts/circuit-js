@@ -15,15 +15,6 @@ var circusIntent = (function(circus){
       return new Intent(state,_signal,seed)
     }
 
-    var _push = intent.push
-    intent.push = function(v,k) {
-      if (v !== state) {
-        state = v
-        _push.call(this,v,k)
-      }
-      return this
-    }
-
     return intent
 
   }

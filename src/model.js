@@ -4,31 +4,63 @@ var curcusModel = (function(circus){
 
   circus = circus || require('circus')
 
-  function Model(state,_signal, seed){
+  var type = {}.toString
+  var idx,idxKey
+
+  function pathToState(data, key){
+    var i, d0=data[0],d1=data[1]
+    if (d0 === undefined || d1 === undefined) {
+      return [true,undefined]
+    }
+    if (i = key.indexOf('[')>0){
+      idx=parseInt(key.substr(i+1,key.length-2),10)
+      idxKey = key.substr(0,i)
+      return [d0[idxKey][idx], d1[idxKey][idx]]
+    }
+    return [d0[key],d1[key]]
+  }
+
+  function mutated(data, value, path) {
+    if (path[0]!=='.') path = '.' + path
+    path = ('root'+path).split('.')
+    var pathData = path.reduce(pathToState,[{root:data},{root:value}])
+    var typeOfD = type.call(pathData[0]), typeofV = type.call(pathData[1])
+    if ( typeOfD === typeofV && (typeOfD === '[object Object]' || typeOfD === '[object Array]')) {
+      return JSON.stringify(pathData[0]) !== JSON.stringify(pathData[1])
+    }
+    return pathData[0]!==pathData[1]
+  }
+  
+  function Model(state, signal, seed) {
   
     state = state || {}
 
-    var model = _signal && _signal(seed) || circus.signal(seed)
+    var model = signal && signal(seed) || circus.signal(seed)
     
-    _signal = model.signal.bind(model)
+    signal = model.signal.bind(model)
     model.signal = function(seed){
-      return new Model(state,_signal,seed)
+      return new Model(state,signal,seed)
     }
 
-    var _push = model.push
-    model.push = function(v,k) {
-      if (v !== state) {
-        state = v
-        _push.call(this,v,k)
-      }
+    var _head = model.head
+    model.head = function(v,k) {
+      state = circus.copy(model.value())
+      _head.call(this,v,k)
       return this
+    }
+
+    var _dirty = model.dirty.bind(model)
+    model.dirty = function(binding) {
+      return binding===undefined? _dirty() : mutated(state, this.value(), binding)
     }
 
     return model
     
   }
 
-  return circus.model = function(seed) {return new Model(seed)}
+  circus.model = function(seed) {return new Model(seed)}
+
+  return circus.model
 
 })(circus)
 

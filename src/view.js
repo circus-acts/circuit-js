@@ -4,24 +4,15 @@ var circusView = (function(circus){
 
   circus = circus || require('circus')
 
-  function View(state,_signal, seed){
+  function View(render,_signal, seed){
   
-    state = state || {}
+    render = render || function(){}
 
-    var view = _signal && _signal(seed) || circus.signal(seed)
+    var view = _signal && _signal(seed) || circus.signal(seed).map(render).head()
     
     _signal = view.signal.bind(view)
     view.signal = function(seed){
-      return new View(state,_signal,seed)
-    }
-
-    var _push = view.push
-    view.push = function(v,k) {
-      if (v !== state) {
-        state = v
-        _push.call(this,v,k)
-      }
-      return this
+      return new View(render, _signal, seed)
     }
 
     return view
@@ -35,7 +26,7 @@ var circusView = (function(circus){
 	  return s
 	}
 
-  return circus.view = function(seed) {return new View(seed)}
+  return circus.view = function(render) {return new View(render)}
 
 })(circus)
 
