@@ -10,7 +10,7 @@
   // Note that the application state can vary independently of
   // mithril redraw.
   var _stage = circus.stage
-  circus.act = function(m, v, i) {
+  circus.stage = function(m, v, i, s) {
     var app = _stage(m, v, i)
 
     return {
@@ -18,13 +18,18 @@
       // Mithril will only redraw guarded sections when their model
       // bindings are dirty 
       mutateOn: function(binding) {
-        var args = [].slice.apply(arguments,1)
+        var args = [].slice.call(arguments,1)
         return app.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
       },
   
       // project latest render into mithril component
       view: function() {
-        return app.view.value()
+        var r = app.view.state()
+        if (r === undefined) {
+          m.head(s)
+          r = app.view.state()
+        }
+        return r
       }
     }
   }

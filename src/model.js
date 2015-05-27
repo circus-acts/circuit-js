@@ -20,10 +20,10 @@ var curcusModel = (function(circus){
     return [d0[key],d1[key]]
   }
 
-  function mutated(data, value, path) {
+  function mutated(state, value, path) {
     if (path[0]!=='.') path = '.' + path
     path = ('root'+path).split('.')
-    var pathData = path.reduce(pathToState,[{root:data},{root:value}])
+    var pathData = path.reduce(pathToState,[{root:state},{root:value}])
     var typeOfD = type.call(pathData[0]), typeofV = type.call(pathData[1])
     if ( typeOfD === typeofV && (typeOfD === '[object Object]' || typeOfD === '[object Array]')) {
       return JSON.stringify(pathData[0]) !== JSON.stringify(pathData[1])
@@ -43,9 +43,9 @@ var curcusModel = (function(circus){
     }
 
     var _head = model.head
-    model.head = function(v,k) {
+    model.head = function() {
       state = circus.copy(model.value())
-      _head.call(this,v,k)
+      _head.apply(this,arguments)
       return this
     }
 

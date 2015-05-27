@@ -6,6 +6,10 @@ runTests('circus', function(mock) {
 		return v<8? v + v : v
 	}
 
+	function add1(v) { return v+1 }
+	function add2(v) { return v+2 }
+	function sub3(v) { return v-3 }
+
     function render(model) {
         return app.intent.head(model)
     }
@@ -13,7 +17,7 @@ runTests('circus', function(mock) {
 	setup(function(){
 		app = circus.stage(
 			circus.model(),
-			circus.view(render),
+			circus.view().finally().map(render),
 			circus.intent()
 		)
 		
@@ -28,34 +32,33 @@ runTests('circus', function(mock) {
 
 	test('model state change', function(){
 		app.model.head('x')
-		return app.model.value() === 'x' && 
-				app.view.value() === 'x' && 
-				app.intent.value() === 'x'
+		return app.model.state() === 'x' && 
+				app.view.state() === 'x' && 
+				app.intent.state() === 'x'
 	})
 
 	test('view state change', function(){
 		app.view.head('x')
-		return app.model.value() === 'x' && 
-				app.view.value() === 'x' && 
-				app.intent.value() === 'x'
+		return app.model.state() === 'x' && 
+				app.view.state() === 'x' && 
+				app.intent.state() === 'x'
 	})
 
 	test('intent state change', function(){
 		app.intent.head('x')
-		return app.model.value() === 'x' && 
-				app.view.value() === 'x' && 
-				app.intent.value() === 'x'
+		return app.model.state() === 'x' && 
+				app.view.state() === 'x' && 
+				app.intent.state() === 'x'
 	})
 
 	test('composition', function(){
-		app.model.map(doubleUp)
-		app.view.map(doubleUp)
-		app.intent.map(doubleUp)
+		app.model.map(add1)
+		app.view.map(add2)
+		app.intent.map(sub3)
 		app.model.head(1)
-		return app.model.value() === 8 && 
-			   app.view.value() === 8 && 
-			   app.intent.value() === 8
+		return app.model.state() === 2 && 
+			   app.view.state() === 4 && 
+			   app.intent.state() === 1
 	})
-
 
 })

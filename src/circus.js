@@ -62,9 +62,9 @@ var circus = (function(){
     i.finally().active(function(){return i.dirty()}).feed(m.head())
 
     return {
-      model: m,
-      view: v,
-      intent: i
+      model: m.head(),
+      view: v.head(),
+      intent: i.head()
     }
   }
 

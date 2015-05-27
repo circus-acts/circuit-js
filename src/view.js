@@ -8,7 +8,7 @@ var circusView = (function(circus){
   
     render = render || function(){}
 
-    var view = _signal && _signal(seed) || circus.signal(seed).map(render).head()
+    var view = _signal && _signal(seed) || circus.signal(seed)
     
     _signal = view.signal.bind(view)
     view.signal = function(seed){

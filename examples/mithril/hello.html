@@ -1,11 +1,19 @@
 <html>
-<script ></script>
+<script src="../../node_modules/mithril/mithril.js"></script>
+<script src="../../src/circus.js"></script>
+<script src="../../src/model.js"></script>
+<script src="../../src/view.js"></script>
+<script src="../../src/intent.js"></script>
+<script src="../../src/signal.js"></script>
+<script src="../../src/composables.js"></script>
+<script src="../../libraries/mithril-circus.js"></script>
+<body>
 <script>
 
   /*
   *  Circus.MVI
   *  Application state and logic is completely expressed by and manipulated through
-  *  circus signals, arranged as M(odel) V(iew) I(ntent) circuit that cyclically
+  *  circus signals, arranged as M(odel) V(iew) I(ntent) circuitry that cyclically
   *  feed each other values folded over time.
   *
   *  The direction of information travel is strictly M -> V -> I
@@ -34,7 +42,7 @@
   *  returns a view state suitable for mounting. The mounted view feeds the 
   *  intention channel.
   */ 
-  var view = circus.view(render)
+  var view = circus.view().map(render)
 
   /*
   *  V -> Intent > M
@@ -49,11 +57,10 @@
   *  Folds MVI values over time and converts it to a component suitable 
   *  for mounting.
   */
-  var app = circus.fold(model, view, intent)
+  var app = circus.stage(model, view, intent,'')
 
   /*
-  *  Pass the component on to mithril. The workflow works equally with 
-  *  m.route.
+  *  Pass the component on to mithril.
   */
   m.module(document.body,app)
 
@@ -63,24 +70,29 @@
   */
   var registered = []
   function dups(v) {
-    return !~registered.indexOf(v)) &&
+    return !~registered.indexOf(v) &&
       registered.push(v)
   }
 
   function greet(v) {
-    return v[0].toUpperCase() + v.substr(1) + '!!'
+    return {
+      name: v,
+      salute: v && v[0].toUpperCase() + v.substr(1) + '!!'
+    }
   }
 
   function render(model) {
     return app.mutateOn('name', 'div', [
-      m('h1', 'Please enter a unique registration name'),
-      m('label','hello'),
-      model.name? m('input', {
-        input:m.withAttr('value',intent)
+      m('h1', 'Please register'),
+      m('label','name'),
+      m('input', {
+        onchange:m.withAttr('value',intent.head),
         value:model.name
-      }) : ''
+      }),
+      model.name? [m('span','Hello'),m('span',model.salute)] : ''
     ])
   }
 
 </script>
+</body>
 </html>

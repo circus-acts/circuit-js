@@ -29,7 +29,7 @@ runTests('signal', function(mock) {
 		return done(function(){return s.value().x === 123})
 	})
 
-	xtest('seed - UNDEFINED',function(done) {
+	test('seed - UNDEFINED',function(done) {
 		var s = circus.signal(circus.UNDEFINED)
 		return done(function() {return s.value()===undefined})
 	})
@@ -40,10 +40,7 @@ runTests('signal', function(mock) {
 	})
 
 	test('dirty - primitive', function() {
-		var a = 123
-		var s = circus.signal().map(function(v){return v})
-		s.head(a)
-		return s.dirty()
+		return circus.signal().map(function(v){return v}).head(123).dirty()
 	})
 
 	test('not dirty - same primitive', function() {
@@ -237,26 +234,6 @@ runTests('signal', function(mock) {
 		return e === 123
 	})
 
-	test('always',function() {
-		var s = circus.signal()
-		var r = s.always(123)
-		s.head('xyz')
-		return r.value() === 123
-	})
-
-	test('take',function() {
-		var s = circus.signal().take(2)
-		for (var i=0; i<5; i++) s.head(i)
-		return s.value() === 1
-	})
-
-	test('skip, take - keep', function() {
-		var s = circus.signal().keep(2).skip(2).take(2)
-		for (var i=0; i<5; i++) s.head(i)
-		var r = s.history()
-		return r.length === 2 && r[0] === 2 && r[1] === 3
-	})
-
 	test('tap / lift', function() {
 		var e = 0,e1,e2
 		var t1 = function(v) {e1=v}
@@ -340,7 +317,16 @@ runTests('signal', function(mock) {
 		return v.length === 2 && v[0]===2
 	})
 
-	test('keep', function() {
+	test('keep - value', function() {
+		var s = circus.signal().keep(2)
+		s.head(1)
+		s.head(2)
+		s.head(3)
+		var v = s.value()
+		return v===3
+	})
+
+	test('keep - history', function() {
 		var s = circus.signal().keep(2)
 		s.head(1)
 		s.head(2)
@@ -388,17 +374,6 @@ runTests('signal', function(mock) {
 		s.finally().map(dbl).tap(function(v){r=v})
 		s.head(1)
 		return r === 4
-	})
-
-	test('compact', function() {
-		var s = circus.signal().keep().compact()
-		s.head(1)
-		s.head(undefined)
-		s.head('')
-		s.head(0)
-		s.head(3)
-		var r = s.history() 
-		return r.length === 2 && r[0] === 1 && r[1] === 3
 	})
 
 	test('feed', function() {
