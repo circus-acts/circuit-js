@@ -74,7 +74,8 @@ var circus = (function(){
     UNDEFINED: Object.freeze({}),
     copy: shallowCopy,
     diff: shallowDiff,
-    stage: stage
+    stage: stage,
+    id: function(v) {return v}
   }
 
   // publish the api on the main circus function

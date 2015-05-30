@@ -411,10 +411,67 @@ runTests('signal', function(mock) {
 		return r === undefined
 	})
 
+	test('join all - dirty', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.joinAll(s2)
+		s1.head(1)
+		s2.head(2)
+		return j.dirty()
+	})
+
+	test('join all - clean', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.joinAll(s2)
+		s1.head(1)
+		s2.head(2)
+		s1.head(1)
+		s2.head(2)
+		return !j.dirty()
+	})
+
+	test('join all - some dirty', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.joinAll(s2)
+		s1.head(1)
+		s2.head(2)
+		s1.head(3)
+		s2.head(2)
+		return j.dirty()
+	})
+
 	test('named key join', function() {
 		var s1 = circus.signal().name('k1')
 		var s2 = circus.signal().name('k2')
 		var j = s1.joinAll(s2)
+		s1.head(1)
+		s2.head(2)
+		var r = j.value()
+		return r.k1 === 1 && r.k2 === 2
+	})
+
+	test('object join', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.joinAll({
+			k1:s1,
+			k2:s2
+		})
+		s1.head(1)
+		s2.head(2)
+		var r = j.value()
+		return r.k1 === 1 && r.k2 === 2
+	})
+
+	test('inclusive object join', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.joinAll({
+			k1:circus.id,
+			k2:s2
+		})
 		s1.head(1)
 		s2.head(2)
 		var r = j.value()

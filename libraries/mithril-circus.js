@@ -11,7 +11,7 @@
   // mithril redraw.
   var _stage = circus.stage
   circus.stage = function(m, v, i, s) {
-    var app = _stage(m, v, i)
+    var app = _stage(m, v, i), started=0
 
     return {
       // Opt-in mutable state. 
@@ -24,12 +24,10 @@
   
       // project latest render into mithril component
       view: function() {
-        var r = app.view.state()
-        if (r === undefined) {
-          m.head(s)
-          r = app.view.state()
+        if (!started++) {
+          m.head(s || '')
         }
-        return r
+        return app.view.state()
       }
     }
   }

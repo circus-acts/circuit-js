@@ -203,6 +203,7 @@ function Signal(seed, chan, fchan){
     if (!_chan.finally) {
       _chan.finally = true
       _chan.finally = this.signal()
+      _chan.finally.value(_chan.tail.value())
     }
     return _chan.finally
   }
@@ -278,7 +279,8 @@ Signal.prototype.reduce = function(f,accum) {
   return s
 }
 
-function allActive (r,a) { return r && a.active() }
+function allActive (a,s) { return a && s.active()}
+function anyDirty (a,s) {return a || s.dirty()}
 
 function merge() {
   var _this = this, s = this.signal()
@@ -291,28 +293,37 @@ function merge() {
     args.push(fn)
     fn = undefined
   }
-
-  var isOn, keys = []
+  var sblock = args.pop()
+  if (!(sblock instanceof Signal)) {
+    args.length=0
+    Object.keys(sblock).forEach(function(k){
+      var s = sblock[k] === circus.id? _this:sblock[k] 
+      args.push(s.name(k))
+    }) 
+  }
+  else args.push(sblock)
+  var keys = []
   function valueOf(i) {
     var key = keys[i] = joinOnly? args[i].name() || i : undefined
     return function(v) {
-      var _on = anyActive || args.reduce(allActive,true)
-      if (_on){
+      var active = anyActive || args.reduce(allActive,true)
+      if (active){
         var test = !fn || (!joinOnly && fn.call(null,v))
         var tv = test && (sampleOnly && _this.value() || v)
         if (joinOnly) {
-          tv = s.value() || {}
-          if (!isOn) {
+          if (args.reduce(anyDirty,false)) {
+            tv = {}
             args.forEach(function(a,j){tv[keys[j]] = a.value()})
           }
           else {
+            tv = s.value() || {}
             tv[key] = v
           }
+          args.forEach(function(a,j){tv[keys[j]] = a.value()})
           test = !fn || fn.call(null,tv)
         }
         if (test) s.value(tv)
       }
-      isOn = _on
     }
   }
   for (var i=0,l = args.length; i<l; i++) {

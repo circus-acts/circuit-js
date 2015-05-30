@@ -1,4 +1,9 @@
 <html>
+<head>
+<style>
+  label {display:block; width:200px;text-align: right;}
+  span,input {margin:5px;}
+</style>
 <script src="../../node_modules/mithril/mithril.js"></script>
 <script src="../../src/circus.js"></script>
 <script src="../../src/model.js"></script>
@@ -7,6 +12,7 @@
 <script src="../../src/signal.js"></script>
 <script src="../../src/composables.js"></script>
 <script src="../../libraries/mithril-circus.js"></script>
+</head>
 <body>
 <script>
 
@@ -26,72 +32,71 @@
   *  The values in the circuit form the application state and are manipulated
   *  through functional composition using map / reduce semantics.
   *
-  *  I -> Model -> V
+  *  MODEL: I -> Model -> V
   *  The purpose of the model is to aggregate and map intention signals
   *  onto application model state and pass this into the view.
   *  The model is usually the place to tap the current application state 
   *  into the domain. E.g., to save the application state to storage, to call
   *  external services etc.
   */
-  var model = circus.model().map(greet)
+  var model = circus.signal().map(greet)
+
+  function greet(v) {
+    return {
+      name: v.name,
+      password: v.password,
+      salute: v.name && v.password && v.name[0].toUpperCase() + v.name.substr(1) + '!!'
+    }
+  }
 
   /* 
-  *  M -> View -> I
+  *  VIEW: M -> View -> I
   *  Generates the view by applying the current model state to a render
   *  function. The render is a mapping function that takes a model state and 
   *  returns a view state suitable for mounting. The mounted view feeds the 
-  *  intention channel.
+  *  intention channel(s).
   */ 
-  var view = circus.view().map(render)
+  var view = circus.signal().map(render)
+
+  function render(model) {
+    return m('div', [
+      m('h1', 'Please register'),
+      m('label',['name', m('input', {
+        onchange:m.withAttr('value',intentions.name.head),
+        value:model.name || ''
+      })]),
+      m('label',['password', m('input', {
+        type: 'password',
+        onchange:m.withAttr('value',intentions.password.head),
+        value:model.password || ''
+      })]),
+      model.salute? m('div',[m('span','Welcome'),m('span',model.salute)]) : ''
+    ])
+  }
 
   /*
-  *  V -> Intent > M
-  *  Intentions are signals generated from user actions and system events.
-  *  Most of the application's logic is expressed through intentions that
-  *  join together to form a single channel that feeds the model.
+  *  INTENT: V -> Intent > M
+  *  Intentions are signals whose values are generated from user actions and
+  *  system events. Most of the application's UI logic is expressed through
+  *  intentions that join together to form a single channel that feeds the model.
   */
-  var intent = circus.intent().filter(dups)
+  var intentions = {
+    name: circus.signal(),
+    password: circus.signal()
+  }
+  var intent = circus.signal().join(intentions)
 
   /*
   *  Application
   *  Folds MVI values over time and converts it to a component suitable 
   *  for mounting.
   */
-  var app = circus.stage(model, view, intent,'')
+  var app = circus.stage(model, view, intent)
 
   /*
   *  Pass the component on to mithril.
   */
   m.module(document.body,app)
-
-  /*
-  *  These helper functions will be lifted into the appropriate signals. 
-  *  They would typically be defined in Model, View or Intent module scope.
-  */
-  var registered = []
-  function dups(v) {
-    return !~registered.indexOf(v) &&
-      registered.push(v)
-  }
-
-  function greet(v) {
-    return {
-      name: v,
-      salute: v && v[0].toUpperCase() + v.substr(1) + '!!'
-    }
-  }
-
-  function render(model) {
-    return app.mutateOn('name', 'div', [
-      m('h1', 'Please register'),
-      m('label','name'),
-      m('input', {
-        onchange:m.withAttr('value',intent.head),
-        value:model.name
-      }),
-      model.name? [m('span','Hello'),m('span',model.salute)] : ''
-    ])
-  }
 
 </script>
 </body>
