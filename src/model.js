@@ -12,7 +12,7 @@ var curcusModel = (function(circus){
     if (d0 === undefined || d1 === undefined) {
       return [true,undefined]
     }
-    if (i = key.indexOf('[')>0){
+    if ((i = key.indexOf('['))>0){
       idx=parseInt(key.substr(i+1,key.length-2),10)
       idxKey = key.substr(0,i)
       return [d0[idxKey][idx], d1[idxKey][idx]]
@@ -31,22 +31,16 @@ var curcusModel = (function(circus){
     return pathData[0]!==pathData[1]
   }
   
-  function Model(state, signal, seed) {
+  function Model(seed) {
   
-    state = state || {}
+    var state = {}
 
-    var model = signal && signal(seed) || circus.signal(seed)
+    var model = circus.signal(seed)
     
-    signal = model.signal.bind(model)
-    model.signal = function(seed){
-      return new Model(state,signal,seed)
-    }
-
     var _head = model.head
     model.head = function() {
       state = circus.copy(model.value())
-      _head.apply(this,arguments)
-      return this
+      return _head.apply(this,arguments)
     }
 
     var _dirty = model.dirty.bind(model)

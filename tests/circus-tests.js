@@ -10,11 +10,18 @@ runTests('circus', function(mock) {
 	function add2(v) { return v+2 }
 	function sub3(v) { return v-3 }
 
+	var isDirty
     function render(model) {
-        return app.intent.head(model)
+    	if (isDirty) {
+    		isDirty = false;
+	        app.intent.head(model)
+	        return model
+    	}
+        return circus.FALSE
     }
 
 	setup(function(){
+		isDirty = true;
 		app = circus.stage(
 			circus.model(),
 			circus.view().finally().map(render),
@@ -34,21 +41,21 @@ runTests('circus', function(mock) {
 		app.model.head('x')
 		return app.model.state() === 'x' && 
 				app.view.state() === 'x' && 
-				app.intent.state() === 'x'
+				app.intent.state().model === 'x'
 	})
 
 	test('view state change', function(){
 		app.view.head('x')
 		return app.model.state() === 'x' && 
 				app.view.state() === 'x' && 
-				app.intent.state() === 'x'
+				app.intent.state().model === 'x'
 	})
 
 	test('intent state change', function(){
 		app.intent.head('x')
 		return app.model.state() === 'x' && 
 				app.view.state() === 'x' && 
-				app.intent.state() === 'x'
+				app.intent.state().model === 'x'
 	})
 
 	test('composition', function(){
@@ -58,7 +65,7 @@ runTests('circus', function(mock) {
 		app.model.head(1)
 		return app.model.state() === 2 && 
 			   app.view.state() === 4 && 
-			   app.intent.state() === 1
+			   app.intent.state().model === 1
 	})
 
 })

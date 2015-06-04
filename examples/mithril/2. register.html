@@ -1,0 +1,112 @@
+<html>
+<head>
+<style>
+  label {display:block; width:200px;text-align: right;}
+  span,input {margin:5px;}
+</style>
+<script src="../../node_modules/mithril/mithril.js"></script>
+<script src="../../src/circus.js"></script>
+<script src="../../src/model.js"></script>
+<script src="../../src/view.js"></script>
+<script src="../../src/intent.js"></script>
+<script src="../../src/signal.js"></script>
+<script src="../../src/composables.js"></script>
+<script src="../../libraries/mithril-circus.js"></script>
+</head>
+<body>
+<script>
+
+  var model = circus.model().finally().match({
+    login,
+    register,
+    specials
+  })
+  var login = model.pluck('user').httpPost('/login')
+  var register = model.pluck('user','details').httpPost('/register')
+  var specials = circus.signal().sample(login,register).httpGet('/specials')
+
+  var view = circus.view().map(loginOrRegister)
+
+  function loginOrRegister(model) {
+    return m('div', [
+      m('h1', 'Please Login'),
+      input('Email','email'),
+      input('Password','password'),
+      input('Not registered?', 'checkbox'),
+      model.register &&  m('div' [
+      input('Confirm','password'),
+        dropdown('Title'),
+        input('First Name'),
+        input('Last Name'),
+        input('Address'),
+      ])
+    ])
+  }
+
+  function input(name,type) {
+    return m('label',[
+        name, 
+        m('input', {
+          type: type || 'text',
+          onchange:m.withAttr('value',intent.channels[name].head),
+          value:model[name]
+        }),
+        model.error[name] && m('span.error' model.error[name])
+      ])
+  }
+
+  // construct the circuit using a signal block of named channels
+  var intent = circus.intent(),
+      confirm = intent.add(),
+      strength = intent.add(),
+      address = {
+        line1: required(),
+        line2: intent.add(),
+        town: required(),
+        county: required(),
+        country: required()
+      },
+      intentions = {
+        email: required().error(formed),
+        password: required().chain(strengthen).joinAll(confirm).error(match),
+        strength: strength,
+        register: intent.add(),
+        confirm: confirm,
+        title: required(),
+        firstName: required(),
+        lastNme: required(),
+        address: intent.add().join(address)
+      }
+
+  intent().join(intentions)
+
+  // create some helper functions to simplify the circuit definition
+  function required(msg) {
+    return intent.add().error(function(v){return v!=='' && (msg ||'required')})
+  }
+
+  var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i
+  function formed(v) {
+    return re.test(v)} && 'invalid email'
+  }
+  function match(v) {
+    return v[0]!==v[1] && 'password does not match'
+  }
+  function strengthen(s){
+    var score
+    return s.feed(strength,function(v){
+      return score = v.length
+    })
+    .error(function() {
+      return score < 6 && 'password too weak'
+    })
+  }
+
+  m.route(document.body,'/login', {
+    '/login': circus.stage(model, login, intent)),
+    '/specials': circus.stage(model, specials, intent))
+  })
+
+</script>
+</body>
+</html>

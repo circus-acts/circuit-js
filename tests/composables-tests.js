@@ -1,6 +1,8 @@
 runTests('composables', function(mock) {
 
-   test('always',function() {
+    function inc(v) {return v+1}
+
+    test('always',function() {
         var s = circus.signal()
         var r = s.always(123)
         s.head('xyz')
@@ -27,6 +29,13 @@ runTests('composables', function(mock) {
         s.head(0)
         s.head(3)
         return s.history().toString() === '1,3' 
+    })
+
+    test('chain', function() {
+        var c = function(s) {
+            return s.map(inc).map(inc)
+        }
+        return circus.signal(1).chain(c).value() === 3
     })
 
     test('filter', function(){
@@ -56,12 +65,41 @@ runTests('composables', function(mock) {
         })
     })
 
-    test('project', function() {
-        var s = circus.signal().project('a','b')
+    test('maybe', function(){
+        return circus.signal(123).maybe(function(v){
+            return true
+        },'nothing').state().just === 123
+    })
+
+    test('maybe - nothing', function(){
+        var state = circus.signal(123).maybe(function(v){
+            return false
+        },'nothing').state();
+        return state.nothing === 'nothing'
+    })
+
+    test('pluck', function() {
+        var s = circus.signal().pluck('a','b')
         s.head({a:1,b:2,c:3})
         return Object.keys(s.value()).toString() === 'a,b' &&
                 s.value().a===1 &&
                 s.value().b===2
+    })
+
+    test('pluck - deep', function() {
+        var s = circus.signal().pluck('a.a1','b.b1[1]')
+        s.head({a:{a1:1},b:{b1:[2,3]}})
+        return Object.keys(s.value()).toString() === 'a.a1,b.b1[1]' &&
+                s.value()['a.a1']===1 &&
+                s.value()['b.b1[1]']===3
+    })
+
+    test('project', function() {
+        var s = circus.signal().project({a:'a.a1',b:'b.b1[1]'})
+        s.head({a:{a1:1},b:{b1:[2,3]}})
+        return Object.keys(s.value()).toString() === 'a,b' &&
+                s.value().a===1 &&
+                s.value().b===3
     })
 
     test('skip, take - keep', function() {

@@ -34,6 +34,10 @@ var circusComposables = (function(circus){
       })
     },
 
+    chain: function(f) {
+      return f.call(null,this)
+    },
+
     filter: function(f) {
       return this.map(function (v) {
         return f(v)? v: circus.FALSE
@@ -55,13 +59,34 @@ var circusComposables = (function(circus){
       return s
     },
 
+    maybe: function(f,n) {
+      return this.map(function(v){
+        return f(v)? {just:v} : {nothing:n}
+      })
+    },
+
     // streamlined map
-    project: function() {
+    pluck: function() {
       var s = this.signal(), args = [].slice.call(arguments)
       this.lift(function(v) {
         var r = {}
         args.forEach(function(key){
-          r[key] = v[key]
+          r[key] = circus.lens(v,key)
+        })
+        s.value(r)
+      })
+      return s
+    },
+
+    // named (projected) pluck
+    project: function() {
+      var s = this.signal(), args = [].slice.call(arguments)
+      this.lift(function(v) {
+        var r = {}
+        args.forEach(function(arg){
+          Object.keys(arg).forEach(function(key){
+            r[key] = circus.lens(v,arg[key])
+          })
         })
         s.value(r)
       })

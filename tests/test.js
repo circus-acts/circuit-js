@@ -16,10 +16,8 @@ if (!this.console) {
 	this.console = {log: log, error: log}
 }
 
+var testQueue = [], curTest, inclusiveTests
 function xrunTests() {}
-function xtest() {}
-
-var testQueue = [], curTest
 function runTests(name,tests) {
 	var test = function(){
 		this.setup = function(){}
@@ -27,17 +25,23 @@ function runTests(name,tests) {
 		this.title = name
 		this.failures = []
 		this.tests = []
-		curTest = this
+		var test = curTest = this
 		tests(mock.window)
 		this.tests.unshift(0)
-		this.tests.unshift(0)
+		this.tests.unshift(testQueue.length)
 		Array.prototype.splice.apply(testQueue,this.tests)
 		testQueue.push(function(){
-			print(test, function(value) {this.console.log(value)})
+			if (!inclusiveTests || test.total > 0) {
+				print(test, function(value) {this.console.log(value)})
+			}
 		})
 	}
-	testQueue.push(test)
-	if (testQueue.length==1) wait()
+	new test()
+	var len = testQueue.length
+	setTimeout(function(){
+		if (testQueue.length==len) wait()
+	},100)
+	//if (testQueue.length==1) wait()
 }
 var testRunning=0, waitCount=0
 function wait(){
@@ -57,9 +61,17 @@ function setup(fn){
 	curTest.setup = fn
 }
 
-function test(name,condition) {
+function xtest() {}
+function itest(name,condition) {
+	inclusiveTests=true
+	test(name,condition,true)
+}
+function test(name,condition, inclusive) {
 	var test = curTest
 	curTest.tests.push(function() {
+		
+		if (inclusiveTests && !inclusive) return
+
 		test.total++
 		var duration = 0
 		var start = 0
@@ -67,6 +79,7 @@ function test(name,condition) {
 		if (typeof performance != "undefined" && performance.now) {
 			start = performance.now()
 		}
+
 		var fn = condition.toString()
 		var async = /function\s*\(\s*\)/m.test(fn) === false
 		var result = runTest.call(test,name + '\n' + fn, condition, async)
@@ -119,7 +132,7 @@ function runTest(name,condition, async) {
 	catch (e) {
 		result = false
 		console.error(e)
-		console.log(e.stack)
+		console.log(name, e.stack)
 		test.failures.push(name)
 	}
 
@@ -130,7 +143,8 @@ function runTest(name,condition, async) {
 function print(test, print) {
 	try {
 		var node = document.createElement('DIV')
-		node.appendChild(document.createTextNode(test.title + " tests: " + test.total + "\nfailures: " + test.failures.length))
+		var failures = test.failures.length? "\nfailures: " + test.failures.length : ''
+		node.appendChild(document.createTextNode(test.title + " tests: " + test.total + failures))
 		document.body.appendChild(node)
 		for (var i = 0; i < test.failures.length; i++) {
 			print(test.failures[i].toString())
@@ -140,7 +154,7 @@ function print(test, print) {
 		}
 	}
 	catch (e) {}
-	print(test.title + " tests: " + test.total + "\nfailures: " + test.failures.length)
+	print(test.title + " tests: " + test.total + failures)
 
 	if (test.failures.length > 0) {
 		throw new Error(test.failures.length + " tests did not pass")

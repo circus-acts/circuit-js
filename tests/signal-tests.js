@@ -13,30 +13,43 @@ runTests('signal', function(mock) {
 	})
 
 
-	test('seed - primitive', function(done) {
+	test('seed - primitive', function() {
 		var s = circus.signal(123)
-		return done(function(){return s.value() === 123})
+		return s.value() === 123
 	})
 
-	test('seed - array',function(done) {
-		var s = circus.signal([123])
-		return done(function(){return s.value()[0] === 123})
+	test('seed - array',function() {
+		var s = circus.signal([[123]])
+		return s.value()[0] === 123
 	})
 
-	test('seed - object',function(done) {
+	test('seed - object',function() {
 		var a = {x:123}
 		var s = circus.signal(a)
-		return done(function(){return s.value().x === 123})
+		return s.value().x === 123
 	})
 
-	test('seed - UNDEFINED',function(done) {
+	test('seed - UNDEFINED',function() {
 		var s = circus.signal(circus.UNDEFINED)
-		return done(function() {return s.value()===undefined})
+		return s.value()===undefined
 	})
 
-	test('seed - undefined',function(done) {
+	test('seed - undefined',function() {
 		var s = circus.signal()
-		return done(function() {return s.value()===undefined})
+		return s.value()===undefined
+	})
+
+	test('seed - hot',function() {
+		var s = circus.signal([1,2,3])
+		return s.value()===3
+	})
+
+	test('seed - cold',function() {
+		var s = circus.signal([1,2,3]).keep()
+		var c1 = circus.signal(s.history()).value()
+		s.head(4)
+		var c2 = circus.signal(s.history()).value()
+		return c1===3 && c2===4
 	})
 
 	test('dirty - primitive', function() {
@@ -376,11 +389,37 @@ runTests('signal', function(mock) {
 		return r === 4
 	})
 
+	test('finally - delayed seed', function() {
+		var r = circus.signal(1).finally().map(inc).value()
+		return r === 2
+	})
+
+	test('finally - not active', function() {
+		var r = circus.signal(1).active(false).finally().map(inc).value()
+		return r === undefined
+	})
+
+	test('finally - lift order', function() {
+		var r1,r2, s = circus.signal()
+		s.map(inc)
+		s.finally().map(function(){return 1}).tap(function(v){r1=v})
+		s.finally().map(dbl).tap(function(v){r1=r2=v})
+		s.head(1)
+		return r1 === 1 && r2 === 4
+	})
+
 	test('feed', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal().feed(s1)
 		s2.head(2)
 		return s1.value() === 2
+	})
+
+	test('signal of signals - inverted feed', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal(s1)
+		s1.head(1)
+		return s2.value() === 1
 	})
 
 	test('feed - fanout', function() {
@@ -479,6 +518,15 @@ runTests('signal', function(mock) {
 	})
 
 	test('join any', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.join(s2)
+		s2.head(2)
+		var r = j.value()
+		return typeof r === 'object' && r[0] === undefined && r[1] === 2
+	})
+
+	test('join any - not active', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal().active(false)
 		var j = s1.join(s2)
@@ -603,6 +651,63 @@ runTests('signal', function(mock) {
 		var r3 = s.value()
 		return r1 === undefined && r2 === undefined && r3 === undefined
 	})
+
+	test('join point', function() {
+		var s = circus.signal().name('s').map(inc).join('jp1').map(inc).join('jp2').head(1)
+		var s1 = circus.signal().name('s1')
+		var s2 = circus.signal().name('s2')
+		s.jp1.join(s1)
+		s1.head(1)
+		var r1 = s.state()
+		s.jp2.join(s2)
+		s2.head(2)
+		var r2 = s.state()
+		return r1.s === 2 && r2.s === 3 && r1.s1 === 1 && r2.s2 === 2
+	})
+
+	test('and', function() {
+		var s1 = circus.signal().join('jp').head(1)
+		var s2 = circus.signal().and(s1.jp).map(inc).head(2)
+		return s1.state()[0] === 1 && s1.state()[1] === 2 && s2.state() === 3
+	})
+
+	test('and - true', function() {
+		var s1 = circus.signal().merge('jp').head(1)
+		var s2 = circus.signal().and(s1.jp, function(){return true}).map(inc).head(2)
+		return s1.state() === 2 && s2.state() === 3
+	})
+
+	test('and - false', function() {
+		var s1 = circus.signal().merge('jp').head(1)
+		var s2 = circus.signal().and(s1.jp, function(){return false}).map(inc).head(2)
+		return s1.state() === 1 && s2.state() === 2
+	})
+
+	test('and - fanout', function() {
+		var s1 = circus.signal().merge('jp1').head(1)
+		var s2 = circus.signal().merge('jp2').head(2)
+		var s3 = circus.signal().and(s1.jp1, s2.jp2).map(inc).head(3)
+		return s1.state() === 3 && s2.state() === 3 && s3.state() === 4
+	})
+
+	test('or', function() {
+		var s1 = circus.signal().merge('jp').head(1)
+		var s2 = circus.signal().or(s1.jp).map(inc).head(2)
+		return s1.state() === 2 && s2.state() === 2
+	})
+
+	test('or - true', function() {
+		var s1 = circus.signal().merge('jp').head(1)
+		var s2 = circus.signal().or(s1.jp, function(){return true}).map(inc).head(2)
+		return s1.state() === 2 && s2.state() === 2
+	})
+
+	test('or - false', function() {
+		var s1 = circus.signal().merge('jp').head(1)
+		var s2 = circus.signal().or(s1.jp, function(){return false}).map(inc).head(0)
+		return s1.state() === 1 && s2.state() === 1
+	})
+
 
 	test('pulse',function() {
 		var r = 0

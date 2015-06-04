@@ -33,13 +33,13 @@ runTests('model', function() {
 
     test('dirty - ref', function(){
         model.head(state)
-        model.head(newstate())
+             .head(newstate())
         return model.dirty()
     })
 
     test('clean - ref', function(){
         model.head(state)
-        model.head(state)
+             .head(state)
         return !model.dirty()
     })
     
@@ -68,7 +68,7 @@ runTests('model', function() {
 
     test('clean path', function(){
         model.head(state)
-        model.head(newstate())
+             .head(newstate())
         return !model.dirty('a') &&
                 !model.dirty('b') && 
                 !model.dirty('b[0]') && 

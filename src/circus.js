@@ -12,6 +12,8 @@ var circus = (function(){
 
   }
 
+  var type = {}.toString
+
   // expose to mutation api for override
   function shallowCopy(n) {
     if (typeof n==='object') {
@@ -29,26 +31,55 @@ var circus = (function(){
   * a value is dirty if any of its properties are dirty, or for key diff
   * ..dirty if that key value is dirty regardless of other changed props
   */
-  function shallowDiff(m,v) {
-    var dirty = circus.FALSE,nv=m.value
-    if (m.key !==undefined) {
-      dirty = v[m.key] !== nv[m.key] && m.key || circus.FALSE
+  function shallowDiff(m,v,d) {
+    var dirty = circus.FALSE,mv=d? m : m.value
+    if (mv === undefined || v === undefined) {
+      dirty = mv!==v;
     }
     else {
-      if (nv.length) {
-        for (var i=0, l=nv.length; i<l; i++) {
-          if (nv[i] !== v[i]) {
-            dirty=i
-            break
+      if (m.key !== undefined) {
+        dirty = v[m.key] !== mv[m.key] && m.key || circus.FALSE
+      }
+      else {
+        var t = type.call(mv)
+        if (t === '[object Array]') {
+          for (var i=0, l=mv.length; i<l; i++) {
+            if (d && shallowDiff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
+              dirty=i
+              break
+            }
           }
+        } else if (t === '[object Object]') {
+          dirty = Object.keys(mv).reduce(function(a,k){
+            return a!==circus.FALSE || (d) && shallowDiff(mv[k],v[k],d).dirty || (mv[k] !== v[k] && k) || a
+          },circus.FALSE)
         }
-      } else {
-        dirty = Object.keys(nv).reduce(function(a,k){
-          return a!==circus.FALSE || (nv[k] !== v[k] && k) || a
-        },circus.FALSE)
       }
     }
-    return {dirty:dirty,value:nv}
+    return {dirty:dirty,value:mv}
+  }
+
+  function equal(m,v){
+    return shallowDiff({value:m},v).dirty === circus.FALSE
+  }
+
+  function deepEqual(m,v){
+    return shallowDiff(m,v,true).dirty === circus.FALSE
+  }
+
+  function pathToData(data, key){
+    var i = key.indexOf('[')
+    if (i > 0){
+      var idx=parseInt(key.substr(i+1,key.length-2),10)
+      var idxKey = key.substr(0,i)
+      return data[idxKey][idx]
+    }
+    return data[key]
+  }
+
+  function lens(data,path){
+    path = path.split('.')
+    return path.reduce(pathToData,data)
   }
 
   /*
@@ -58,8 +89,9 @@ var circus = (function(){
 
     // Model and intent are simple feeds but view feeds into 
     // intent through explicit bindings in the render function.
+    // put simply: views only feed through user intentions
     m.finally().feed(v.head())
-    i.finally().active(function(){return i.dirty()}).feed(m.head())
+    i.finally().feed(m.head())
 
     return {
       model: m.head(),
@@ -74,6 +106,9 @@ var circus = (function(){
     UNDEFINED: Object.freeze({}),
     copy: shallowCopy,
     diff: shallowDiff,
+    equal: equal,
+    deepEqual: deepEqual,
+    lens: lens,
     stage: stage,
     id: function(v) {return v}
   }
