@@ -50,7 +50,8 @@ var circus = (function(){
             }
           }
         } else if (t === '[object Object]') {
-          dirty = Object.keys(mv).reduce(function(a,k){
+          var mk = Object.keys(mv), vk = Object.keys(v) 
+          dirty = mk.length != vk.length || typeof v !== 'object' || mk.reduce(function(a,k){
             return a!==circus.FALSE || (d) && shallowDiff(mv[k],v[k],d).dirty || (mv[k] !== v[k] && k) || a
           },circus.FALSE)
         }
@@ -102,8 +103,8 @@ var circus = (function(){
 
   var api = {
 
-    FALSE: Object.freeze({}),
-    UNDEFINED: Object.freeze({}),
+    FALSE: Object.freeze({'false':true}),
+    UNDEFINED: Object.freeze({'undefined':true}),
     copy: shallowCopy,
     diff: shallowDiff,
     equal: equal,

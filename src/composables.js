@@ -34,10 +34,6 @@ var circusComposables = (function(circus){
       })
     },
 
-    chain: function(f) {
-      return f.call(null,this)
-    },
-
     filter: function(f) {
       return this.map(function (v) {
         return f(v)? v: circus.FALSE
@@ -67,30 +63,27 @@ var circusComposables = (function(circus){
 
     // streamlined map
     pluck: function() {
-      var s = this.signal(), args = [].slice.call(arguments)
-      this.lift(function(v) {
-        var r = {}
-        args.forEach(function(key){
+      var args = [].slice.call(arguments)
+      return this.map(function(v) {
+        return args.reduce(function(r,key){
           r[key] = circus.lens(v,key)
-        })
-        s.value(r)
+          return r
+        },{})
       })
-      return s
     },
 
     // named (projected) pluck
     project: function() {
-      var s = this.signal(), args = [].slice.call(arguments)
-      this.lift(function(v) {
+      var args = [].slice.call(arguments)
+      return this.map(function(v) {
         var r = {}
-        args.forEach(function(arg){
+        return args.reduce(function(r,arg){
           Object.keys(arg).forEach(function(key){
             r[key] = circus.lens(v,arg[key])
           })
-        })
-        s.value(r)
+          return r
+        },{})
       })
-      return s
     },
 
     // Skip the first n values from the signal
@@ -111,33 +104,62 @@ var circusComposables = (function(circus){
 
     // Batch values into sliding window of size w
     window: function(w) {
-      var s = this.signal(), b = []
-      this.lift(function(v){
+      var b = [], fn = function(v){
         b.push(v)
-        if (--w <= 0) {
-          s.value([].slice.call(b))
+        if (--w < 0) {
           b.shift()
-        }
-      })
-      return s
-    },
-
-    zip: function() {
-      var s = this.signal(), args = [].slice.call(arguments)
-      var keys = args.length && args || [0,1]
-      var fn = keys.pop()
-      if (typeof fn !== 'function') {
-        keys.push(fn)
-        fn = function(v) {
-          return keys.map(function(k){
-            return v[k]
-          })
+          return b
         }
       }
-      this.lift(function(v){
-        s.value(fn(v))
-      })
-      return s
+      return this.map(fn)
+    },
+
+    // Zip signal channel values into a true array. 
+    zip: function(keys) {
+      keys = keys || [0,1]
+      var fn = function(v) {
+        return keys.map(function(k){
+          return v[k]
+        })
+      }
+      return this.map(fn)
+    },
+
+    // filters
+
+    match: function(fn,mask){
+      function match(v) {
+        var m = mask || v
+        var r,o = {}
+        Object.keys(m).forEach(function(k){
+          var e = fn(v[k],m[k])
+          if (e) o[k] = e === circus.FALSE? v[k] : e === circus.UNDEFINED? undefined : e
+          r = r || e
+        })
+        return r? o : circus.FALSE
+      }
+      return this.map(match)
+    },
+
+    and: function(mask){
+      function and(v,m) {
+        return (m === v && v) || (m===true && v) || (m===false && !v && circus.FALSE)
+      }
+      return this.match(and,mask)
+    },
+
+    or: function(mask){
+      function or(v,m) {
+        return v || m
+      }
+      return this.match(or,mask)
+    },
+
+    xor: function(mask){
+      function xor(v,m) {
+        return (!m && v) || (!v && m) || (!v && circus.UNDEFINED)
+      }
+      return this.match(xor,mask)
     }
 
   })

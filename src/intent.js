@@ -3,19 +3,18 @@ var circusIntent = (function(circus){
   'use strict';
 
   circus = circus || require('circus')
-  var VALID = {}
 
   function Intent(signal, errorSignal, error, root, seed){
   
     if (!errorSignal) {
-      error = VALID
+      error = circus.FALSE
       errorSignal = circus.signal()
     }
 
     var intent = root && circus.signal(seed).finally().join({
           model:circus.id,
           error:errorSignal
-        }).head() || signal()
+        },circus.signal.anyActive).head() || signal()
 
     signal = intent.signal.bind(intent)
     intent.signal = function(){ 
@@ -27,14 +26,18 @@ var circusIntent = (function(circus){
     }
 
     intent.error = function(fn) {
-      var err = {},n = this.name()
-      return this.lift(function(v){
-        if (error === VALID) {
-          err[n] = fn(v)
-          error = err[n]? err : VALID
+      var err = {}, n = this.name(), push = function(v,msg) {
+        if (error === circus.FALSE) {
+          err[n] = msg || fn(v)
+          error = err[n]? err : circus.FALSE
           errorSignal.value(error)
         }
-      })
+      }
+      if (typeof fn === 'function') {
+        return this.lift(push)
+      }
+      else push(null,fn)
+      return this
     }
 
     return intent

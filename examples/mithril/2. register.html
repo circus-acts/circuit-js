@@ -16,14 +16,16 @@
 <body>
 <script>
 
-  var model = circus.model().finally().match({
+  var model = circus.model()
+  var login = model.pluck('user').httpPost('/login')
+  var register = model.pluck('user','details').httpPost('/register')
+  var specials = circus.signal().sample(login,register).httpGet('/specials')
+
+  model.join({
     login,
     register,
     specials
   })
-  var login = model.pluck('user').httpPost('/login')
-  var register = model.pluck('user','details').httpPost('/register')
-  var specials = circus.signal().sample(login,register).httpGet('/specials')
 
   var view = circus.view().map(loginOrRegister)
 
@@ -34,7 +36,7 @@
       input('Password','password'),
       input('Not registered?', 'checkbox'),
       model.register &&  m('div' [
-      input('Confirm','password'),
+        input('Confirm','password'),
         dropdown('Title'),
         input('First Name'),
         input('Last Name'),
@@ -57,48 +59,50 @@
 
   // construct the circuit using a signal block of named channels
   var intent = circus.intent(),
-      confirm = intent.add(),
+      password = required().then(strengthen),
       strength = intent.add(),
-      address = {
-        line1: required(),
-        line2: intent.add(),
-        town: required(),
-        county: required(),
-        country: required()
-      },
       intentions = {
-        email: required().error(formed),
-        password: required().chain(strengthen).joinAll(confirm).error(match),
+        user: intent.add().join({
+          email: required().error(formed),
+          password: password
+        }),
         strength: strength,
         register: intent.add(),
-        confirm: confirm,
+        confirm: intent.add().then(match),
         title: required(),
         firstName: required(),
-        lastNme: required(),
-        address: intent.add().join(address)
+        lastName: required(),
+        address: intent.add().join({
+          line1: required(),
+          line2: intent.add(),
+          town: required(),
+          county: required(),
+          country: required()
+        })
       }
 
   intent().join(intentions)
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {
-    return intent.add().error(function(v){return v!=='' && (msg ||'required')})
+    return intent.add().error(function(v){return !v && (msg ||'required')})
   }
 
-  var re = /^([\w-]+(?:\.[\w-]+)*)@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$/i
+  var email = /\S+@\S+\.\S+/i
   function formed(v) {
-    return re.test(v)} && 'invalid email'
+    return !email.test(v)} && 'invalid email'
   }
-  function match(v) {
-    return v[0]!==v[1] && 'password does not match'
-  }
-  function strengthen(s){
-    var score
-    return s.feed(strength,function(v){
-      return score = v.length
+  function match(confirm) {
+    return confirm.sample(password,function(v){
+      if (v[0]!==v[1]) confirm.error('password does not match')
+      return true
     })
-    .error(function() {
-      return score < 6 && 'password too weak'
+  }
+  function strengthen(password){
+    return password.feed(strength,function(v){
+      var score = v.length
+      if (score < 6) strength.error('password too weak')
+      return score
     })
   }
 

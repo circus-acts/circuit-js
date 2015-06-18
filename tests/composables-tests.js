@@ -31,11 +31,11 @@ runTests('composables', function(mock) {
         return s.history().toString() === '1,3' 
     })
 
-    test('chain', function() {
+    test('then', function() {
         var c = function(s) {
             return s.map(inc).map(inc)
         }
-        return circus.signal(1).chain(c).value() === 3
+        return circus.signal([1]).then(c).value() === 3
     })
 
     test('filter', function(){
@@ -66,13 +66,13 @@ runTests('composables', function(mock) {
     })
 
     test('maybe', function(){
-        return circus.signal(123).maybe(function(v){
+        return circus.signal([123]).maybe(function(v){
             return true
         },'nothing').state().just === 123
     })
 
     test('maybe - nothing', function(){
-        var state = circus.signal(123).maybe(function(v){
+        var state = circus.signal([123]).maybe(function(v){
             return false
         },'nothing').state();
         return state.nothing === 'nothing'
@@ -121,8 +121,19 @@ runTests('composables', function(mock) {
     })
 
     test('zip - arrays', function() {
+        var s1 = circus.signal()
+        var s2 = circus.signal().join(s1,circus.signal.allActive).zip().tap(function(v){r.push(v)})
+        var a = [0,1,2,3],r = []
+        a.map(function(i){
+            s2.head(i)
+            s1.head(i+1)
+        })
+        return r.length === 7 && r.toString() === '0,1,1,1,1,2,2,2,2,3,3,3,3,4'
+    })
+
+    test('zip - synchronised arrays', function() {
         var s1 = circus.signal().pulse()
-        var s2 = circus.signal().keep().joinAll(s1).zip()
+        var s2 = circus.signal().keep().join(s1,circus.signal.allActive).zip()
         var a = [0,1,2,3]
         a.map(function(i){
             s2.head(i)
