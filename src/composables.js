@@ -34,12 +34,6 @@ var circusComposables = (function(circus){
       })
     },
 
-    filter: function(f) {
-      return this.map(function (v) {
-        return f(v)? v: circus.FALSE
-      })
-    },
-
     flatten: function(f) {
       var s = this.signal()
       function flatten(v) {
@@ -57,7 +51,7 @@ var circusComposables = (function(circus){
 
     maybe: function(f,n) {
       return this.map(function(v){
-        return f(v)? {just:v} : {nothing:n}
+        return f(v)? {just:v} : {nothing:n || true}
       })
     },
 
@@ -126,6 +120,12 @@ var circusComposables = (function(circus){
     },
 
     // filters
+
+    filter: function(f) {
+      return this.map(function (v) {
+        return f(v)? v: circus.FALSE
+      })
+    },
 
     match: function(fn,mask){
       function match(v) {

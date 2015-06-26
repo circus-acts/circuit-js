@@ -31,13 +31,6 @@ runTests('composables', function(mock) {
         return s.history().toString() === '1,3' 
     })
 
-    test('then', function() {
-        var c = function(s) {
-            return s.map(inc).map(inc)
-        }
-        return circus.signal([1]).then(c).value() === 3
-    })
-
     test('filter', function(){
         var s = circus.signal().keep().filter(function(v){
             return v % 2
@@ -141,6 +134,84 @@ runTests('composables', function(mock) {
         })
         var r = s2.history()
         return r.length === 4 && r.toString() === '0,1,1,2,2,3,3,4'
+    })
+
+
+    test('and', function() {
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).and().head(2)
+        return circus.equal(s2.state(), {s1:1,s2:2})
+    })
+
+    test('and - filter falsey', function() {
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).and().head(0)
+        return circus.equal(s2.state(), {s1:1})
+    })
+
+    test('and - mask', function() {
+        var mask = {
+            s1:true,
+            s2:false
+        }
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).and(mask).head(1)
+        return circus.equal(s2.state(), {s1:1})
+    })
+
+    test('and - negative mask', function() {
+        var mask = {
+            s1:false,
+            s2:false
+        }
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).and(mask).head(0)
+        return circus.equal(s2.state(), {s2:0})
+    })
+
+    test('and - value mask', function() {
+        var mask = {
+            s1:1,
+            s2:2
+        }
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).and(mask).head(1)
+        return circus.equal(s2.state(), {s1:1})
+    })
+
+    test('or', function() {
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).or().head(1)
+        return circus.equal(s2.state(), {s1:1,s2:1})
+    })
+
+    test('or - some', function() {
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).or().head(0)
+        return circus.equal(s2.state(), {s1:1})
+    })
+
+    test('or - default', function() {
+        var mask = {
+            s1:2,
+            s2:2
+        }
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).or(mask).head(0)
+        return circus.equal(s2.state(), {s1:1,s2:2})
+    })
+
+    test('xor - filter truthy', function() {
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).xor().head(0)
+        return circus.equal(s2.state(), {s2:undefined})
+    })
+
+    test('xor - exclusive default', function() {
+        var mask = {s2:3}
+        var s1 = circus.signal('s1').head(1)
+        var s2 = circus.signal('s2').join(s1).xor(mask).head(0)
+        return circus.equal(s2.state(), {s2:3})
     })
 
 })

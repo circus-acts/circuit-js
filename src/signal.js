@@ -55,20 +55,6 @@ function Signal(seed, chan, fchan){
     _chan.state = cv
   }
 
-  if (seed!==undefined) {
-    if (typeof seed === 'string') {
-      _chan.name = seed
-    }
-    else {
-      //assume all
-      if (seed[0] instanceof Signal) {
-        var _this = this
-        seed.forEach(function(s) {s.feed(_this)})
-      }
-      else _chan.seed = seed
-    }
-  }
-
   function _seed() {
     if (_chan.seed !== circus.UNDEFINED) {
       var _this = this, seed = _chan.seed
@@ -101,6 +87,7 @@ function Signal(seed, chan, fchan){
         }
         if (_chan.pulse) {
           _chan.on = undefined
+          setValue(undefined, nullMutator, circus.diff)
         }
       }
       return this
@@ -217,6 +204,24 @@ function Signal(seed, chan, fchan){
       ? (_depth? _v:[_v]).map(function(v){return v.value})
       : []
   }
+
+  // seed signal with any combination of:
+  //  name - string
+  //  value - array
+  //  signal
+  if (seed!==undefined && seed[0] !== undefined) {
+    var _this = this;
+    [].slice.call(seed).forEach(function(arg){
+      if (typeof arg === 'string') {
+        _chan.name = arg
+      }
+      else if (arg instanceof Signal) {
+        _this.feed(arg)
+      }
+      else _chan.seed = arg
+    })
+  }
+
 }
 
 // Then - chainable context
@@ -226,13 +231,7 @@ Signal.prototype.then = function(f) {
 
 // Feed signal values into fanout signal channel(s)
 Signal.prototype.feed = function() {
-  var _this = this, args = [].slice.call(arguments)
-  var fn = args.pop()
-  if (typeof fn !== 'function') {
-    args.push(fn)
-    fn = undefined
-  }
-
+  var _this = this, p = popTail(arguments), args = p.signals,fn = p.tail
   args.forEach(function(fs){
     _this.lift(function(v){
       if (!fn || fn(v)) fs.head(v)
@@ -243,7 +242,7 @@ Signal.prototype.feed = function() {
 
 // expose mutator to api for override
 Signal.prototype.diff = circus.diff
-var copy = circus.copy
+Signal.prototype.copy = circus.copy
 
 // Map a signal onto a new signal on the same channel
 // the mapping function receives the current signal value and
@@ -255,7 +254,7 @@ Signal.prototype.map = function(f) {
   this.lift(function(v,c){
     var args = [v,c]
     if (m || circus.alwaysDiff) {
-      m={value:copy(v),dirty:_this.dirty()}
+      m={value:Signal.prototype.copy(v),dirty:_this.dirty()}
       if (circus.alwaysDiff) args = [m,c]; else args.push(m)
     }
     var v = f.apply(null,args)
@@ -298,9 +297,11 @@ function join(_this, sampleOnly, joinOnly, args) {
       Object.keys(sblock).forEach(function(k){
         var id = sblock[k] === circus.id, s = id? _this:sblock[k] 
         s.name(k)
-        if (s !== _this) {
+        if (s === _this) 
+          tkey = k
+        else
           signals.push(s)
-        }
+        
         sid = sid || id
       })
     }
@@ -321,11 +322,12 @@ function join(_this, sampleOnly, joinOnly, args) {
 
   var si = sampleOnly? 1:0
   function valueOf(i,fn) {
-    var key = keys[i+si] = signals[i].name() || i+si, nv
+    var key = keys[i+si] = signals[i].name() || i+si
     fn = fn || joinFn
     return function(v) {
+      var nv
       if (signals.reduce(anyDirty,false)) {
-        if (isJoin) nv = copy(_this.value()); else {nv={}; nv[tkey]=_this.value()}
+        if (isJoin) nv = Signal.prototype.copy(_this.value()); else {nv={}; nv[tkey]=_this.value()}
         signals.forEach(function(a,j){if (j || !isJoin) nv[keys[j+si]] = a.value()})
       }
       else {
@@ -366,12 +368,7 @@ function join(_this, sampleOnly, joinOnly, args) {
 }
 
 function joinAt(_this, args, mapFn) {
-  args = [].slice.call(args)
-  var fn = args.length>1 && args.pop()
-  if (fn && typeof fn !== 'function') {
-    args.push(fn)
-    fn = undefined
-  }
+  var p = popTail(args), args = p.signals,fn = p.tail
   args.forEach(function(jp){jp.join(_this,fn)})
   return _this.map(function(v){
     return mapFn(fn,v)?  v : circus.FALSE
@@ -442,7 +439,7 @@ Signal.prototype.switch = function() {
   })
 }
 
-circus.signal = function(seed){return new Signal(seed)}
+circus.signal = function(seed){return new Signal(arguments)}
 
 circus.signal.allActive = function(v) {
   return Object.keys(v).reduce(function(a,k){return a && v[k]!==undefined},true)
@@ -461,9 +458,7 @@ circus.signal.pick = function(v) {
 }
 
 circus.signal.extendBy = function(obj) {
-  Object.keys(obj).forEach(function(k){
-    Signal.prototype[k] = obj[k]
-  })
+  extend(Signal.prototype,obj)
 }
 
 var _allActive = circus.signal.allActive

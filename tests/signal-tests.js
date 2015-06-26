@@ -433,9 +433,18 @@ runTests('signal', function(mock) {
 
 	test('signal of signals - inverted feed', function() {
 		var s1 = circus.signal()
-		var s2 = circus.signal([s1])
-		s1.head(1)
-		return s2.value() === 1
+		var s2 = circus.signal()
+		var s = circus.signal(s1,s2)
+		s.head(1)
+		return s1.value() === 1 && s2.value() === 1
+	})
+
+	test('named signal of signals', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var s = circus.signal('s',s1,s2)
+		s.head(1)
+		return s.name() === 's' && s1.value() === 1 && s2.value() === 1
 	})
 
 	test('feed - fanout', function() {
@@ -808,81 +817,11 @@ runTests('signal', function(mock) {
 		return s2.state().s1 === 1 && s2.state().s2 === undefined
 	})
 
-	test('and', function() {
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).and().head(2)
-		return circus.equal(s2.state(), {s1:1,s2:2})
-	})
-
-	test('and - filter falsey', function() {
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).and().head(0)
-		return circus.equal(s2.state(), {s1:1})
-	})
-
-	test('and - mask', function() {
-		var mask = {
-			s1:true,
-			s2:false
-		}
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).and(mask).head(1)
-		return circus.equal(s2.state(), {s1:1})
-	})
-
-	test('and - negative mask', function() {
-		var mask = {
-			s1:false,
-			s2:false
-		}
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).and(mask).head(0)
-		return circus.equal(s2.state(), {s2:0})
-	})
-
-	test('and - value mask', function() {
-		var mask = {
-			s1:1,
-			s2:2
-		}
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).and(mask).head(1)
-		return circus.equal(s2.state(), {s1:1})
-	})
-
-	test('or', function() {
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).or().head(1)
-		return circus.equal(s2.state(), {s1:1,s2:1})
-	})
-
-	test('or - some', function() {
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).or().head(0)
-		return circus.equal(s2.state(), {s1:1})
-	})
-
-	test('or - default', function() {
-		var mask = {
-			s1:2,
-			s2:2
-		}
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).or(mask).head(0)
-		return circus.equal(s2.state(), {s1:1,s2:2})
-	})
-
-	test('xor - filter truthy', function() {
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).xor().head(0)
-		return circus.equal(s2.state(), {s2:undefined})
-	})
-
-	test('xor - exclusive default', function() {
-		var mask = {s2:3}
-		var s1 = circus.signal('s1').head(1)
-		var s2 = circus.signal('s2').join(s1).xor(mask).head(0)
-		return circus.equal(s2.state(), {s2:3})
-	})
+    test('then', function() {
+        var c = function(s) {
+            return s.map(inc).map(inc)
+        }
+        return circus.signal([1]).then(c).value() === 3
+    })
 
 })
