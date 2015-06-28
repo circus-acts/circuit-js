@@ -10,199 +10,145 @@ var noop = function(){}
 var type = {}.toString
 
 circus.alwaysDiff = false
+circus.FALSE =  Object.freeze({'false':true})
+circus.UNDEFINED = Object.freeze({'undefined':true})
 
-function Channel(head,id){
-  this.id = id
-  this.head = head
-  this.seed = circus.UNDEFINED
-}
+function Signal(seed){
 
-function Signal(seed, chan, fchan){
-  var id = this.id = ++cid
-  var _l = 0
-  var _f = []
-  var _chan = chan instanceof Channel && chan || new Channel(this,id)
-  var _depth = _chan.keep
-  var _v = _depth? []: undefined
-  var _fchan = fchan
-  
-  if (!_fchan) _chan.tail = this
-  _chan.ftail = this
+  var _name
+  var _key
+  var _on
+  var _state
+  var _pulse
+  var _filo = [], _finally
+  var _seed = circus.UNDEFINED
+  var _keep = 1
+  var _head = new SignalStep(), _step = _head, _tail
+  this.id = cid
 
-  function next() {
-    var v = _depth? _v[_v.l]:_v
-    if (v!==undefined) v = v.value
-    for (var j = 0, fl = _f.length; j < fl; j += 1) {
-      _f[j].call(null, v,_chan.key)
-    }
-  }
-
-  function getValue(v) {
-    return (_depth? v[v.l]:v) || {dirty:true,value:undefined}
-  }
-
-  function setValue(v,m,diff){
-    var cv = getValue(_v)
-    var cvv = cv.value
-    cv = m===v && diff(m,cvv) || {dirty:v===cvv && circus.FALSE || cvv, value:v}
-    if (_depth) {
-      if (_l === _depth) {_v.shift();_l--}
-      _v.push(cv)
-    } else {
-      _v=cv
-    }
-    _v.l = _l++
-    _chan.state = cv
-  }
-
-  function _seed() {
-    if (_chan.seed !== circus.UNDEFINED) {
-      var _this = this, seed = _chan.seed
-      _chan.seed = circus.UNDEFINED
-      seed.forEach(function(v) {_chan.head.value(v)})
+  function seedValue() {
+    if (_seed !== circus.UNDEFINED) {
+      var seed = _seed
+      _seed = circus.UNDEFINED
+      seed.forEach(function(v) {_head.value(v)})
     }    
   }
 
-  this.name = function(n){
-    if (n!==undefined) {
-      _chan.name = n
+  this.next = function() {
+    return _step.next || new SignalStep()
+  }
+  
+  this.step = function() {
+    return _step
+  }
+
+  this.value = function(v) {
+    seedValue()
+    if (arguments.length) {
+      _head.value(v)
       return this
     }
-    return _chan.name
+    return (_finally || _tail).value()
   }
 
-  // Set the value of a signal. The new value will propagate through the signal channel
-  // If the signal depth is undefined the new value replaces the existing one.
-  // If the number of values == the depth the first value is dropped.
-  this.value = function (v,c,m) {
-    _seed() 
-    if (arguments.length) {
-      if (_chan.on || _chan.on===undefined){
-        _chan.key = c
-        _chan.on = true
-        setValue(v, m || nullMutator, circus.diff)
-        next()
-        if (_chan.tail === this && _chan.finally && _chan.finally !== this) {
-          _chan.finally.value(v)
-        }
-        if (_chan.pulse) {
-          _chan.on = undefined
-          setValue(undefined, nullMutator, circus.diff)
-        }
-      }
-      return this
-    }
-    return (
-      _l ? getValue(_v).value
-         : _depth? []:undefined
-    )
-  }
+  this.depth = _head.depth
 
-  // The final state of the signal channel
-  this.state = function() {
-    _seed()
-    return _chan.state && _chan.state.value || undefined
-  }
-
-  // Push values onto signal channel head
-  this.head = function(v){
-    if (arguments.length) {
-      _chan.head.value(v)
-    }
-    return _chan.head
-  }
-
-  // A dirty signal is one whose value or object reference has changed, or,
-  // if it's a mutated array or object, where one of its members has changed
-  this.dirty = function(key) {
-    var v = getValue(_v)
-    return v.dirty!==circus.FALSE || v.dirty===key
-  }
-  
-  // Lift a function into a signal. 
-  // The function will be called in global context
-  // the function arguments will be the current signal value
-  this.lift = function(f) {
-    _f[this===_chan.finally? 'unshift':'push'](f)
-    return this
-  }
-
-  // Tap the current value of the signal.
-  // Value is dependent on the channel position of the signal
-  // Synonym for lift
-  this.tap = this.lift
-  
-  // Add a new signal to the signal channel after the current signal position
-  // Signal value will be propagated though all signals at this point
-  this.signal = function(){
-    return new Signal(undefined, _chan, _fchan || this===_chan.finally || _chan.finally===true)
-  }
-  
   // An active channel will propagate signal values
   // An inactive channel will prevent value propagation
   // An inactive channel prevents join propagation 
   this.active = function(reset) {
     if (reset!==undefined) {
-      _chan.on=!!reset
+      _on=!!reset
       return this
     }
-    return !!_chan.on
+    return !!_on
   }
-  
-  // channel depth - overrides signal depth
-  //  n == undefined - keep all
-  //  n < 2          - keep 1 
-  this.keep = function(n) {
-    _chan.keep = n < 2? undefined : (n || -1)
-    _depth = _chan.keep
-    if (_v===undefined) _v=[]
+
+  // Lift a function into a signal. 
+  // The function will be called in current step context
+  // the function arguments will be the current step value
+  this.lift = function(f) {
+    _step.lift(f)
     return this
   }
 
-  // signal depth == channel keep or:
+  // Tap the current value of the signal.
+  // Value is dependent on the current step
+  // - Synonym for lift
+  this.tap = this.lift
+
+  // channel depth - overrides signal depth
   //  n == undefined - keep all
-  //  n < 2          - keep 1 
-  this.depth = function(n) {
-    _depth = _chan.keep && n !== _chan.keep? _chan.keep : n < 2? undefined : (n || -1)
-    if (_v===undefined) _v=[]
+  this.keep = function(n) {
+    _keep = arguments.length? n : Number.MAX_SAFE_INTEGER
+    _head.depth(_keep)
     return this
+  }
+
+  // Return the current channel history as an array 
+  this.history = function() {
+    seedValue()
+    return (_finally || _tail).history()
+  }
+
+  this.name = function(n){
+    if (n!==undefined) {
+      _name = n
+      return this
+    }
+    return _name
   }
 
   // Pulse signal channel with latest value
   // Channel will be off after propagation 
   this.pulse = function() {
-    _chan.pulse = true
+    _pulse = true
     return this
   }
 
   // Functions lifted onto the channel after finally
-  // will be propagated after all other channel signals in FILO order
-  this.finally = function() {
-    if (!_chan.finally) {
-      _chan.finally = true
-      _chan.finally = this.signal()
-      if (_chan.seed === circus.UNDEFINED && this.active()) {
-        _chan.finally.value(_chan.tail.value())
-      }
+  // will be propagated after all other channel signals - in FILO order
+  this.finally = function(f) {
+    var fs = new Signal()
+    fs.keep(_keep)
+    f = f.call(fs)
+    if (f) {
+      _finally = _finally || f
+      _filo.unshift(f)
     }
-    return _chan.finally
+    return this
   }
 
-  // Return the current channel history as an array 
-  this.history = function(f) {
-    _seed()
-    if (this!==_chan.ftail) {
-      return _chan.ftail.history(f)
-    }
-    var _this = this
-    if (typeof f === 'function') {
-      return this.lift(function(){
-        f(_this.history())
-      })
-    }
-    return _l
-      ? (_depth? _v:[_v]).map(function(v){return v.value})
-      : []
+  // A dirty signal is one whose value or object reference has changed, or,
+  // if it's a mutated array or object, where one of its members has changed
+  this.dirty = function(key) {
+    var dirty = _state ? _state.dirty : true
+    return dirty!==circus.FALSE || dirty===key
+  }
+
+  // Map a signal onto a new signal on the same channel
+  // the mapping function receives the current signal value and
+  // an opt-in mutator object. The mapping function should return a new 
+  // value or the mutator object containing the value.
+  // The map function has three return states:
+  //  undefined (no return) - do not map value
+  //  circus.FALSE - do not map value and stop propagation
+  //  value - map and propagate value (use circus.UNDEFINED to map undefined value)
+  this.map = function(f) {
+    var _this = this, s = this.next()
+    var m = /\(.+,.+,.+\)\s*[{=]/.test(f.toString())
+    return this.lift(function(v,c){
+      var args = [v,c]
+      if (m || circus.alwaysDiff) {
+        m={value:Signal.prototype.copy(v),dirty:_this.dirty()}
+        if (circus.alwaysDiff) args = [m,c]; else args.push(m)
+      }
+      var nv = f.apply(this,args)
+      if (nv !== circus.FALSE) {
+        if (nv === undefined) nv = v
+        s.value(nv,c,m)
+      }
+    })
   }
 
   // seed signal with any combination of:
@@ -213,20 +159,112 @@ function Signal(seed, chan, fchan){
     var _this = this;
     [].slice.call(seed).forEach(function(arg){
       if (typeof arg === 'string') {
-        _chan.name = arg
+        _name = arg
       }
       else if (arg instanceof Signal) {
         _this.feed(arg)
       }
-      else _chan.seed = arg
+      else _seed = arg
     })
   }
 
-}
+  function SignalStep(){
+    var id = this.id = ++cid
+    var _l = 0
+    var _n = []
+    var _depth = _keep
+    var _v = _depth>1? []: undefined
 
-// Then - chainable context
-Signal.prototype.then = function(f) {
-  return f.call(null,this)
+    if (_step) _step.next = this
+    else _step = this
+    _tail = this
+
+    var loop = 10
+    function next(_this,v) {
+      for (var j = 0, nl = _n.length; j < nl; j += 1) {
+        id && --loop && _n[j].call(_this, v,_key)
+      }
+    }
+
+    function getValue() {
+      return (_depth>1? _v[_v.l]:_v) || {dirty:true,value:undefined}
+    }
+
+    function setValue(v,m,diff){
+      var cv = getValue().value
+      _state = m===v && diff(m,cv) || {dirty:v===cv && circus.FALSE || cv, value:v}
+      if (_depth>1) {
+        if (_l === _depth) {_v.shift();_l--}
+        _v.push(_state)
+      } else {
+        _v=_state
+      }
+      _v.l = _l++
+    }
+
+    // Set the value of a signal. The new value will propagate through the signal channel
+    // If the signal depth is 0 the new value will be dirty
+    // If the number of values == the depth the first value is dropped.
+    this.value = function (v,c,m) {
+      seedValue() 
+      if (arguments.length) {
+        if (_on || _on===undefined){
+          _key = c
+          _on = true
+          if (v === circus.UNDEFINED) v = undefined
+          if (_depth) setValue(v, m || nullMutator, circus.diff); else _l++ && (_v = {dirty:true,value:v})
+          next(this,v)
+          if (_tail === this && _finally) {
+            _filo.reduce(function(a,f) {
+              f.value(a)
+              return f.value()
+            },v)
+          }
+          if (_pulse) {
+            _on = undefined
+            setValue(undefined, nullMutator, circus.diff)
+          }
+        }
+        return this
+      }
+      return (
+        _l ? getValue().value
+           : _depth>1? []:undefined
+      )
+    }
+
+    // A dirty signal is one whose value or object reference has changed, or,
+    // if it's a mutated array or object, where one of its members has changed
+    this.dirty = function(key) {
+      var v = getValue()
+      return v.dirty!==circus.FALSE || v.dirty===key
+    }
+    
+    // signal depth == channel keep or:
+    //  n == undefined - keep all
+    //  n < 2          - keep 1 
+    this.depth = function(n) {
+      _depth = arguments.length? n : Number.MAX_SAFE_INTEGER
+      if (_depth > 1 && _v===undefined) _v=[]
+      return this
+    }
+
+    this.history = function(f) {
+      return _l
+        ? (_depth>1? _v:[_v]).map(function(v){return v.value})
+        : []
+    }
+
+    // Lift a function into a signal. 
+    // The function will be called in signal step context
+    // the function arguments will be the current signal value
+    this.lift = function(f) {
+      if (f) _n.push(f)
+      _step = _step.next || _step
+    }
+
+  }
+   
 }
 
 // Feed signal values into fanout signal channel(s)
@@ -234,7 +272,7 @@ Signal.prototype.feed = function() {
   var _this = this, p = popTail(arguments), args = p.signals,fn = p.tail
   args.forEach(function(fs){
     _this.lift(function(v){
-      if (!fn || fn(v)) fs.head(v)
+      if (!fn || fn(v)) fs.value(v)
     })
   })
   return this
@@ -244,43 +282,8 @@ Signal.prototype.feed = function() {
 Signal.prototype.diff = circus.diff
 Signal.prototype.copy = circus.copy
 
-// Map a signal onto a new signal on the same channel
-// the mapping function receives the current signal value and
-// an opt-in mutator object. The mapping function should return a new 
-// value or the mutator object containing the value.
-Signal.prototype.map = function(f) {
-  var _this = this, s = this.signal()
-  var m = /\(.+,.+,.+\)\s*[{=]/.test(f.toString())
-  this.lift(function(v,c){
-    var args = [v,c]
-    if (m || circus.alwaysDiff) {
-      m={value:Signal.prototype.copy(v),dirty:_this.dirty()}
-      if (circus.alwaysDiff) args = [m,c]; else args.push(m)
-    }
-    var v = f.apply(null,args)
-    if (v !== circus.FALSE) {
-      s.value(v,c,m)
-    }
-  })
-  return s
-}
-
-Signal.prototype.reduce = function(f,accum) {
-  var _this = this, s = this.signal()
-  return this.map(function(){
-    if (!accum) {
-      accum = _this.value()
-    }
-    else {
-      var args = [accum].concat([].slice.call(arguments))
-      accum = f.apply(null,args)
-    }
-    return accum
-  })
-}
-
 function join(_this, sampleOnly, joinOnly, args) {
-  var s = _this.signal()
+  var sn = _this.next(), soStep = _this.step()
   var tkey = _this.name() || 0, keys = [tkey]
   var joinFn = args.tail
   var signals = args.signals
@@ -292,50 +295,51 @@ function join(_this, sampleOnly, joinOnly, args) {
   }
 
   if (signals.length) {
-    var sblock = signals.pop(),sid
+    var sblock = signals.pop()
     if (!(sblock instanceof Signal)) {
       Object.keys(sblock).forEach(function(k){
-        var id = sblock[k] === circus.id, s = id? _this:sblock[k] 
+        var s = sblock[k] === circus.id? _this:sblock[k] 
         s.name(k)
-        if (s === _this) 
-          tkey = k
-        else
-          signals.push(s)
-        
-        sid = sid || id
+        signals.push(s)        
       })
     }
-    else signals.push(sblock)
+    else {
+      signals.push(sblock)
+      sblock = false
+    }
   }
 
-  signals.unshift(sampleOnly? false:_this)
-  var h = _this.head(), jp = h.jp || {}, isJoin = h.jp && joinOnly
+  if (!sampleOnly && !sblock) signals.unshift(_this)
+
+  var jp = _this.jp || {}, isJoin = _this.jp && joinOnly
   if (jpName) {
     keys[0] = joinOnly? signals[0].name() || 0 : undefined
     jp[jpName] = {join:function(j,fn) {
       var l = signals.length
       signals.push(j)
-      return signals[l].lift(valueOf(l,fn))
+      j.lift(valueOf(l,fn))
     }}
   }
-  h.jp = jp
+  _this.jp = jp
 
-  var si = sampleOnly? 1:0
-  function valueOf(i,fn) {
-    var key = keys[i+si] = signals[i].name() || i+si
+  function valueOf(i,fn, so) {
+    var key = keys[i] = signals[i].name() || i
     fn = fn || joinFn
+    if (!so) signals[i] = signals[i].step()
     return function(v) {
-      var nv
+      var nv, ov = signals[0].value()
       if (signals.reduce(anyDirty,false)) {
-        if (isJoin) nv = Signal.prototype.copy(_this.value()); else {nv={}; nv[tkey]=_this.value()}
-        signals.forEach(function(a,j){if (j || !isJoin) nv[keys[j+si]] = a.value()})
+        if (isJoin) nv = Signal.prototype.copy(ov); else {
+          nv={}
+          if (!sblock) nv[tkey]=ov
+        }
+        signals.forEach(function(a,j){if (j || !isJoin) nv[keys[j]] = a.value()})
       }
       else {
-        nv = s.value()
+        nv = sn.value()
         nv[key] = v
       }
-      if (sampleOnly && !sid) nv[tkey]=_this.value()
-      var test = !fn || fn.call(null,nv,key)
+      var test = !fn || fn.call(_this,nv,key)
       if (test) {
         if (joinOnly) {
           v = nv
@@ -352,19 +356,18 @@ function join(_this, sampleOnly, joinOnly, args) {
             }
           }
         }
-        s.value(sampleOnly? _this.value() : v,key)
+        sn.value(sampleOnly? soStep.value() : v,key)
       }
     }
   }
 
-  // lift current value of target signal 
-  var i = !sampleOnly && signals[0]? 1:0 
-  if (i) signals[0].lift(valueOf(0)); else signals.shift()
-  for (var l = signals.length; i<l; i++) {
-    // lift final values of incoming signals
-    signals[i].finally().lift(valueOf(i))
+  if (sampleOnly) _this.lift(valueOf(0,undefined,true))
+  for (var i=0, l = signals.length; i<l; i++) {
+    // lift values of incoming signals
+    signals[i].lift(valueOf(i))
   }
-  return s
+
+  return _this.lift()
 }
 
 function joinAt(_this, args, mapFn) {
@@ -405,7 +408,7 @@ function extend(o1, o2) {
 // The output signal will be active when any of the input signals are active
 // or the optional guard function returns true. Default - join all
 Signal.prototype.join = function(){
-  return join(this,false,true,popTail(arguments,_allActive))
+  return join(this,false,true,popTail(arguments,_anyActive))
 }
 
 // Merge 2 or more input signal values into 1 output signal value

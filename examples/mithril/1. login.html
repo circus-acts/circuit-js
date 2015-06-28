@@ -20,7 +20,7 @@
   *  Circus.MVI
   *  Application state and logic is completely expressed by and manipulated through
   *  circus signals, arranged as M(odel) V(iew) I(ntent) circuitry that cyclically
-  *  feed each other values folded over time.
+  *  feeds the values of each signal into the next.
   *
   *  The direction of information travel is strictly M -> V -> I
   *
@@ -30,31 +30,38 @@
   *          Intent  <--  View
   *
   *  The values in the circuit form the application state and are manipulated
-  *  through functional composition using map / reduce semantics.
+  *  through functional composition using map / reduce semantics. For example,
+  *  the model will likely map its input onto a different shaped output:
+  *
+  *     model.map(fn) // where fn: x > y
+  *
   *
   *  MODEL: I -> Model -> V
   *  The purpose of the model is to aggregate and map intention signals
-  *  onto application model state and pass this into the view.
+  *  onto application model state and pass this data on to the view.
   *  The model is usually the place to tap the current application state 
   *  into the domain. E.g., to save the application state to storage, to call
   *  external services etc.
   */
-  var model = circus.signal().map(greet)
+  var model = circus.signal().map(greet).tap(log)
 
-  function greet(v) {
+  function greet(i) {
     return {
-      name: v.name,
-      password: v.password,
-      salute: v.name && v.password && v.name[0].toUpperCase() + v.name.substr(1) + '!!'
+      name: i.name || '',
+      password: i.password || '',
+      salute: i.name && i.password && i.name[0].toUpperCase() + i.name.substr(1) + '!!'
     }
+  }
+
+  function log(m) {
+    console.log(m.salute)
   }
 
   /* 
   *  VIEW: M -> View -> I
-  *  Generates the view by applying the current model state to a render
-  *  function. The render is a mapping function that takes a model state and 
-  *  returns a view state suitable for mounting. The mounted view feeds the 
-  *  intention channel(s).
+  *  The view maps the current model state over a render function.
+  *  The render function returns a view state suitable for mounting. 
+  *  The mounted view feeds the intention signal channel(s) through user actions
   */ 
   var view = circus.signal().map(render)
 
@@ -62,13 +69,13 @@
     return m('div', [
       m('h1', 'Please register'),
       m('label',['name', m('input', {
-        onchange:m.withAttr('value',intentions.name.head),
-        value:model.name || ''
+        onchange:m.withAttr('value',intentions.name.value),
+        value:model.name
       })]),
       m('label',['password', m('input', {
         type: 'password',
-        onchange:m.withAttr('value',intentions.password.head),
-        value:model.password || ''
+        onchange:m.withAttr('value',intentions.password.value),
+        value:model.password
       })]),
       model.salute? m('div',[m('span','Welcome'),m('span',model.salute)]) : ''
     ])
@@ -78,20 +85,21 @@
   *  INTENT: V -> Intent > M
   *  Intentions are signals whose values are generated from user actions and
   *  system events. Most of the application's UI logic is expressed through
-  *  intentions that join together to form a single channel that feeds the model.
+  *  intentions that join together to form a circuit that feeds the model.
   */
   var intentions = {
     name: circus.signal(),
     password: circus.signal()
   }
-  var intent = circus.signal().join(intentions)
+
+  // use a matcher to ensure that both circuit channels are active
+  var intent = circus.signal().join(intentions).and()
 
   /*
-  *  Application
-  *  Folds MVI values over time and converts it to a component suitable 
+  *  Application: Folds MVI values over time and returns a component suitable 
   *  for mounting.
   */
-  var app = circus.stage(model, view, intent)
+  var app = circus.fold(model, view, intent)
 
   /*
   *  Pass the component on to mithril.

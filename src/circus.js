@@ -12,7 +12,7 @@ var circus = (function(){
 
   }
 
-  var type = {}.toString
+  var type = {}.toString, ARRAY='A',OBJECT='O',LITERAL = 'SNBDR'
 
   // expose to mutation api for override
   function shallowCopy(n) {
@@ -32,8 +32,8 @@ var circus = (function(){
   * ..dirty if that key value is dirty regardless of other changed props
   */
   function shallowDiff(m,v,d) {
-    var dirty = circus.FALSE,mv=d? m : m.value
-    if (mv === undefined || v === undefined) {
+    var dirty = circus.FALSE,mv=d? m : m.value, t = type.call(mv)[8]
+    if (~LITERAL.indexOf(t) || mv === undefined || v === undefined) {
       dirty = mv!==v;
     }
     else {
@@ -41,18 +41,17 @@ var circus = (function(){
         dirty = v[m.key] !== mv[m.key] && m.key || circus.FALSE
       }
       else {
-        var t = type.call(mv)
-        if (t === '[object Array]') {
+        if (t === ARRAY) {
           for (var i=0, l=mv.length; i<l; i++) {
             if (d && shallowDiff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
               dirty=i
               break
             }
           }
-        } else if (t === '[object Object]') {
+        } else if (t === OBJECT) {
           var mk = Object.keys(mv), vk = Object.keys(v) 
           dirty = mk.length != vk.length || typeof v !== 'object' || mk.reduce(function(a,k){
-            return a!==circus.FALSE || (d) && shallowDiff(mv[k],v[k],d).dirty || (mv[k] !== v[k] && k) || a
+            return a!==circus.FALSE || (d && shallowDiff(mv[k],v[k],d).dirty) || (mv[k] !== v[k] && k) || a
           },circus.FALSE)
         }
       }
@@ -84,33 +83,27 @@ var circus = (function(){
   }
 
   /*
-  * Stage a new circus act that feeds directed MVI signals 
+  * Fold a new circus act that feeds directed MVI signals 
   */
-  function stage(m,v,i) {
+  function fold(m,v,i) {
 
     // Model and intent are simple feeds but view feeds into 
     // intent through explicit bindings in the render function.
-    // put simply: views only feed through user intentions
-    m.finally().feed(v.head())
-    i.finally().feed(m.head())
-
+    // Put simply: views only feed through user intentions
     return {
-      model: m.head(),
-      view: v.head(),
-      intent: i.head()
+      model: m.finally(function() {return this.feed(v)}),
+      view: v,
+      intent: i.finally(function() {return this.feed(m)})
     }
   }
 
   var api = {
-
-    FALSE: Object.freeze({'false':true}),
-    UNDEFINED: Object.freeze({'undefined':true}),
     copy: shallowCopy,
     diff: shallowDiff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,
-    stage: stage,
+    fold: fold,
     id: function(v) {return v}
   }
 

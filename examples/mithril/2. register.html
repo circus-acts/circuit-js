@@ -60,21 +60,21 @@
   // construct the circuit using a signal block of named channels
   var intent = circus.intent(),
       password = required().then(strengthen),
-      strength = intent.add(),
+      strength = intent.signal(),
       intentions = {
-        user: intent.add().join({
+        user: intent.signal().join({
           email: required().error(formed),
           password: password
         }),
         strength: strength,
-        register: intent.add(),
-        confirm: intent.add().then(match),
+        register: intent.signal(),
+        confirm: intent.signal().then(match),
         title: required(),
         firstName: required(),
         lastName: required(),
-        address: intent.add().join({
+        address: intent.signal().join({
           line1: required(),
-          line2: intent.add(),
+          line2: intent.signal(),
           town: required(),
           county: required(),
           country: required()
@@ -85,7 +85,7 @@
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {
-    return intent.add().error(function(v){return !v && (msg ||'required')})
+    return intent.signal().error(function(v){return !v && (msg ||'required')})
   }
 
   var email = /\S+@\S+\.\S+/i

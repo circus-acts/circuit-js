@@ -2,10 +2,6 @@ runTests('circus', function(mock) {
 
 	var app, Signal
 
-	function doubleUp(v) {
-		return v<8? v + v : v
-	}
-
 	function add1(v) { return v+1 }
 	function add2(v) { return v+2 }
 	function sub3(v) { return v-3 }
@@ -14,7 +10,7 @@ runTests('circus', function(mock) {
     function render(model) {
     	if (isDirty) {
     		isDirty = false;
-	        app.intent.head(model)
+	        app.intent.value(model)
 	        return model
     	}
         return circus.FALSE
@@ -22,9 +18,9 @@ runTests('circus', function(mock) {
 
 	setup(function(){
 		isDirty = true;
-		app = circus.stage(
-			circus.model(),
-			circus.view().finally().map(render),
+		app = circus.fold(
+			circus.model().keep(),
+			circus.view().map(render),
 			circus.intent()
 		)
 		
@@ -38,34 +34,35 @@ runTests('circus', function(mock) {
 	})
 
 	test('model state change', function(){
-		app.model.head('x')
-		return app.model.state() === 'x' && 
-				app.view.state() === 'x' && 
-				app.intent.state().model === 'x'
+		app.model.value('x')
+		return app.model.value() === 'x' && 
+				app.view.value() === 'x' && 
+				app.intent.value().model === 'x'
 	})
 
 	test('view state change', function(){
-		app.view.head('x')
-		return app.model.state() === 'x' && 
-				app.view.state() === 'x' && 
-				app.intent.state().model === 'x'
+		app.view.value('x')
+		return app.model.value() === 'x' && 
+				app.view.value() === 'x' && 
+				app.intent.value().model === 'x'
 	})
 
 	test('intent state change', function(){
-		app.intent.head('x')
-		return app.model.state() === 'x' && 
-				app.view.state() === 'x' && 
-				app.intent.state().model === 'x'
+		app.intent.value('x')
+		return app.model.value() === 'x' && 
+				app.view.value() === 'x' && 
+				app.intent.value().model === 'x'
 	})
 
 	test('composition', function(){
 		app.model.map(add1)
 		app.view.map(add2)
 		app.intent.map(sub3)
-		app.model.head(1)
-		return app.model.state() === 2 && 
-			   app.view.state() === 4 && 
-			   app.intent.state().model === 1
+		app.model.value(1)
+		return 	app.model.history().toString() === '2,0'
+				app.model.value() === 0 && 
+			   	app.view.value() === 4 && 
+			   	app.intent.value().model === -1
 	})
 
 })

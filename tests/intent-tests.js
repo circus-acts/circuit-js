@@ -5,78 +5,91 @@ runTests('intent', function(mock) {
     setup(function(){
         intent = circus.intent()
         nested = {
-            i4:intent.add(),
-            i5:intent.add([5])
+            i4:intent.signal(),
+            i5:intent.signal([5])
         }
         intentions = {
-            i1:intent.add(),
-            i2:intent.add(),
-            i3:intent.add().join(nested)
+            i1:intent.signal(),
+            i2:intent.signal(),
+            i3:intent.signal().join(nested)
         }
         intent.join(intentions)
     })
 
     test('error', function(){
-        intent = circus.intent().error(function(v){return true}).head(1)
-        return circus.deepEqual(intent.state(),{model:1,error:{model:true}})
+        intent = circus.intent().error(function(v){return true}).value(1)
+        return circus.deepEqual(intent.value(),{model:1,error:{model:true}})
     })
 
     test('error - valid', function(){
-        intent = circus.intent().error(function(v){return false}).head(1)
-        return circus.deepEqual(intent.state(),{model:1,error:{model:false}})
+        intent = circus.intent().error(function(v){return false}).value(1)
+        return circus.deepEqual(intent.value(),{model:1,error:{model:false}})
     })
 
     test('error then valid', function(){
-        intent = circus.intent().error(function(v){return true}).head(1)
-        intent = circus.intent().error(function(v){return false}).head(2)
-        return circus.deepEqual(intent.state(),{model:2,error:{model:false}})
+        intent = circus.intent().error(function(v){
+            return v!==2}
+        ).value(1)
+        intent.value(2)
+        return circus.deepEqual(intent.value(),{model:2,error:{model:false}})
+    })
+
+    test('valid then error', function(){
+        intent = circus.intent().error(function(v){
+            return v!==1}
+        ).value(1)
+        intent.value(2)
+        return circus.deepEqual(intent.value(),{model:2,error:{model:true}})
     })
 
     test('error - message', function(){
-        intent = circus.intent().error(function(v){return 'err'}).head(1)
-        return circus.equal(intent.state().error,{model:'err'})
+        intent = circus.intent().error(function(v){return 'err'}).value(1)
+        return circus.equal(intent.value().error,{model:'err'})
     })
 
     test('error chain - 1st error', function(){
-        intent = circus.intent().error(function(v){return 'e1'}).error(function(v){return 'e2'}).head(1)
-        return circus.equal(intent.state().error,{model:'e1'})
+        intent = circus.intent().error(function(v){return 'e1'}).error(function(v){return 'e2'}).value(1)
+        return circus.equal(intent.value().error,{model:'e1'})
     })
 
     test('error chain - 2nd error', function(){
-        intent = circus.intent().error(function(v){return false}).error(function(v){return 'e2'}).head(1)
-        return circus.equal(intent.state().error,{model:'e2'})
+        intent = circus.intent().error(function(v){return false}).error(function(v){return 'e2'}).value(1)
+        return intent.value().error.model === 'e2'
     })
 
     test('error chain - skip 2nd error', function(){
-        var first, second
-        intent = circus.intent().error(function(v){return first ='e1'}).error(function(v){return second = 'e2'}).head(1)
-        return first === 'e1' && second === undefined
+        intent = circus.intent().error(function(v){return 'e1'}).error(function(v){return 'e2'}).value(1)
+        return intent.value().error.model === 'e1'
     })
 
     test('error chain - valid', function(){
-        intent = circus.intent().error(function(v){return false}).error(function(v){return false}).head(1)
-        return circus.equal(intent.state().error,{model:{}})
+        intent = circus.intent().error(function(v){return false}).error(function(v){return false}).value(1)
+        return intent.value().error.model === false
     })
 
     test('error - immediate', function(){
-        intent = circus.intent().error('err').head(1)
-        return circus.deepEqual(intent.state(),{model:1,error:{model:'err'}})
+        intent = circus.intent().error('err').value(1)
+        return circus.deepEqual(intent.value(),{model:1,error:{model:'err'}})
     })
 
-    test('add - seed', function(){
+    test('aggregate - seed', function(){
         return nested.i5.value() === 5
     })
 
-    test('add - aggregate', function(){
-        intentions.i1.error(function(v){return true}).head(1)
-        return circus.deepEqual(intent.state(),{model:{
+    test('aggregate', function(){
+        intentions.i1.error(function(v){return true}).value(1)
+        nested.i4.error(function(v){return true}).value(4)
+        return circus.deepEqual(intent.value(),{model:{
                                                     i1:1,
                                                     i2: undefined,
                                                     i3: {
-                                                        i4: undefined,
+                                                        i4: 4,
                                                         i5: 5
                                                     }
-                                                },error:{i1:true}})
+                                                },error:{
+                                                    i1:true,
+                                                    i4:true
+                                                }})
     })
 
 

@@ -16,15 +16,14 @@ var circusComposables = (function(circus){
 
     // Batch values into chunks of size w
     batch: function(w) {
-      var s = this.signal(), b = []
-      this.lift(function(v){
+      var s = this.next(), b = []
+      return this.lift(function(v){
         b.push(v)
         if (b.length === w) {
           s.value([].slice.call(b))
           b.length = 0
         }
       })
-      return s
     },
 
     // Remove undefined values from the signal
@@ -35,7 +34,7 @@ var circusComposables = (function(circus){
     },
 
     flatten: function(f) {
-      var s = this.signal()
+      var s = this.next()
       function flatten(v) {
         if (type.call(v) === '[object Array]') {
           v.forEach(flatten)
@@ -45,8 +44,7 @@ var circusComposables = (function(circus){
           else s.value(v)
         }
       }
-      this.lift(flatten)
-      return s
+      return this.lift(flatten)
     },
 
     maybe: function(f,n) {
@@ -80,6 +78,21 @@ var circusComposables = (function(circus){
       })
     },
 
+    // continuously reduce incoming signal values into 
+    // an accumulated outgoing value 
+    reduce: function(f,accum) {
+      return this.map(function(){
+        if (!accum) {
+          accum = this.value()
+        }
+        else {
+          var args = [accum].concat([].slice.call(arguments))
+          accum = f.apply(null,args)
+        }
+        return accum
+      })
+    },
+
     // Skip the first n values from the signal
     // The signal will not propagate until n + 1
     skip: function (n) {
@@ -94,6 +107,11 @@ var circusComposables = (function(circus){
       return this.map(function (v) {
         return (n-- > 0)? v: circus.FALSE
       })
+    },
+
+    // Chainable context
+    then: function(f) {
+      return f.call(null,this)
     },
 
     // Batch values into sliding window of size w

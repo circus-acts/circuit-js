@@ -7,11 +7,9 @@
 
   // A simple adaptor that kick starts the application before
   // returning the rendered view wrapped in a mithril component.
-  // Note that the application state can vary independently of
-  // mithril redraw.
-  var _stage = circus.stage
-  circus.stage = function(m, v, i, s) {
-    var app = _stage(m, v, i), started=0
+  var _fold = circus.fold
+  circus.fold = function(m, v, i, seed) {
+    var app = _fold(m, v, i), started=0
 
     return {
       // Opt-in mutable state. 
@@ -22,12 +20,14 @@
         return app.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
       },
   
-      // project latest render into mithril component
+      // project latest render into mithril component. Note that the application state
+      // can vary independently of mithril redraw.
       view: function() {
+        // kick-start the app 
         if (!started++) {
-          m.head(s || '')
+          m.value(seed || '')
         }
-        return app.view.state()
+        return app.view.value()
       }
     }
   }

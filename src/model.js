@@ -37,15 +37,15 @@ var curcusModel = (function(circus){
 
     var model = circus.signal(seed)
     
-    var _head = model.head
-    model.head = function() {
-      state = circus.copy(model.value())
-      return _head.apply(this,arguments)
+    var _value = model.value.bind(model)
+    model.value = function() {
+      state = circus.copy(_value())
+      return _value.apply(this,arguments)
     }
 
     var _dirty = model.dirty.bind(model)
     model.dirty = function(binding) {
-      return binding===undefined? _dirty() : mutated(state, this.value(), binding)
+      return binding===undefined? _dirty() : mutated(state, _value(), binding)
     }
 
     return model

@@ -27,31 +27,31 @@ runTests('model', function() {
     })
 
     test('dirty', function(){
-        model.head(state)
+        model.value(state)
         return model.dirty()
     })
 
     test('dirty - ref', function(){
-        model.head(state)
-             .head(newstate())
+        model.value(state)
+             .value(newstate())
         return model.dirty()
     })
 
     test('clean - ref', function(){
-        model.head(state)
-             .head(state)
+        model.value(state)
+             .value(state)
         return !model.dirty()
     })
     
     test('clean - same ref', function(){
-        model.head(state)
+        model.value(state)
         state.a=456
-        model.head(state)
+        model.value(state)
         return !model.dirty()
     })
     
     test('dirty path', function(){
-        model.head(state)
+        model.value(state)
         return model.dirty('a') &&
                 model.dirty('b') && 
                 model.dirty('b[0]') && 
@@ -67,8 +67,8 @@ runTests('model', function() {
     })
 
     test('clean path', function(){
-        model.head(state)
-             .head(newstate())
+        model.value(state)
+             .value(newstate())
         return !model.dirty('a') &&
                 !model.dirty('b') && 
                 !model.dirty('b[0]') && 
@@ -84,26 +84,26 @@ runTests('model', function() {
     })
 
     test('dirty a', function(){
-        model.head(state)
+        model.value(state)
         state = newstate()
         state.a=456
-        model.head(state)
+        model.value(state)
         return model.dirty('.a')
     })
 
     test('dirty b', function(){
-        model.head(state)
+        model.value(state)
         state = newstate()
         state.b[0]=456
-        model.head(state)
+        model.value(state)
         return model.dirty('b')
     })
 
     test('clean b - ref', function(){
-        model.head(state)
+        model.value(state)
         state = newstate()
         state.b = [1,2,3]
-        model.head(state)
+        model.value(state)
         return !model.dirty('b')
     })
 

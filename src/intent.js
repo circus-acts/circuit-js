@@ -4,37 +4,34 @@ var circusIntent = (function(circus){
 
   circus = circus || require('circus')
 
-  function Intent(signal, errorSignal, error, root, seed){
+  function Intent(seed){
   
-    if (!errorSignal) {
-      error = circus.FALSE
-      errorSignal = circus.signal()
-    }
+    var err = {},
+        error = circus.signal()
 
-    var intent = root && circus.signal(seed).finally().join({
-          model:circus.id,
-          error:errorSignal
-        },circus.signal.anyActive).head() || signal()
+    var intent = circus.signal(seed).finally(function(){
+      return this.join({
+        model:circus.id,
+        error:error
+      },circus.signal.anyActive)
+    })
 
-    signal = intent.signal.bind(intent)
-    intent.signal = function(){ 
-      return new Intent(signal,errorSignal,error)
-    }
-
-    intent.add = function(seed){
-      return new Intent(signal,errorSignal,error,true,seed)
+    intent.signal = function(seed){
+      var signal = circus.signal(seed)
+      signal.error = intent.error
+      return signal
     }
 
     intent.error = function(fn) {
-      var err = {}, n = this.name(), push = function(v,msg) {
-        if (error === circus.FALSE) {
-          err[n] = msg || fn(v)
-          error = err[n]? err : circus.FALSE
-          errorSignal.value(error)
+      var n = this.name() || 'model', push = function(v,msg) {
+        var m = msg || fn(v)
+        if (!err[n] || !m) {
+          err[n] = m
+          error.value(err)
         }
       }
       if (typeof fn === 'function') {
-        return this.lift(push)
+        this.lift(push)
       }
       else push(null,fn)
       return this
@@ -43,7 +40,7 @@ var circusIntent = (function(circus){
     return intent
   }
   
-  return circus.intent = function(seed) {return new Intent(undefined,undefined,undefined, true, seed)}
+  return circus.intent = function(seed) {return new Intent(seed)}
 
 })(circus)
 
