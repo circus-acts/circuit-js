@@ -1,3 +1,121 @@
+var circus = (function(){
+
+  'use strict';
+
+  /*
+  *  Circus MVI is implemented through the independent signals m, v and i 
+  *  that feed into each other to form a circular channel folded over itself.
+  *  The resulting ring circuit responds to discrete signal value changes 
+  *  over time.
+  */
+  function circus(){
+
+  }
+
+  var type = {}.toString, ARRAY='A',OBJECT='O',LITERAL = 'SNBDR'
+
+  // expose to mutation api for override
+  function shallowCopy(n) {
+    if (typeof n==='object') {
+      if (n.length) return n.slice()
+      var c={}
+      Object.keys(n).forEach(function(k){
+        c[k] = n[k]
+      })
+      return c
+    }
+    return n
+  }
+
+  /*
+  * a value is dirty if any of its properties are dirty, or for key diff
+  * ..dirty if that key value is dirty regardless of other changed props
+  */
+  function shallowDiff(m,v,d) {
+    var dirty = circus.FALSE,mv=d? m : m.value, t = type.call(mv)[8]
+    if (~LITERAL.indexOf(t) || mv === undefined || v === undefined) {
+      dirty = mv!==v;
+    }
+    else {
+      if (m.key !== undefined) {
+        dirty = v[m.key] !== mv[m.key] && m.key || circus.FALSE
+      }
+      else {
+        if (t === ARRAY) {
+          for (var i=0, l=mv.length; i<l; i++) {
+            if (d && shallowDiff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
+              dirty=i
+              break
+            }
+          }
+        } else if (t === OBJECT) {
+          var mk = Object.keys(mv), vk = Object.keys(v) 
+          dirty = mk.length != vk.length || typeof v !== 'object' || mk.reduce(function(a,k){
+            return a!==circus.FALSE || (d && shallowDiff(mv[k],v[k],d).dirty) || (mv[k] !== v[k] && k) || a
+          },circus.FALSE)
+        }
+      }
+    }
+    return {dirty:dirty,value:mv}
+  }
+
+  function equal(m,v){
+    return shallowDiff({value:m},v).dirty === circus.FALSE
+  }
+
+  function deepEqual(m,v){
+    return shallowDiff(m,v,true).dirty === circus.FALSE
+  }
+
+  function pathToData(data, key){
+    var i = key.indexOf('[')
+    if (i > 0){
+      var idx=parseInt(key.substr(i+1,key.length-2),10)
+      var idxKey = key.substr(0,i)
+      return data[idxKey][idx]
+    }
+    return data[key]
+  }
+
+  function lens(data,path){
+    path = path.split('.')
+    return path.reduce(pathToData,data)
+  }
+
+  /*
+  * Fold a new circus act that feeds directed MVI signals 
+  */
+  function fold(m,v,i) {
+
+    // Model and intent are simple feeds but view feeds into 
+    // intent through explicit bindings in the render function.
+    // Put simply: views only feed through user intentions
+    return {
+      model: m.finally(function() {return this.feed(v)}),
+      view: v,
+      intent: i.finally(function() {return this.feed(m)})
+    }
+  }
+
+  var api = {
+    copy: shallowCopy,
+    diff: shallowDiff,
+    equal: equal,
+    deepEqual: deepEqual,
+    lens: lens,
+    fold: fold,
+    id: function(v) {return v}
+  }
+
+  // publish the api on the main circus function
+  Object.keys(api).forEach(function(k){circus[k] = api[k]})
+
+  return circus;
+
+})()
+
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = circus;
+else if (typeof define == "function" && define.amd) define(function() {return circus});
 var signal = (function(circus){
 
 'use strict';
@@ -298,14 +416,9 @@ function join(_this, sampleOnly, joinOnly, args) {
     var sblock = signals.pop()
     if (!(sblock instanceof Signal)) {
       Object.keys(sblock).forEach(function(k){
-        var s = sblock[k] === circus.id? _this:sblock[k]
-        if (typeof s === 'object') {
-          if (!(s instanceof Signal)) {
-            s = new Signal().join(s)
-          }
-          s.name(k)
-          signals.push(s)
-        }
+        var s = sblock[k] === circus.id? _this:sblock[k] 
+        s.name(k)
+        signals.push(s)        
       })
     }
     else {
@@ -478,4 +591,147 @@ return circus.signal
 
 if (typeof module != "undefined" && module !== null && module.exports) module.exports = signal;
 else if (typeof define == "function" && define.amd) define(function() {return signal});
+
+
+var curcusModel = (function(circus){
+
+  'use strict';
+
+  circus = circus || require('circus')
+
+  var type = {}.toString
+  var idx,idxKey
+
+  function pathToState(data, key){
+    var i, d0=data[0],d1=data[1]
+    if (d0 === undefined || d1 === undefined) {
+      return [true,undefined]
+    }
+    if ((i = key.indexOf('['))>0){
+      idx=parseInt(key.substr(i+1,key.length-2),10)
+      idxKey = key.substr(0,i)
+      return [d0[idxKey][idx], d1[idxKey][idx]]
+    }
+    return [d0[key],d1[key]]
+  }
+
+  function mutated(state, value, path) {
+    if (path[0]!=='.') path = '.' + path
+    path = ('root'+path).split('.')
+    var pathData = path.reduce(pathToState,[{root:state},{root:value}])
+    var typeOfD = type.call(pathData[0]), typeofV = type.call(pathData[1])
+    if ( typeOfD === typeofV && (typeOfD === '[object Object]' || typeOfD === '[object Array]')) {
+      return JSON.stringify(pathData[0]) !== JSON.stringify(pathData[1])
+    }
+    return pathData[0]!==pathData[1]
+  }
+  
+  function Model(seed) {
+  
+    var state = {}
+
+    var model = circus.signal(seed)
+    
+    var _value = model.value.bind(model)
+    model.value = function() {
+      state = circus.copy(_value())
+      return _value.apply(this,arguments)
+    }
+
+    var _dirty = model.dirty.bind(model)
+    model.dirty = function(binding) {
+      return binding===undefined? _dirty() : mutated(state, _value(), binding)
+    }
+
+    return model
+    
+  }
+
+  circus.model = function(seed) {return new Model(seed)}
+
+  return circus.model
+
+})(circus)
+
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = curcusModel;
+else if (typeof define == "function" && define.amd) define(function() {return curcusModel});
+
+
+var circusView = (function(circus){
+
+  'use strict';
+
+  circus = circus || require('circus')
+
+  function View(seed){
+  
+    var view = circus.signal(seed)
+    
+    return view
+    
+  }
+  
+  circus.domEvent = function (elem,eventNameOn, eventNameOff) {
+	  var s =  circus.signal()
+	  elem.addEventListener(eventNameOn, function(e){s.active(true).value(e)});
+	  if (eventNameOff) elem.addEventListener(eventNameOff, s.active.bind(s,false));
+	  return s
+	}
+
+  return circus.view = function(seed) {return new View(seed)}
+
+})(circus)
+
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = circusView;
+else if (typeof define == "function" && define.amd) define(function() {return circusView});
+
+
+var circusIntent = (function(circus){
+
+  'use strict';
+
+  circus = circus || require('circus')
+
+  function Intent(seed){
+  
+    var err = {},
+        error = circus.signal()
+
+    var intent = circus.signal(seed).finally(function(){
+      return this.join({
+        model:circus.id,
+        error:error
+      },circus.signal.anyActive)
+    })
+
+    intent.signal = function(seed){
+      var signal = circus.signal(seed)
+      signal.error = intent.error
+      return signal
+    }
+
+    intent.error = function(fn) {
+      var n = this.name() || 'model', push = function(v,msg) {
+        var m = msg || fn(v)
+        if (!err[n] || !m) {
+          err[n] = m
+          error.value(err)
+        }
+      }
+      if (typeof fn === 'function') {
+        this.lift(push)
+      }
+      else push(null,fn)
+      return this
+    }
+
+    return intent
+  }
+  
+  return circus.intent = function(seed) {return new Intent(seed)}
+
+})(circus)
+
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = circusIntent;
+else if (typeof define == "function" && define.amd) define(function() {return circusIntent});
 

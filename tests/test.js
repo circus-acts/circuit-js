@@ -18,15 +18,20 @@ if (!this.console) {
 
 var testQueue = [], curTest, inclusiveTests
 function xrunTests() {}
-function runTests(name,tests) {
+function irunTests(name,tests) {
+	inclusiveTests = true
+	runTests(name,tests,true)
+}
+function runTests(name,registerTests, inclusive) {
 	var test = function(){
 		this.setup = function(){}
 		this.total = 0
+		this.inclusive = inclusive
 		this.title = name
 		this.failures = []
 		this.tests = []
 		var test = curTest = this
-		tests(mock.window)
+		registerTests(mock.window)
 		this.tests.unshift(0)
 		this.tests.unshift(testQueue.length)
 		Array.prototype.splice.apply(testQueue,this.tests)
@@ -41,7 +46,6 @@ function runTests(name,tests) {
 	setTimeout(function(){
 		if (testQueue.length==len) wait()
 	},100)
-	//if (testQueue.length==1) wait()
 }
 var testRunning=0, waitCount=0
 function wait(){
@@ -66,10 +70,10 @@ function itest(name,condition) {
 	inclusiveTests=true
 	test(name,condition,true)
 }
-function test(name,condition, inclusive) {
+function test(name, condition, inclusive) {
 	var test = curTest
+	inclusive = inclusive || curTest.inclusive
 	curTest.tests.push(function() {
-		
 		if (inclusiveTests && !inclusive) return
 
 		test.total++

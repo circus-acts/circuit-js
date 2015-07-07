@@ -145,12 +145,44 @@ var circusComposables = (function(circus){
       })
     },
 
-    match: function(fn,mask){
+    match: function(fn,args){
+      var wc, mask = args[0]
+      if (mask && (args.length>1 || typeof mask !== 'object')) {
+        mask = [].slice.call(args).reduce(function(m,a){
+          m[a]=true
+          return m
+        },{})
+      }
       function match(v) {
         var m = mask || v
         var r,o = {}
-        Object.keys(m).forEach(function(k){
-          var e = fn(v[k],m[k])
+
+        function memo(w,wv) {
+          w.forEach(function(k){
+            if (wc[k] === undefined){
+              if (v[k] !== undefined) wc[k] = wv === undefined? m[k] : wv
+              else if (k==='*') {
+                memo(Object.keys(v), m[k])
+              }
+              else if (k[0]==='*') {
+                var wk = k.substr(1)
+                memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)>0}), m[k])
+              }
+              else if (k[k.length-1]==='*') {
+                var wk = k.substr(0,k.length-1)
+                memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)===0}), m[k])
+              }
+            }
+          })
+        }
+
+        if (!wc) {
+          wc = {}
+          memo(Object.keys(m))
+        }
+
+        Object.keys(wc).forEach(function(k){
+          var e = fn(v[k],wc[k])
           if (e) o[k] = e === circus.FALSE? v[k] : e === circus.UNDEFINED? undefined : e
           r = r || e
         })
@@ -159,25 +191,25 @@ var circusComposables = (function(circus){
       return this.map(match)
     },
 
-    and: function(mask){
+    and: function(){
       function and(v,m) {
         return (m === v && v) || (m===true && v) || (m===false && !v && circus.FALSE)
       }
-      return this.match(and,mask)
+      return this.match(and,arguments)
     },
 
-    or: function(mask){
+    or: function(){
       function or(v,m) {
         return v || m
       }
-      return this.match(or,mask)
+      return this.match(or,arguments)
     },
 
-    xor: function(mask){
+    xor: function(){
       function xor(v,m) {
         return (!m && v) || (!v && m) || (!v && circus.UNDEFINED)
       }
-      return this.match(xor,mask)
+      return this.match(xor,arguments)
     }
 
   })

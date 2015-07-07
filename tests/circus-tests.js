@@ -37,21 +37,21 @@ runTests('circus', function(mock) {
 		app.model.value('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
-				app.intent.value().model === 'x'
+				app.intent.value().data === 'x'
 	})
 
 	test('view state change', function(){
 		app.view.value('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
-				app.intent.value().model === 'x'
+				app.intent.value().data === 'x'
 	})
 
 	test('intent state change', function(){
 		app.intent.value('x')
 		return app.model.value() === 'x' && 
 				app.view.value() === 'x' && 
-				app.intent.value().model === 'x'
+				app.intent.value().data === 'x'
 	})
 
 	test('composition', function(){
@@ -62,7 +62,7 @@ runTests('circus', function(mock) {
 		return 	app.model.history().toString() === '2,0'
 				app.model.value() === 0 && 
 			   	app.view.value() === 4 && 
-			   	app.intent.value().model === -1
+			   	app.intent.value().data === -1
 	})
 
 })

@@ -390,13 +390,6 @@ runTests('signal', function(mock) {
 		return r === 2
 	})
 
-	test('then', function() {
-		var chain = function(s) {
-			return s.map(inc).map(inc)	
-		}
-		return circus.signal([1]).then(chain).value() === 3
-	})
-
 	test('finally', function() {
 		var r, s = circus.signal()
 		s.map(inc)
@@ -534,7 +527,7 @@ runTests('signal', function(mock) {
 		return circus.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('exclusive aggregate join', function() {
+	test('exclusive signal block', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		var j = circus.signal().join({
@@ -547,7 +540,37 @@ runTests('signal', function(mock) {
 		return circus.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('inclusive aggregate join', function() {
+	test('nest signal block', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = circus.signal().join({
+			k1:s1,
+			k2:circus.signal().join({
+				k3:s2
+			})
+		})
+		s1.value(1)
+		s2.value(2)
+		var r = j.value()
+		return circus.deepEqual(r,{k1:1,k2:{k3:2}})
+	})
+
+	test('nest object into signal block', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = circus.signal().join({
+			k1:s1,
+			k2:{
+				k3:s2
+			}
+		})
+		s1.value(1)
+		s2.value(2)
+		var r = j.value()
+		return circus.deepEqual(r,{k1:1,k2:{k3:2}})
+	})
+
+	test('inclusive signal block', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		var j = s1.join({
@@ -560,13 +583,13 @@ runTests('signal', function(mock) {
 		return circus.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('inclusive object join - finally', function() {
+	test('inclusive signal block - finally', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		var j = s1.finally(function() { return this.join({
 				k1:circus.id,
 				k2:s2
-			}, circus.signal.anyActive)
+			})
 		})
 		s1.value(1)
 		s2.value(2)

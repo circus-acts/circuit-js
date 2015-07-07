@@ -63,20 +63,39 @@ module.exports = function(grunt) {
 	};
 	_.assign(sauceQunitOptions, sauceBaseOptions);
 
-	var version = grunt.config( 'pkg.version' );
+	var pkg = grunt.file.readJSON("package.json");
+	var version = pkg.version
+	console.log(version)
 	var currentVersionArchiveFolder = archiveFolder + "/v" + version;
 	grunt.initConfig({
-	    pkg: grunt.file.readJSON("package.json"),
+		uglify: {
+			options: {banner: "/*\nCircus.js v" + version + "\nhttp://github.com/philtoms/circus.js\n(c) Phil Toms\nLicense: MIT\n*/", sourceMap: true},
+			circus: {src: currentVersionArchiveFolder+"/circus.js", dest: "circus.min.js"}
+		},
 		concat: {
+			uglify: {
+				src: [
+				"./src/circus.js", 
+				"./src/signal.js", 
+				"./src/model.js",
+				"./src/view.js", 
+				"./src/intent.js", 
+				], 
+				dest: currentVersionArchiveFolder + "/circus.js"},
+
 			test: {
 				src: [
-				"./node_modules/mithril/mithril.js", 
 				"./tests/test.js", "./tests/mock.js", 
-				"signal.js", "./tests/signal-tests.js",
-				"model.js", "./tests/model-tests.js",
-				"view.js", "./tests/view-tests.js",
-				"intent.js", "./tests/intent-tests.js",
-				"circus.js", "./tests/circus-tests.js"
+				"./src/circus.js", 
+				"./src/signal.js", 
+				"./src/model.js",
+				"./src/view.js", 
+				"./src/intent.js", 
+				"./tests/signal-tests.js",
+				"./tests/model-tests.js",
+				"./tests/view-tests.js",
+				"./tests/intent-tests.js",
+				"./tests/circus-tests.js"
 				], 
 				dest: currentVersionArchiveFolder + "/circus-tests.js"}
 		},
@@ -135,7 +154,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-connect');
 	grunt.loadNpmTasks('grunt-saucelabs');
 
-	grunt.registerTask("build", ["test", "replace", "copy", "clean"]);
+	grunt.registerTask("build", ["test", "uglify", "replace", "copy", "clean"]);
 	grunt.registerTask("test", ["concat", "execute"]);
 	grunt.registerTask("default", ["build"]);
 

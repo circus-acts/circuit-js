@@ -171,6 +171,35 @@ runTests('composables', function(mock) {
         return r.length === 4 && r.toString() === '0,1,1,2,2,3,3,4'
     })
 
+    test('match - wildcard', function() {
+        var v = {c1:1,c2:2,c3:3}
+        var v1 = circus.signal([v]).and({'*':true}).value()
+        return circus.equal(v1, v)
+    })
+
+    test('match - leading wildcard', function() {
+        var v = {c1:1,c2:2,c3:3}
+        var v1 = circus.signal([v]).and({'*1':true}).value()
+        return circus.equal(v1, {c1:1})
+    })
+
+    test('match - trailing wildcard', function() {
+        var v = {ca1:1,cb2:2,cc3:3}
+        var v1 = circus.signal([v]).and({'ca*':true}).value()
+        return circus.equal(v1, {ca1:1})
+    })
+
+    test('match - mixed wildcard', function() {
+        var v = {ca1:1,cb2:2,cc3:3}
+        var v1 = circus.signal([v]).and({'*1':false,'*':true}).value()
+        return circus.equal(v1, {cb2:2,cc3:3})
+    })
+
+    test('match - list', function() {
+        var v = {ca1:1,cb2:2,cc3:3}
+        var v1 = circus.signal([v]).and('ca1','cc3').value()
+        return circus.equal(v1, {ca1:1,cc3:3})
+    })
 
     test('and', function() {
         var s1 = circus.signal('s1').value(1)

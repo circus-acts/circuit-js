@@ -16,14 +16,13 @@
 <body>
 <script>
 
-  var model = circus.model()
-  var login = model.pluck('user').httpPost('/login')
-  var register = model.pluck('user','details').httpPost('/register')
-  var specials = circus.signal().sample(login,register).httpGet('/specials')
+  var model = circus.model(),
+      login = model.and('login','user').httpPost('/login'),
+      register = model.and('register','user','details').httpPost('/register'),
+      specials = circus.signal().sample(login,register).httpGet('/specials')
 
-  model.join({
-    login,
-    register,
+  model.join(
+    login.merge(register),
     specials
   })
 
@@ -32,56 +31,75 @@
   function loginOrRegister(model) {
     return m('div', [
       m('h1', 'Please Login'),
-      input('Email','email'),
-      input('Password','password'),
-      input('Not registered?', 'checkbox'),
-      model.register &&  m('div' [
+      input('Email','user.email','email'),
+      input('Password','user.password','password'),
+      !model.data.register &&  input('Log in', 'login', 'button'),
+      input('Not registered?', 'register', 'checkbox'),
+      model.data.register &&  m('div' [
         input('Confirm','password'),
-        dropdown('Title'),
-        input('First Name'),
-        input('Last Name'),
-        input('Address'),
+        input('Log in', 'button'),
+        dropdown('Title','title',['Mr','Mrs']),
+        input('First Name', 'details.firstName'),
+        input('Last Name', 'details.lastName'),
+        input('Address','details.address')
       ])
     ])
-  }
 
-  function input(name,type) {
-    return m('label',[
-        name, 
-        m('input', {
-          type: type || 'text',
-          onchange:m.withAttr('value',intent.channels[name].head),
-          value:model[name]
-        }),
-        model.error[name] && m('span.error' model.error[name])
+    // memo helper to build markup and bind model and intentions
+    function input(label, name, type) {
+      return m('label',[
+          label || name, 
+          m('input', {
+            type: type || 'text',
+            onchange:m.withAttr('value',circus.lens(intentions,name).value),
+            value:circus.lens(model.data,name)
+          }),
+          circus.lens(model.error,name) && m('span.error' circus.lens(model.error,name))
+        ])
+    }
+
+    function dropdown(label, name, data) {
+      return m('label',[
+        label || name, 
+        m('select', [
+          data.map(function(d){
+            return m('option', d)
+          })
+        ])
       ])
+    }
+    
   }
 
-  // construct the circuit using a signal block of named channels
+  // construct the intention circuit using a signal block of named channels.
+  // each channel gets its own binding in the view
   var intent = circus.intent(),
-      password = required().then(strengthen),
+      password = required().then(strengthTest),
       strength = intent.signal(),
       intentions = {
-        user: intent.signal().join({
+        user: {
           email: required().error(formed),
           password: password
-        }),
+        },
+        login:intent.signal().pulse(),
+        register: intent.signal().pulse(),
         strength: strength,
-        register: intent.signal(),
         confirm: intent.signal().then(match),
-        title: required(),
-        firstName: required(),
-        lastName: required(),
-        address: intent.signal().join({
-          line1: required(),
-          line2: intent.signal(),
-          town: required(),
-          county: required(),
-          country: required()
-        })
+        details: {
+          title: required(),
+          firstName: required(),
+          lastName: required(),
+          address: {
+            line1: required(),
+            line2: intent.signal(),
+            town: required(),
+            county: required(),
+            country: required()
+          }
+        }
       }
 
-  intent().join(intentions)
+  intent().join(intentions).split({})
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {
@@ -98,7 +116,7 @@
       return true
     })
   }
-  function strengthen(password){
+  function strengthTest(password){
     return password.feed(strength,function(v){
       var score = v.length
       if (score < 6) strength.error('password too weak')

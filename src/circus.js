@@ -77,9 +77,16 @@ var circus = (function(){
     return data[key]
   }
 
+  // lens
+  // memoize and return a value from a nested structure
+  // useful for plucking values and signals from models and signal groups respectively
+  var lensMemo = {}
   function lens(data,path){
-    path = path.split('.')
-    return path.reduce(pathToData,data)
+    if (!lensMemo[path]) {
+      path = path.split('.')
+      lensMemo[path] = path.reduce(pathToData,data)
+    }
+    return lensMemo[path]
   }
 
   /*

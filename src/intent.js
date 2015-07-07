@@ -11,9 +11,9 @@ var circusIntent = (function(circus){
 
     var intent = circus.signal(seed).finally(function(){
       return this.join({
-        model:circus.id,
+        data:circus.id,
         error:error
-      },circus.signal.anyActive)
+      })
     })
 
     intent.signal = function(seed){
@@ -23,7 +23,8 @@ var circusIntent = (function(circus){
     }
 
     intent.error = function(fn) {
-      var n = this.name() || 'model', push = function(v,msg) {
+      var n = this.name() || 'data'
+      function push(v,msg) {
         var m = msg || fn(v)
         if (!err[n] || !m) {
           err[n] = m
