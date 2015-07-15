@@ -10,6 +10,7 @@ var noop = function(){}
 var type = {}.toString
 
 circus.alwaysDiff = false
+circus.TRUE =  Object.freeze({'true':true})
 circus.FALSE =  Object.freeze({'false':true})
 circus.UNDEFINED = Object.freeze({'undefined':true})
 circus.MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1

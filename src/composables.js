@@ -16,14 +16,15 @@ var circusComposables = (function(circus){
 
     // Batch values into chunks of size w
     batch: function(w) {
-      var s = this.next(), b = []
-      return this.lift(function(v){
+      var b = [], batch = function(v){
         b.push(v)
         if (b.length === w) {
-          s.value([].slice.call(b))
-          b.length = 0
+          v = b, b = []
+          return v
         }
-      })
+        return circus.FALSE
+      }
+      return this.map(batch)
     },
 
     // Remove undefined values from the signal
@@ -111,7 +112,8 @@ var circusComposables = (function(circus){
 
     // Chainable context
     then: function(f) {
-      return f.call(null,this)
+      f.call(null,this)
+      return this
     },
 
     // Batch values into sliding window of size w
@@ -145,71 +147,109 @@ var circusComposables = (function(circus){
       })
     },
 
-    match: function(fn,args){
-      var wc, mask = args[0]
+    // Apply a matcher function with optional mask to pass through or block channel values.
+    // The signal is inactive if all the channels are blocked
+    // 
+    // arguments:
+    //  mask = object of channel matching key/values with wildcard
+    //    key = 'n'  - match on channel 'n'
+    //          '*n' - match on all remaining channels ending with 'n'
+    //          'n*' - match on all remaining channels starting with 'n'
+    //          '*'  - match on all remaining channels
+    //
+    //    value = true  - pass through channel value if truthy
+    //            value - pass through channel value if equal 
+    //            false - pass through channel value if falsey
+    //            
+    //  fn = function that takes a channel value and a mask value and returns one of:
+    //    truthy value     - pass through return value
+    //    circus.TRUE      - pass through channel value
+    //    true             - pass through channel value
+    //    circus.UNDEFINED - pass through undefined
+    //    falsey values    - block
+    //    circus.FALSE     - block
+    //    false            - block
+    //    undefined        - block
+    //
+    //  inclusive = all must pass through or all block
+    //
+    match: function(args, fn, inclusive){
+      if (typeof args === 'function') {
+        fn = args
+        args = false
+      }
+      if (!args || !args.hasOwnProperty('length')) {
+        args = [args]
+      }
+      var wcMask, mask = args[0], vMatch={}
       if (mask && (args.length>1 || typeof mask !== 'object')) {
         mask = [].slice.call(args).reduce(function(m,a){
-          m[a]=true
+          m[a]=vMatch
           return m
         },{})
       }
+
+      function memo(keys,v,m,wv) {
+        keys.forEach(function(k){
+          if (wcMask[k] === undefined){
+            if (k==='*') {
+              memo(Object.keys(v), v, m, m[k])
+            }
+            else if (k[0]==='*') {
+              var wk = k.substr(1)
+              memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)>0}), v, m, m[k])
+            }
+            else if (k[k.length-1]==='*') {
+              var wk = k.substr(0,k.length-1)
+              memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)===0}), v, m, m[k])
+            }
+            else wcMask[k] = wv === undefined? m===v? vMatch : m[k] : wv
+          }
+        })
+      }
+
+      fn = fn || function(v,m) {
+        return !mask? v!==undefined : v===m || v && m===true || !v && m===false
+      }
+
       function match(v) {
         var m = mask || v
-        var r,o = {}
-
-        function memo(w,wv) {
-          w.forEach(function(k){
-            if (wc[k] === undefined){
-              if (v[k] !== undefined) wc[k] = wv === undefined? m[k] : wv
-              else if (k==='*') {
-                memo(Object.keys(v), m[k])
-              }
-              else if (k[0]==='*') {
-                var wk = k.substr(1)
-                memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)>0}), m[k])
-              }
-              else if (k[k.length-1]==='*') {
-                var wk = k.substr(0,k.length-1)
-                memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk)===0}), m[k])
-              }
-            }
-          })
+        if (!wcMask) {
+          wcMask = {}
+          memo(Object.keys(m),v, m)
         }
 
-        if (!wc) {
-          wc = {}
-          memo(Object.keys(m))
-        }
-
-        Object.keys(wc).forEach(function(k){
-          var e = fn(v[k],wc[k])
-          if (e) o[k] = e === circus.FALSE? v[k] : e === circus.UNDEFINED? undefined : e
-          r = r || e
+        var passThru = inclusive,obj = {}
+        Object.keys(wcMask).forEach(function(k){
+          var mv = wcMask[k]===vMatch? v[k] : wcMask[k]
+          var e = fn(v[k],mv)
+          if (e) obj[k] = e===true? v[k] : e === circus.TRUE? v[k] : e === circus.FALSE? undefined : e
+          passThru = inclusive? passThru && e : passThru || e
         })
-        return r? o : circus.FALSE
+        return passThru? obj : circus.FALSE
       }
       return this.map(match)
     },
 
     and: function(){
       function and(v,m) {
-        return (m === v && v) || (m===true && v) || (m===false && !v && circus.FALSE)
+        return v && m === v || v && m===true || !v && m===false
       }
-      return this.match(and,arguments)
+      return this.match(arguments, and, true)
     },
 
     or: function(){
       function or(v,m) {
         return v || m
       }
-      return this.match(or,arguments)
+      return this.match(arguments, or, true)
     },
 
     xor: function(){
       function xor(v,m) {
-        return (!m && v) || (!v && m) || (!v && circus.UNDEFINED)
+        return v && m!==v || !v && m
       }
-      return this.match(xor,arguments)
+      return this.match(arguments, xor)
     }
 
   })

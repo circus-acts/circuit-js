@@ -34,7 +34,7 @@ var circus = (function(){
   function shallowDiff(m,v,d) {
     var dirty = circus.FALSE,mv=d? m : m.value, t = type.call(mv)[8]
     if (~LITERAL.indexOf(t) || mv === undefined || v === undefined) {
-      dirty = mv!==v;
+      dirty = mv!==v || circus.FALSE
     }
     else {
       if (m.key !== undefined) {
