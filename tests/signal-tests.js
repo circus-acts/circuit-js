@@ -5,15 +5,11 @@ runTests('signal', function(mock) {
 	var mul = function(v){return v*3}
 
 	test('named signal',function() {
-		return circus.signal('sig1').name() === 'sig1'
+		return circus.signal('sig1').name === 'sig1'
 	})
 
 	test('unnamed signal', function() {
-		return circus.signal().name() === undefined
-	})
-
-	test('name - change',function() {
-		return circus.signal('sig1').name('sig2').name() === 'sig2'
+		return circus.signal().name === undefined
 	})
 
 	test('seed - primitive', function() {
@@ -393,28 +389,28 @@ runTests('signal', function(mock) {
 	test('finally', function() {
 		var r, s = circus.signal()
 		s.map(inc)
-		s.finally(function(){return this.map(dbl).tap(function(v){r=v})})
+		s.finally(function(f){return f.map(dbl).tap(function(v){r=v})})
 		s.value(1)
 		return r === 4
 	})
 
 	test('finally - delayed seed', function() {
-		var r = circus.signal([1]).finally(function(){return this.map(inc)}).value()
+		var r = circus.signal([1]).finally(function(f){return f.map(inc)}).value()
 		return r === 2
 	})
 
 	test('finally - not active', function() {
-		var r = circus.signal([1]).active(false).finally(function(){return this.map(inc)}).value()
+		var r = circus.signal([1]).active(false).finally(function(f){return f.map(inc)}).value()
 		return r === undefined
 	})
 
 	test('finally - lift order', function() {
 		var r1,r2, s = circus.signal()
 		s.map(inc)
-		s.finally(function(){return this.map(dbl).tap(function(v){
+		s.finally(function(f){return f.map(dbl).tap(function(v){
 			r1=v
 		})})
-		s.finally(function(){return this.tap(function(v){
+		s.finally(function(f){return f.tap(function(v){
 			r2=v
 		})})
 		s.value(1)
@@ -455,7 +451,7 @@ runTests('signal', function(mock) {
 		var s2 = circus.signal()
 		var s = circus.signal('s',s1,s2)
 		s.value(1)
-		return s.name() === 's' && s1.value() === 1 && s2.value() === 1
+		return s.name === 's' && s1.value() === 1 && s2.value() === 1
 	})
 
 	test('feed - fanout', function() {
@@ -586,7 +582,7 @@ runTests('signal', function(mock) {
 	test('inclusive signal block - finally', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
-		var j = s1.finally(function() { return this.join({
+		var j = s1.finally(function(f) { return f.join({
 				k1:circus.id,
 				k2:s2
 			})
@@ -871,6 +867,34 @@ runTests('signal', function(mock) {
 		var s1 = circus.signal('s1').value(1)
 		var s2 = circus.signal('s2').join(s1,mask).value(2)
 		return s2.value().s1 === 1 && s2.value().s2 === undefined
+	})
+
+	test('channels', function() {
+		var s1 = circus.signal()
+		var s2 = circus.signal()
+		var j = s1.join(s2, circus.signal.allActive)
+		return circus.equal(Object.keys(s1.channels), ['0','1'])
+	})
+
+	test('sample channels', function() {
+		var s1 = circus.signal('s1')
+		var s2 = circus.signal('s2')
+		var j = s1.sample(s2)
+		return circus.equal(Object.keys(s1.channels), ['s2'])
+	})
+
+	test('merge channels', function() {
+		var s1 = circus.signal('s1')
+		var s2 = circus.signal('s2')
+		var j = s1.merge(s2)
+		return circus.equal(Object.keys(s1.channels), ['s1','s2'])
+	})
+
+	test('jp channels', function() {
+		var s1 = circus.signal('s1')
+		var s2 = circus.signal('s2')
+		var j = s1.sample(s2).join('jp2',s2)
+		return circus.equal(Object.keys(s1.jp.jp2.channels), ['s1','s2'])
 	})
 
 

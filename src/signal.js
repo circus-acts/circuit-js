@@ -2,6 +2,8 @@ var signal = (function(circus){
 
 'use strict';
 
+//todo: $ise public props
+
 circus = circus || require('circus');
 
 var cid=0
@@ -17,12 +19,12 @@ circus.MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
 
 function Signal(seed){
 
-  var _name
   var _key
   var _on
   var _state
   var _pulse
   var _filo = [], _finally
+  var _notify = []
   var _seed = circus.UNDEFINED
   var _keep = 1
   var _head = new SignalStep(), _step = _head, _tail
@@ -51,6 +53,17 @@ function Signal(seed){
       return this
     }
     return (_finally || _tail).value()
+  }
+
+  this.notify = function(fn){
+    if (fn) {
+      _notify.push(fn)
+    }
+    else {
+      var v = this.value()
+      _notify.forEach(function(n){n(v)})
+    }
+    return this
   }
 
   this.depth = _head.depth
@@ -93,14 +106,6 @@ function Signal(seed){
     return (_finally || _tail).history()
   }
 
-  this.name = function(n){
-    if (n!==undefined) {
-      _name = n
-      return this
-    }
-    return _name
-  }
-
   // Pulse signal with latest value
   // Signal will be inactive after propagation 
   this.pulse = function() {
@@ -108,17 +113,21 @@ function Signal(seed){
     return this
   }
 
-  // Functions lifted onto the signal via finally will be propagated 
-  // after all other signal steps - in FILO order
-  this.finally = function(f) {
-    var fs = new Signal()
+  // lift function onto signal tail
+  // function returning signal is lifted onto the signal tail in FILO order
+  // 
+  this.finally = function(fn) {
+    var s = this.step(), fs = new Signal()
+    s.finally=true
     fs.keep(_keep)
-    var s = f.call(fs)
-    if (s) {
-      _finally = _finally || s
-      _filo.unshift(s)
+    var r = fn.call(s,fs)
+    if (r instanceof Signal) {
+      _finally = _finally || r
+      _filo.unshift(r)
+      r = this
     }
-    return this
+    delete s.finally
+    return r
   }
 
   // A dirty signal is one whose value or object reference has changed, or,
@@ -161,7 +170,7 @@ function Signal(seed){
     var _this = this;
     [].slice.call(seed).forEach(function(arg){
       if (typeof arg === 'string') {
-        _name = arg
+        _this.name = arg
       }
       else if (arg instanceof Signal) {
         _this.feed(arg)
@@ -214,16 +223,22 @@ function Signal(seed){
           _on = true
           if (v === circus.UNDEFINED) v = undefined
           if (_depth) setValue(v, m || nullMutator, circus.diff); else _l++ && (_v = {dirty:true,value:v})
-          next(this,v)
-          if (_tail === this && _finally) {
-            _filo.reduce(function(a,f) {
-              f.value(a)
-              return f.value()
-            },v)
-          }
-          if (_pulse) {
-            _on = undefined
-            setValue(undefined, nullMutator, circus.diff)
+          if (!this.finally) {
+            next(this,v)
+            if (_tail === this) {
+              if (_finally) {
+                v = _filo.reduce(function(a,f) {
+                  f.value(a)
+                  return f.value()
+                },this.value())
+              }
+              v = _finally && v  || this.value()
+              _notify.forEach(function(n) {n(v)})
+            }
+            if (_pulse) {
+              _on = undefined
+              setValue(undefined, nullMutator, circus.diff)
+            }
           }
         }
         return this
@@ -268,7 +283,7 @@ function Signal(seed){
    
 }
 
-// Feed signal values into fanout signal channel(s)
+// Feed signal values into fanout signal(s)
 Signal.prototype.feed = function() {
   var _this = this, p = popTail(arguments), args = p.signals,fn = p.tail
   args.forEach(function(fs){
@@ -285,14 +300,14 @@ Signal.prototype.copy = circus.copy
 
 function join(_this, sampleOnly, joinOnly, args) {
   var sn = _this.next(), soStep = _this.step()
-  var tkey = _this.name() || 0, keys = [tkey]
+  var tkey = _this.name || 0, keys = [tkey]
   var joinFn = args.tail
   var signals = args.signals
-
+ 
   var jpName = signals.shift()
   if (typeof jpName !== 'string') {
     signals.unshift(jpName)
-    jpName=false
+    jpName = Object.keys(_this.jp || {}).length
   }
 
   if (signals.length) {
@@ -304,7 +319,7 @@ function join(_this, sampleOnly, joinOnly, args) {
           if (!(s instanceof Signal)) {
             s = new Signal().join(s)
           }
-          s.name(k)
+          s.name = k
           signals.push(s)
         }
       })
@@ -318,20 +333,30 @@ function join(_this, sampleOnly, joinOnly, args) {
   if (!sampleOnly && !sblock) signals.unshift(_this)
 
   var jp = _this.jp || {}, isJoin = _this.jp && joinOnly
-  if (jpName) {
-    keys[0] = joinOnly? signals[0].name() || 0 : undefined
-    jp[jpName] = {join:function(j,fn) {
-      var l = signals.length
-      signals.push(j)
-      j.lift(valueOf(l,fn))
-    }}
+  if (jp!==_this.jp || !jp[jpName]) {
+    keys[0] = joinOnly? signals[0].name || 0 : undefined
+    jp[jpName] = {
+      channels:{},
+      join:function(j,fn) {
+        var l = signals.length
+        signals.push(j)
+        j.lift(valueOf(l,fn))
+      }
+    }
   }
+
   _this.jp = jp
+  _this.channels = []
 
   function valueOf(i,fn, so) {
-    var key = keys[i] = signals[i].name() || i
+    var key = keys[i] = signals[i].name || i
     fn = fn || joinFn
-    if (!so) signals[i] = signals[i].step()
+    if (!so) {
+      var channels = signals[i].channels
+      signals[i] = signals[i].step()
+      signals[i].channels = channels
+      _this.channels[key] = jp[jpName].channels[key] = signals[i]
+    }
     return function(v) {
       var nv, ov = signals[0].value()
       if (signals.reduce(anyDirty,false)) {
@@ -410,23 +435,22 @@ function extend(o1, o2) {
 }
 
 // Join 2 or more input signals into 1 output signal
-// Input signal values will be preserved as keyed or indexed output values
+// Input signal values will be preserved as output channels
 // The output signal will be active when any of the input signals are active
-// or the optional guard function returns true. Default - join all
+// or the optional guard function returns true. 
 Signal.prototype.join = function(){
   return join(this,false,true,popTail(arguments,_anyActive))
 }
 
-// Merge 2 or more input signal values into 1 output signal value
+// Merge 2 or more input signal values into 1 output signal
 // The output signal will be active when any of the input signals are active
-// or the optional guard function returns true. Default - merge any
+// or the optional guard function returns true.
 Signal.prototype.merge = function(fn){
   return join(this,false,false,popTail(arguments,_anyActive))
 }
 
 // Sample input signal(s). The output signal will be active when any of the 
-// input signals are active or the optional guard function returns true.  
-// Default - signal any
+// input signals are active or the optional guard function returns true.
 Signal.prototype.sample = function() {
   return join(this,true,false,popTail(arguments,_anyActive))
 }

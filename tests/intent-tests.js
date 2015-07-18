@@ -92,6 +92,4 @@ runTests('intent', function(mock) {
                                                 }})
     })
 
-
-
 })

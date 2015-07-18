@@ -2,12 +2,6 @@ var circus = (function(){
 
   'use strict';
 
-  /*
-  *  Circus MVI is implemented through the independent signals m, v and i 
-  *  that feed into each other to form a circular channel folded over itself.
-  *  The resulting ring circuit responds to discrete signal value changes 
-  *  over time.
-  */
   function circus(){
 
   }
@@ -74,44 +68,61 @@ var circus = (function(){
       var idxKey = key.substr(0,i)
       return data[idxKey][idx]
     }
-    return data[key]
+    return data && data[key]
   }
 
   // lens
-  // memoize and return a value from a nested structure
+  // return a value from a nested structure
   // useful for plucking values and signals from models and signal groups respectively
-  var lensMemo = {}
-  function lens(data,path){
-    if (!lensMemo[path]) {
-      path = path.split('.')
-      lensMemo[path] = path.reduce(pathToData,data)
+  function lens(data,name,ns,def){
+    if (arguments.length<4) {
+      def=null
     }
-    return lensMemo[path]
+    var path = ((ns? ns + '.' :'') + name).split('.')
+    var v = path.reduce(pathToData,data)
+    
+    return v!==undefined? v : def
   }
 
-  /*
-  * Fold a new circus act that feeds directed MVI signals 
-  */
-  function fold(m,v,i) {
-
-    // Model and intent are simple feeds but view feeds into 
-    // intent through explicit bindings in the render function.
-    // Put simply: views only feed through user intentions
-    return {
-      model: m.finally(function() {return this.feed(v)}),
-      view: v,
-      intent: i.finally(function() {return this.feed(m)})
+  // stamp out a channel shaped object graph of default values 
+  function stamp(s, jp, fn) {
+    if (typeof jp === 'function'){
+      fn = jp
+      jp = undefined
     }
+    var c = jp? s.jp[jp].channels : s.channels
+    function stamp(c, fn){
+      var obj = {}
+      Object.keys(c).forEach (function(k){
+        if (c[k].channels) {
+          obj[k] = stamp(c[k].channels,fn)
+        }
+        else {
+          obj[k] = fn? fn(k) : ''
+        }
+      })
+      return obj
+    }
+    return stamp(c,fn)
+  }
+
+  function prime = function(s) {
+    var g = circus.stamp(this)
+    return s.finally(function() {
+      s.value(g)
+    })
   }
 
   var api = {
+    id: function(v) {return v},
     copy: shallowCopy,
     diff: shallowDiff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,
     fold: fold,
-    id: function(v) {return v}
+    stamp: stamp,
+    prime: prime
   }
 
   // publish the api on the main circus function

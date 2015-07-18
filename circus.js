@@ -91,9 +91,9 @@ var circus = (function(){
     // intent through explicit bindings in the render function.
     // Put simply: views only feed through user intentions
     return {
-      model: m.finally(function() {return this.feed(v)}),
+      model: m.finally(function(f) {return f.feed(v)}),
       view: v,
-      intent: i.finally(function() {return this.feed(m)})
+      intent: i.finally(function(f) {return f.feed(m)})
     }
   }
 

@@ -19,7 +19,12 @@ var circusView = (function(circus){
 	  return s
 	}
 
-  return circus.view = function(seed) {return new View(seed)}
+  circus.view = function(seed) {return new View(seed)}
+  circus.view.click = function(signal,value) {
+    return signal.pulse().value.bind(signal,value||true)
+  }
+
+  return circus.view
 
 })(circus)
 

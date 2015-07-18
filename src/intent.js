@@ -9,10 +9,12 @@ var circusIntent = (function(circus){
     var err = {},
         error = circus.signal()
 
-    var intent = circus.signal(seed).finally(function(){
-      return this.join({
+    var intent = circus.signal(seed).finally(function(s){
+      return s.join({
         data:circus.id,
         error:error
+      }, function(){
+        return true
       })
     })
 
@@ -23,9 +25,10 @@ var circusIntent = (function(circus){
     }
 
     intent.error = function(fn) {
-      var n = this.name() || 'data'
+      var n, _this = this
       function push(v,msg) {
         var m = msg || fn(v)
+        n = n || _this.name || 'data'
         if (!err[n] || !m) {
           err[n] = m
           error.value(err)
@@ -38,6 +41,13 @@ var circusIntent = (function(circus){
       return this
     }
 
+    intent.prime = function() {
+      var s = circus.stamp(this)
+      return this.finally(function() {
+        this.value(s)
+        intent.notify()
+      })
+    }
     return intent
   }
   

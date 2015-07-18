@@ -58,7 +58,7 @@ var circusComposables = (function(circus){
     pluck: function() {
       var args = [].slice.call(arguments)
       return this.map(function(v) {
-        return args.reduce(function(r,key){
+        return args.length===1 && circus.lens(v,args[0]) || args.reduce(function(r,key){
           r[key] = circus.lens(v,key)
           return r
         },{})
@@ -147,8 +147,8 @@ var circusComposables = (function(circus){
       })
     },
 
-    // Apply a matcher function with optional mask to pass through or block channel values.
-    // The signal is inactive if all the channels are blocked
+    // Apply a matcher function with optional mask to signal or block channel values.
+    // The signal is blocked if all the channels are blocked
     // 
     // arguments:
     //  mask = object of channel matching key/values with wildcard
@@ -157,21 +157,21 @@ var circusComposables = (function(circus){
     //          'n*' - match on all remaining channels starting with 'n'
     //          '*'  - match on all remaining channels
     //
-    //    value = true  - pass through channel value if truthy
-    //            value - pass through channel value if equal 
-    //            false - pass through channel value if falsey
+    //    value = true  - signal channel value if truthy
+    //            value - signal channel value if equal 
+    //            false - signal channel value if falsey
     //            
     //  fn = function that takes a channel value and a mask value and returns one of:
-    //    truthy value     - pass through return value
-    //    circus.TRUE      - pass through channel value
-    //    true             - pass through channel value
-    //    circus.UNDEFINED - pass through undefined
+    //    truthy value     - signal return value
+    //    circus.TRUE      - signal channel value
+    //    true             - signal channel value
+    //    circus.UNDEFINED - signal undefined
     //    falsey values    - block
     //    circus.FALSE     - block
     //    false            - block
     //    undefined        - block
     //
-    //  inclusive = all must pass through or all block
+    //  inclusive = the signal is blocked if any channels are blocked
     //
     match: function(args, fn, inclusive){
       if (typeof args === 'function') {
@@ -219,11 +219,11 @@ var circusComposables = (function(circus){
           memo(Object.keys(m),v, m)
         }
 
-        var passThru = inclusive,obj = {}
+        var passThru = inclusive, obj = {}
         Object.keys(wcMask).forEach(function(k){
           var mv = wcMask[k]===vMatch? v[k] : wcMask[k]
           var e = fn(v[k],mv)
-          if (e) obj[k] = e===true? v[k] : e === circus.TRUE? v[k] : e === circus.FALSE? undefined : e
+          if (e) obj[k] = e===true? v[k] : e === circus.UNDEFINED? undefined : e
           passThru = inclusive? passThru && e : passThru || e
         })
         return passThru? obj : circus.FALSE
