@@ -9,16 +9,22 @@ var circus = (function(){
   var type = {}.toString, ARRAY='A',OBJECT='O',LITERAL = 'SNBDR'
 
   // expose to mutation api for override
-  function shallowCopy(n) {
+  function shallowCopy(n,o) {
     if (typeof n==='object') {
       if (n.length) return n.slice()
       var c={}
       Object.keys(n).forEach(function(k){
-        c[k] = n[k]
+        if (o && o[k]!==undefined) c[k] = o[k] 
+        else c[k] = n[k]
       })
       return c
     }
     return n
+  }
+
+  function shallowMerge(v1, v2) {
+    if (v1 === undefined) return shallowCopy(v2)
+    return shallowCopy(v1,v2)
   }
 
   /*
@@ -68,7 +74,7 @@ var circus = (function(){
       var idxKey = key.substr(0,i)
       return data[idxKey][idx]
     }
-    return data && data[key]
+    return data && (data.hasOwnProperty('channels')?  data.channels[key] : data[key])
   }
 
   // lens
@@ -84,46 +90,58 @@ var circus = (function(){
     return v!==undefined? v : def
   }
 
-  // stamp out a channel shaped object graph of default values 
-  function stamp(s, jp, fn) {
+  function reduce(s, jp, fn, acc) {
+    return traverse(s,jp,fn,acc)[1]
+  }
+
+  function map(s, jp, fn) {
+    return traverse(s,jp,fn)[0]
+  }
+
+  function traverse(s, jp, fn, acc) {
     if (typeof jp === 'function'){
+      acc = fn
       fn = jp
       jp = undefined
     }
-    var c = jp? s.jp[jp].channels : s.channels
+    var c = (jp? s.jp[jp].channels : s.channels).ordered
     function stamp(c, fn){
       var obj = {}
-      Object.keys(c).forEach (function(k){
-        if (c[k].channels) {
-          obj[k] = stamp(c[k].channels,fn)
+      c.forEach (function(t){
+        var n = t.signal.name
+        if (t.channels && t.channels !== s.channels && !t.channels.sampleOnly) {
+          var a = stamp(t.channels.ordered,fn, acc)
+          acc = a[1],obj[n] = a[0]
         }
         else {
-          obj[k] = fn? fn(k) : ''
+          acc = obj[n] = fn.call(t,acc)
         }
       })
-      return obj
+      return [obj,acc]
     }
     return stamp(c,fn)
   }
 
-  function prime = function(s) {
-    var g = circus.stamp(this)
-    return s.finally(function() {
-      s.value(g)
-    })
-  }
-
   var api = {
     id: function(v) {return v},
+    noop:function(){},
     copy: shallowCopy,
+    merge: shallowMerge,
     diff: shallowDiff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,
-    fold: fold,
-    stamp: stamp,
-    prime: prime
+    map: map,
+    reduce: reduce,
+    traverse: traverse,
+    typeOf: function(t) {
+      t = type.call(t)[8]
+      return ~LITERAL.indexOf(t) && LITERAL || t
+    }
   }
+  api.typeOf.ARRAY = ARRAY
+  api.typeOf.OBJECT = OBJECT
+  api.typeOf.LITERAL = LITERAL
 
   // publish the api on the main circus function
   Object.keys(api).forEach(function(k){circus[k] = api[k]})

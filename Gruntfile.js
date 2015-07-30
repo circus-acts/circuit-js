@@ -88,14 +88,11 @@ module.exports = function(grunt) {
 				"./tests/test.js", "./tests/mock.js", 
 				"./src/circus.js", 
 				"./src/signal.js", 
-				"./src/model.js",
-				"./src/view.js", 
-				"./src/intent.js", 
+				"./src/composables.js",
+				"./src/mvi.js", 
 				"./tests/signal-tests.js",
-				"./tests/model-tests.js",
-				"./tests/view-tests.js",
-				"./tests/intent-tests.js",
-				"./tests/circus-tests.js"
+				"./tests/composables-tests.js",
+				"./tests/mvi-tests.js"
 				], 
 				dest: currentVersionArchiveFolder + "/circus-tests.js"}
 		},

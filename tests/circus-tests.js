@@ -30,7 +30,7 @@ runTests('circus', function(mock) {
             i5:circus.signal([5])
         }
 	});
-
+/*
 	setup(function(){
 		once = true;
 		app = circus.fold(
@@ -79,29 +79,22 @@ runTests('circus', function(mock) {
 			   app.intent.value().data === -1
 	})
 
-
-    test('stamp - default', function(){
-        return circus.deepEqual(circus.stamp(channels),{
-                                                    i1:'',
-                                                    i2: '',
+*/
+    test('map', function(){
+        function id(){return this.signal.name}
+        return circus.deepEqual(circus.map(channels, id),{
+                                                    i1:'i1',
+                                                    i2: 'i2',
                                                     i3: {
-                                                        i4: '',
-                                                        i5: ''
+                                                        i4: 'i4',
+                                                        i5: 'i5'
                                                     }
                                                 })
     })
 
-
-    test('stamp - fn', function(){
-        function set(k){return k==='i4'}
-        return circus.deepEqual(circus.stamp(channels, set),{
-                                                    i1:false,
-                                                    i2: false,
-                                                    i3: {
-                                                        i4: true,
-                                                        i5: false
-                                                    }
-                                                })
+    test('reduce', function(){
+        function error(err){return err || this.signal.name==='i4'}
+        return circus.reduce(channels, error) === true
     })
 
 })

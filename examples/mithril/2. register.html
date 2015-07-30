@@ -1,7 +1,7 @@
 <html>
 <head>
 <style>
-  label {display:block; width:200px;text-align: right;}
+  label {display:block; width:250px;text-align: right;}
   span,input {margin:5px;}
 </style>
 <script src="../../node_modules/mithril/mithril.js"></script>
@@ -14,53 +14,66 @@
 <body>
 <script>
 
+  var debug = function(v) {
+    console.log(this.signal.name)
+    return v
+  }
+
   var app = circus.mvi(),
       login = app.signal().and('login','user').httpPOST('http://login'),
       register = app.signal().and('register','user','details').httpPOST('/register'),
       specials = app.signal().sample(login,register).httpGET('/specials/:sessionId'),
-      init = app.signal(),
+      notRegistered = app.signal().and({notRegistered:true,'*':undefined})
   
-  var model = app.model()
-      .feed(login,register)
-      .merge(login,register,specials,init)
+  app.model
+    .feed(login,register,notRegistered)
+    .merge(login,register,specials,notRegistered)
 
-  var view = app.view().map(loginOrRegister)
+  app.view.map(loginOrRegister)
 
-  function loginOrRegister(model,error) {
+  function loginOrRegister(model) {
     return m('div', [
       m('h1', 'Please Login'),
       input('Email','email','user'),
       input('Password','password','user','password'),
-      !model.data.register &&  button('Log in', 'login'),
-      input('Not registered?', 'register', false, 'checkbox'),
-      model.data.register &&  m('div' [
+      !model.notRegistered &&  button('Log in', 'login') || '',
+      model.notRegistered &&  m('div', [
         input('Confirm','confirm',false,'password'),
-        input('Log in','login', false,'button'),
         dropdown('Title','title',['Mr','Mrs']),
         input('First Name', 'firstName', 'details'),
         input('Last Name', 'lastName', 'details'),
-        input('Address','address')
-      ])
+        m('div',[
+          'Address',
+          input('Line 1','line1', 'details.address'),
+          input('Line 2','line2', 'details.address'),
+          input('Town','town', 'details.address'),
+          input('County','country', 'details.address'),
+          input('Country','country', 'details.address')
+        ]),
+        button('Register','register')
+      ]) || input('Not registered?', 'notRegistered', false, 'checkbox')
     ])
 
-    // memo helpers to build markup and bind model and intentions
+    // helpers to build markup and bind model and intentions
     function input(label, name, ns, type) {
-      var errorMsg = circus.lens(error,ns,name),
-          value = circus.lens(model,ns,name),
-          intention = circus.lens(intentions,ns,name).value
+      var errorMsg = circus.lens(app.error,name, ns),
+          data = circus.lens(model,name,ns),
+          intention = circus.lens(intentions,name, ns),
+          value = type === 'checkbox'? 'checked' : 'value'
 
       return m('label',[
         label, 
         m('input', {
           type: type || 'text',
-          onchange:m.withAttr('value',intention),
-          value:value
+//          onchange:m.withAttr(value,intention.value),
+          onblur:m.withAttr(value,intention.value),
+          value:data
         }),
-        errorMsg && m('span.error', errorMsg)
+        errorMsg && m('span.error', errorMsg) || ''
       ])
     }
     function button(label,name){
-      return m('button', {onclick:view.click(circus.lens(intentions,name),true)},[label])
+      return m('button', {onclick:app.view.click(circus.lens(intentions,name),true)},[label])
     }
     function dropdown(label, name, data) {
       return m('label',[
@@ -72,38 +85,40 @@
         ])
       ])
     }
-    
   }
 
   // construct the intention circuit using a signal block of named channels.
   // each channel gets its own binding in the view
-  var intent = app.intent(),
-      strength = app.signal(),
-      password = required().then(strengthTest),
-      intentions = {
-        user: {
-          email: required().error(formed),
-          password: password
-        },
-        login:app.signal().pulse(),
-        register: app.signal().pulse(),
-        strength: strength,
-        confirm: app.signal().then(match),
-        details: {
-          title: required(),
-          firstName: required(),
-          lastName: required(),
-          address: {
-            line1: required(),
-            line2: app.signal(),
-            town: required(),
-            county: required(),
-            country: required()
-          }
+  var strength = app.signal(),
+      password = required().error(strengthTest),
+      user = {
+        email: required().error(formed),
+        password: password
+      },
+      details = {
+        title: required(),
+        firstName: required(),
+        lastName: required(),
+        address: {
+          line1: required(),
+          line2: app.signal(),
+          town: required(),
+          county: required(),
+          country: required()
         }
+      },
+      intentions = {
+        user: user,
+        strength: strength,
+        notRegistered: app.signal().tap(debug),
+        confirm: required().error(match),
+        details: details
       }
 
-  intent.join(intentions)
+  intentions.login = app.intent.cta(user).take(300).pulse()
+  intentions.register = app.intent.cta(user,details).pulse()
+
+  app.intent.join(intentions)
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {
@@ -114,27 +129,22 @@
   function formed(v) {
     return !email.test(v) && 'invalid email'
   }
-  function match(confirm) {
-    return confirm.sample(password,function(v){
-      if (v[0]!==v[1]) confirm.error('password does not match')
-      return true
-    })
+  function match(v) {
+    return v!==password.value() && 'password does not match'
   }
-  function strengthTest(password){
-    return password.feed(strength,function(v){
-      var score = v.length
-      if (score < 6) strength.error('password too weak')
-      return score
-    })
+  function strengthTest(v){
+    var score = (v || '').length
+    strength.value(score)
+    return (score < 6) && 'password too weak'
   }
 
   // kick off
-  var app = circus.fold(model, view, intent)
-  init.value(intent.stamp())
+  var iv = circus.map(app.intent,function(){return ''})
+  iv.user.email='m@m.com'
+  iv.user.password = '123'
 
   m.route(document.body,'/login', {
-    '/login': app,
-    '/specials': circus.fold(model, specials, intent)
+    '/login': app.component(iv)
   })
 
 </script>

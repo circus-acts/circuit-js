@@ -4,8 +4,6 @@ var circusComposables = (function(circus){
 
   circus = circus || require('circus')
 
-  var type = {}.toString
-
   circus.signal.extendBy({
     // A steady state signal
     always: function(v){
@@ -37,7 +35,7 @@ var circusComposables = (function(circus){
     flatten: function(f) {
       var s = this.next()
       function flatten(v) {
-        if (type.call(v) === '[object Array]') {
+        if (circus.typeOf(v) === circus.typeOf.ARRAY) {
           v.forEach(flatten)
         }
         else {
@@ -56,9 +54,9 @@ var circusComposables = (function(circus){
 
     // streamlined map
     pluck: function() {
-      var args = [].slice.call(arguments)
+      var args = [].slice.call(arguments), a0 = args[0]
       return this.map(function(v) {
-        return args.length===1 && circus.lens(v,args[0]) || args.reduce(function(r,key){
+        return args.length===1 && (v[a0] || circus.lens(v,a0)) || args.reduce(function(r,key){
           r[key] = circus.lens(v,key)
           return r
         },{})
@@ -112,7 +110,7 @@ var circusComposables = (function(circus){
 
     // Chainable context
     then: function(f) {
-      f.call(null,this)
+      f.call(this.step(),this)
       return this
     },
 
@@ -149,39 +147,37 @@ var circusComposables = (function(circus){
 
     // Apply a matcher function with optional mask to signal or block channel values.
     // The signal is blocked if all the channels are blocked
+    // Output is taken from masked channels [default all]
     // 
     // arguments:
-    //  mask = object of channel matching key/values with wildcard
+    //  mask = object of channel matching key/values - supports wildcards
     //    key = 'n'  - match on channel 'n'
     //          '*n' - match on all remaining channels ending with 'n'
     //          'n*' - match on all remaining channels starting with 'n'
     //          '*'  - match on all remaining channels
     //
-    //    value = true  - signal channel value if truthy
-    //            value - signal channel value if equal 
-    //            false - signal channel value if falsey
+    //    value = true  - truthy test
+    //            value - equality test 
+    //            false - falsey test
+    //            undefined - ignore
     //            
-    //  fn = function that takes a channel value and a mask value and returns one of:
-    //    truthy value     - signal return value
-    //    circus.TRUE      - signal channel value
-    //    true             - signal channel value
-    //    circus.UNDEFINED - signal undefined
-    //    falsey values    - block
-    //    circus.FALSE     - block
-    //    false            - block
-    //    undefined        - block
+    //  fn = function that takes a channel value and a mask value and returns either of:
+    //    truthy value     - signal the value
+    //    falsey value     - block the value
     //
-    //  inclusive = the signal is blocked if any channels are blocked
+    //  all = the signal is blocked if all channels are blocked
+    //  invert = take all channels not in mask
     //
-    match: function(args, fn, inclusive){
+    match: function(args, fn, all, invert){
       if (typeof args === 'function') {
+        all = fn
         fn = args
         args = false
       }
       if (!args || !args.hasOwnProperty('length')) {
         args = [args]
       }
-      var wcMask, mask = args[0], vMatch={}
+      var wcMask, mask = args[0], vMatch={}, iMatch={}, dkey = new Date().getTime()
       if (mask && (args.length>1 || typeof mask !== 'object')) {
         mask = [].slice.call(args).reduce(function(m,a){
           m[a]=vMatch
@@ -189,7 +185,7 @@ var circusComposables = (function(circus){
         },{})
       }
 
-      function memo(keys,v,m,wv) {
+      function memo(keys,v,m,wv,inv) {
         keys.forEach(function(k){
           if (wcMask[k] === undefined){
             if (k==='*') {
@@ -206,6 +202,14 @@ var circusComposables = (function(circus){
             else wcMask[k] = wv === undefined? m===v? vMatch : m[k] : wv
           }
         })
+        if (inv && typeof v === 'object') {
+          Object.keys(v).forEach(function(k){
+            if (!wcMask.hasOwnProperty(k)) {
+              wcMask[k] = iMatch
+            }
+          })
+        }
+        return keys.length 
       }
 
       fn = fn || function(v,m) {
@@ -216,21 +220,29 @@ var circusComposables = (function(circus){
         var m = mask || v
         if (!wcMask) {
           wcMask = {}
-          memo(Object.keys(m),v, m)
+          if (circus.typeOf(m)!==circus.typeOf.OBJECT || !memo(Object.keys(m),v, m,undefined,invert)) {
+            wcMask[dkey] = v
+          }
         }
 
-        var passThru = inclusive, obj = {}
+        var passThru = all, obj = {}
         Object.keys(wcMask).forEach(function(k){
-          var mv = wcMask[k]===vMatch? v[k] : wcMask[k]
-          var e = fn(v[k],mv)
-          if (e) obj[k] = e===true? v[k] : e === circus.UNDEFINED? undefined : e
-          passThru = inclusive? passThru && e : passThru || e
+          var vv = v && v.hasOwnProperty(k)? v[k] : v
+          var take = wcMask[k]===undefined
+          var im = invert && wcMask[k]===iMatch
+          var mv = (wcMask[k]===vMatch || im)? vv : wcMask[k]
+          var e = take || fn(vv,mv)
+          if (e && !invert || im) {
+            obj[k] = (e===true || im)? vv : e === circus.UNDEFINED? undefined : e
+          }
+          passThru = all? passThru && (e || im) : passThru || e
         })
-        return passThru? obj : circus.FALSE
+        return passThru? obj.hasOwnProperty(dkey)? obj[dkey] : Object.keys(obj).length? obj : circus.UNDEFINED : circus.FALSE
       }
       return this.map(match)
     },
 
+    // default: signal all or block
     and: function(){
       function and(v,m) {
         return v && m === v || v && m===true || !v && m===false
@@ -238,23 +250,41 @@ var circusComposables = (function(circus){
       return this.match(arguments, and, true)
     },
 
+    // default: dropped value - needs to store previous value
     or: function(){
+      var store = !arguments.length, pv
       function or(v,m) {
+        if (store) {
+          m = pv, pv = v
+        }
         return v || m
       }
-      return this.match(arguments, or, true)
+      return this.match(arguments, or)
     },
 
+    // default: detect change - needs to store previous value
     xor: function(){
+      var store = !arguments.length, pv
       function xor(v,m) {
+        if (store) {
+          m = pv, pv = v
+        }
         return v && m!==v || !v && m
       }
       return this.match(arguments, xor)
+    },
+
+    // default: exclude truthy values
+    not: function(){
+      function not(v,m) {
+        return m && v !== m || !v
+      }
+      return this.match(arguments, not,true,true)
     }
 
   })
 })(circus)
 
-if (typeof module != "undefined" && module !== null && module.exports) module.exports = Composables;
-else if (typeof define == "function" && define.amd) define(function() {return Composables});
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = circusComposables;
+else if (typeof define == "function" && define.amd) define(function() {return circusComposables});
 

@@ -1,89 +1,93 @@
-  var mithrilCircus = (function(circus,mvi,mithril){
+  var mithrilCircus = (function(circus,circusMVI,mithril){
 
   'use strict';
 
+  circus = circus || require('circus')
+  circusMVI = circusMVI || require('circusMVI')
   mithril = mithril || require('mithril')
-	circus = circus || require('circus')
-  mvi = mvi || require('circusMVI')
 
-  // A simple adaptor that kick starts the application before
-  // returning the rendered view wrapped in a mithril component.
-  var _fold = mvi.fold
-  mvi.fold = function(m, v, i, seed) {
-    var app = _fold(m, v, i), started=0
+  function MithrilMVI() {
+    var mvi = circusMVI()
 
-    var api = {
-      mutateOn: mutateOn,
-      view: view
-    }
+    // A simple decorator that kick starts the application before
+    // returning the rendered view wrapped in a mithril component.
+    mvi.component = function(seed) {
+      var started=0
 
-    return api
-
-    // Opt-in mutable state. 
-    // Mithril will only redraw guarded sections when their model
-    // bindings are dirty 
-    function mutateOn (binding) {
-      var args = [].slice.call(arguments,1)
-      return app.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
-    }
-
-    // project latest render into mithril component. Note that the application state
-    // can vary independently of mithril redraw.
-    function view() {
-      // kick-start the app 
-      if (!started++ && seed) {
-        m.value(seed)
+      return {
+        view: view
       }
-      return app.view.value()
-    }
-  }
 
-  // extend mithril into signal 
-  var _signal = mvi.signal
-  mvi.signal = function(seed) {
+      // Opt-in mutable state. 
+      // Mithril will only redraw guarded sections when their model
+      // bindings are dirty 
+      mithril.mutateOn = function(binding) {
+        var args = [].slice.call(arguments,1)
+        return mvi.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
+      }
 
-    var signal = _signal(seed)
-
-    signal.httpGET = function (url, map) {
-      return signal.request({url:url,method:'GET'},map)
-    }
-
-    signal.httpPOST = function (url,map) {
-      return signal.request({url:url,method:'POST'})
-    }
-
-    signal.request = function (options,map) {
-      var s = this.next()
-
-      if (!map) map = populate
-
-      return this.tap(function(v) {
-        options = map(circus.copy(options),v)
-        mithril.request(options).then(response,error)
-
-        // shape response / error into standard MVI channels
-        function response(data) {
-          s.value({data:data})
+      // project latest render into mithril component. Note that the application state
+      // can vary independently of mithril redraw.
+      function view() {
+        // kick-start the app 
+        if (!started++ && seed) {
+          mvi.view.value(seed)
         }
-
-        function error(err) {
-          s.value({error:err})
-        }
-      })
+        return mvi.view.value()
+      }
     }
 
-    function populate(options,data) {
-      if (options.method === 'GET') {
-        Object.keys(data).forEach(function(k){
-          options.url.replace(':'+k,data[k])
+    // extend mithril into signal 
+    var _signal = mvi.signal
+    mvi.signal = function(seed) {
+
+      var signal = _signal(seed)
+
+      signal.httpGET = function (url, map) {
+        return signal.request({url:url,method:'GET'},map)
+      }
+
+      signal.httpPOST = function (url,map) {
+        return signal.request({url:url,method:'POST'})
+      }
+
+      signal.request = function (options,map) {
+        var _this = this, s = this.next()
+
+        if (!map) map = populate
+
+        return this.tap(function(v) {
+          options = map(circus.copy(options),v)
+          mithril.request(options).then(response,error)
+
+          // shape response / error into standard MVI channels
+          function response(data) {
+            s.value({data:data})
+          }
+
+          function error(err) {
+            _this.error(err || 'invalid request')
+          }
         })
       }
-      else options.data = data
-      return options
+
+      function populate(options,data) {
+        if (options.method === 'GET') {
+          Object.keys(data).forEach(function(k){
+            options.url.replace(':'+k,data[k])
+          })
+        }
+        else options.data = data
+        return options
+      }
+
+      return signal
     }
 
-    return signal
+    return mvi
   }
+
+  circus.mvi = function(seed) {return new MithrilMVI(seed)}
 
   return circus
 
