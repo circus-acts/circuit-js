@@ -1,9 +1,9 @@
 var circusMVI = (function(circus){
 
   /*
-  *  Circus MVI is implemented through the independent signals m, v and i 
+  *  Circus MVI is implemented through the independent signals m, v and i
   *  that feed into each other to form a circular channel folded over itself.
-  *  The resulting ring circuit responds to discrete signal value changes 
+  *  The resulting ring circuit responds to discrete signal value changes
   *  over time.
   */
 
@@ -36,7 +36,7 @@ var circusMVI = (function(circus){
     }
     return pathData[0]!==pathData[1]
   }
-  
+
 
   function MVI() {
     var mvi = this,
@@ -50,42 +50,37 @@ var circusMVI = (function(circus){
     }
 
     /*
-    Fold the app into a new circus act that feeds directed MVI signals 
+    Fold the app into a new circus act that feeds directed MVI signals
       Model and intent are simple notifications that fire whenever
       their value changes, but view feeds into intent through explicit
-      bindings in the render function. Put simply: views only feed 
+      bindings in the render function. Put simply: views only feed
       through user intentions
     */
     var model = mvi.model = new Model(),
         view = mvi.view = new View(),
-        intent = mvi.intent = new Intent().tap(reset)
-    
-    model.finally(function(v){
-      v = model.dirty()? v : model.head()
-      view.value(v)
-    })
-    view.finally(reset)
-    intent.finally(function(v) {
-      model.value(v)
-    })
+        intent = mvi.intent = new Intent()
 
     function reset(){
       // stamp out a 'valid' error graph
       mvi.error = errGraph = circus.map(intent,function(){return false})
+      err = false
     }
 
     function pushError(fn) {
-      var n, e, _this = this, step = this.step()
+      var n,ns,m,e, _this = this, step = this.step()
       function push(v,c,msg) {
         if (!errGraph) reset()
-        n = n || _this.name || 'value'
-        e = e || circus.lens(errGraph,_this.namespace||'') || errGraph
-        var m = msg || (fn && fn(v))
-        e[n] = e[n] || m
-        err = err || m
+        m = msg || (fn && fn(v))
+        if (m) {
+          n = n || _this.name || 'value'
+          ns = ns || _this.namespace || ''
+          e = circus.lens(errGraph,ns) || errGraph
+          e[n] = e[n] || m
+          err = err || m
+        }
       }
       if (typeof fn === 'function') {
-        this.tap(function(v){push(v)})
+        this.lift(function(v){push(v)})
       }
       else {
         var msg = fn
@@ -97,24 +92,36 @@ var circusMVI = (function(circus){
 
     return mvi
 
+    function prime(values,s) {
+      // block model feeds during traverse
+      var ma = model.active(false)
+      circus.traverse(s,visit)
+      model.active(ma)
+
+      function visit() {
+        var v = circus.lens(values,this.signal.name, this.signal.namespace)
+        this.signal.value(v)
+      }
+    }
+
+
     function Model() {
-    
+
       var state = {}
 
-      var model = mvi.signal().map(function(v){
-        if (err) {
-          // short the model - input value goes directly to view
-          view.value(v)
-          err = false
-          return circus.FALSE
-        }
-        return v
+      var model = mvi.signal()
+      .map(function(v){
+        return err? circus.FALSE : v
       })
-      
+      .finally(function(v){
+        v = err? view.head() : v
+        view.value(v)
+      })
+
       var _value = model.value.bind(model)
-      model.value = function() {
-        state = circus.copy(_value())
-        return _value.apply(this,arguments)
+      model.value = function(v) {
+        state = v
+        return _value(v)
       }
 
       var _dirty = model.dirty.bind(model)
@@ -122,55 +129,46 @@ var circusMVI = (function(circus){
         return path===undefined? _dirty() : mutated(state, _value(), path)
       }
 
-      return model      
+      return model
     }
 
     function View(){
-  
-      var view = mvi.signal()
+
+      var view = mvi.signal().finally(reset)
 
       view.click = function(signal,value) {
         return signal.pulse().value.bind(signal,value||true)
       }
 
-      return view    
+      return view
     }
-  
+
     function Intent(){
-    
-      var intent = mvi.signal()
+
+      var intent = mvi.signal().finally(function(v) {
+        model.value(v)
+      })
+
+      intent.prime = function(values,inactive) {
+        values = values || circus.map(intent,function(){return ''})
+        prime(values,intent)
+        if (inactive) reset()
+        view.value(values)
+      }
 
       intent.cta = function(s) {
-        var values
         s = s || intent
         if (!circus.isSignal(s)) {
           s = circus.signal()
           s.join.apply(s,arguments)
         }
 
-        var signal = circus.signal().map(function(v){
-          // block model feeds
-          var ma = model.active(false)
-          
-          values = view.head()
-
-          // reduce all signal errors down to 1
-          if (circus.reduce(s,ctaInError)) {
-            //view.value(intent.value())
-            v = circus.FALSE
+        return circus.signal().lift(function(v){
+          if (v) {
+            prime(view.head(),s)
+            this.active(undefined)
           }
-          model.active(ma)
-
-          return v
         })
-
-        function ctaInError(a) {
-          var v = circus.lens(values,this.signal.name, this.signal.namespace)
-          this.signal.value(v)
-          return a || err
-        }
-
-        return signal
       }
 
       return intent

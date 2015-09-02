@@ -29,9 +29,11 @@
       // project latest render into mithril component. Note that the application state
       // can vary independently of mithril redraw.
       function view() {
-        // kick-start the app 
-        if (!started++ && seed) {
-          mvi.view.value(seed)
+        // kick-start the app by priming with a seed value.
+        // if seed is provided, the app will enter an active (validated) state,
+        // otherwise it will enter an inactive state with empty values
+        if (!started++) {
+          mvi.intent.prime(seed, !seed)
         }
         return mvi.view.value()
       }

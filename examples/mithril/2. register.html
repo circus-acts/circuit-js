@@ -22,9 +22,9 @@
   var app = circus.mvi(),
       login = app.signal().and('login','user').httpPOST('http://login'),
       register = app.signal().and('register','user','details').httpPOST('/register'),
-      specials = app.signal().sample(login,register).httpGET('/specials/:sessionId'),
+      specials = app.signal().merge(login,register).httpGET('/specials/:sessionId'),
       notRegistered = app.signal().and({notRegistered:true,'*':undefined})
-  
+
   app.model
     .feed(login,register,notRegistered)
     .merge(login,register,specials,notRegistered)
@@ -59,16 +59,18 @@
       var errorMsg = circus.lens(app.error,name, ns),
           data = circus.lens(model,name,ns),
           intention = circus.lens(intentions,name, ns),
-          value = type === 'checkbox'? 'checked' : 'value'
+          value = type === 'checkbox'? 'checked' : 'value',
+          action = type === 'checkbox'? 'onchange' : 'onblur',
+          attrs = {
+            type: type || 'text',
+            value:data
+          }
+
+      attrs[action] = m.withAttr(value,intention.value)
 
       return m('label',[
-        label, 
-        m('input', {
-          type: type || 'text',
-//          onchange:m.withAttr(value,intention.value),
-          onblur:m.withAttr(value,intention.value),
-          value:data
-        }),
+        label,
+        m('input', attrs),
         errorMsg && m('span.error', errorMsg) || ''
       ])
     }
@@ -77,7 +79,7 @@
     }
     function dropdown(label, name, data) {
       return m('label',[
-        label || name, 
+        label || name,
         m('select', [
           data.map(function(d){
             return m('option', d)
@@ -112,11 +114,10 @@
         strength: strength,
         notRegistered: app.signal().tap(debug),
         confirm: required().error(match),
-        details: details
+        details: details,
+        login: app.intent.cta(user).take(300)),
+        register: app.intent.cta(user,details)
       }
-
-  intentions.login = app.intent.cta(user).take(300).pulse()
-  intentions.register = app.intent.cta(user,details).pulse()
 
   app.intent.join(intentions)
 
@@ -139,12 +140,12 @@
   }
 
   // kick off
-  var iv = circus.map(app.intent,function(){return ''})
-  iv.user.email='m@m.com'
-  iv.user.password = '123'
+  var seed = circus.map(app.intent,function(){return ''})
+  seed.user.email='m@m.com'
+  seed.user.password = '1234'
 
   m.route(document.body,'/login', {
-    '/login': app.component(iv)
+    '/login': app.component(seed)
   })
 
 </script>

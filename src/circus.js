@@ -6,6 +6,8 @@ var circus = (function(){
 
   }
 
+  function Mutator (v) {this.value=shallowCopy(v)}
+
   var type = {}.toString, ARRAY='A',OBJECT='O',LITERAL = 'SNBDR'
 
   // expose to mutation api for override
@@ -14,7 +16,7 @@ var circus = (function(){
       if (n.length) return n.slice()
       var c={}
       Object.keys(n).forEach(function(k){
-        if (o && o[k]!==undefined) c[k] = o[k] 
+        if (o && o[k]!==undefined) c[k] = o[k]
         else c[k] = n[k]
       })
       return c
@@ -28,30 +30,31 @@ var circus = (function(){
   }
 
   /*
-  * a value is dirty if any of its properties are dirty, or for key diff
-  * ..dirty if that key value is dirty regardless of other changed props
+  * a value is dirty if any of its properties are dirty, or for key diff..
+  *  dirty if that key value is dirty regardless of other changed props
   */
-  function shallowDiff(m,v,d) {
-    var dirty = circus.FALSE,mv=d? m : m.value, t = type.call(mv)[8]
+  function diff(m,v,d) {
+    var dirty = circus.FALSE, mutator = m instanceof Mutator
+    var mv = mutator? m.value : m, t = type.call(mv)[8]
     if (~LITERAL.indexOf(t) || mv === undefined || v === undefined) {
       dirty = mv!==v || circus.FALSE
     }
     else {
-      if (m.key !== undefined) {
+      if (mutator && m.key !== undefined) {
         dirty = v[m.key] !== mv[m.key] && m.key || circus.FALSE
       }
       else {
         if (t === ARRAY) {
           for (var i=0, l=mv.length; i<l; i++) {
-            if (d && shallowDiff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
+            if (d && diff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
               dirty=i
               break
             }
           }
         } else if (t === OBJECT) {
-          var mk = Object.keys(mv), vk = Object.keys(v) 
+          var mk = Object.keys(mv), vk = Object.keys(v)
           dirty = mk.length != vk.length || typeof v !== 'object' || mk.reduce(function(a,k){
-            return a!==circus.FALSE || (d && shallowDiff(mv[k],v[k],d).dirty) || (mv[k] !== v[k] && k) || a
+            return a!==circus.FALSE || (d && diff(mv[k],v[k],d).dirty) || (mv[k] !== v[k] && k) || a
           },circus.FALSE)
         }
       }
@@ -60,11 +63,11 @@ var circus = (function(){
   }
 
   function equal(m,v){
-    return shallowDiff({value:m},v).dirty === circus.FALSE
+    return diff(new Mutator(m),v).dirty === circus.FALSE
   }
 
   function deepEqual(m,v){
-    return shallowDiff(m,v,true).dirty === circus.FALSE
+    return diff(new Mutator(m),v,true).dirty === circus.FALSE
   }
 
   function pathToData(data, key){
@@ -86,7 +89,7 @@ var circus = (function(){
     }
     var path = ((ns? ns + '.' :'') + name).split('.')
     var v = path.reduce(pathToData,data)
-    
+
     return v!==undefined? v : def
   }
 
@@ -127,17 +130,18 @@ var circus = (function(){
     noop:function(){},
     copy: shallowCopy,
     merge: shallowMerge,
-    diff: shallowDiff,
+    diff: diff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,
     map: map,
     reduce: reduce,
-    traverse: traverse,
+    traverse: function(s,j,f) {traverse(s,j,f)},
     typeOf: function(t) {
       t = type.call(t)[8]
       return ~LITERAL.indexOf(t) && LITERAL || t
-    }
+    },
+    Mutator : Mutator
   }
   api.typeOf.ARRAY = ARRAY
   api.typeOf.OBJECT = OBJECT

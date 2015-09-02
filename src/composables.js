@@ -20,7 +20,6 @@ var circusComposables = (function(circus){
           v = b, b = []
           return v
         }
-        return circus.FALSE
       }
       return this.map(batch)
     },
@@ -43,7 +42,7 @@ var circusComposables = (function(circus){
           else s.value(v)
         }
       }
-      return this.lift(flatten)
+      return this.tap(flatten)
     },
 
     maybe: function(f,n) {
@@ -77,8 +76,8 @@ var circusComposables = (function(circus){
       })
     },
 
-    // continuously reduce incoming signal values into 
-    // an accumulated outgoing value 
+    // continuously reduce incoming signal values into
+    // an accumulated outgoing value
     reduce: function(f,accum) {
       return this.map(function(){
         if (!accum) {
@@ -96,7 +95,7 @@ var circusComposables = (function(circus){
     // The signal will not propagate until n + 1
     skip: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? circus.FALSE : v
+        return (n-- > 0)? undefined : v
       })
     },
 
@@ -104,14 +103,8 @@ var circusComposables = (function(circus){
     // The signal will not propagate after n
     take: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? v: circus.FALSE
+        return (n-- > 0)? v: undefined
       })
-    },
-
-    // Chainable context
-    then: function(f) {
-      f.call(this.step(),this)
-      return this
     },
 
     // Batch values into sliding window of size w
@@ -126,7 +119,7 @@ var circusComposables = (function(circus){
       return this.map(fn)
     },
 
-    // Zip signal channel values into a true array. 
+    // Zip signal channel values into a true array.
     zip: function(keys) {
       keys = keys || [0,1]
       var fn = function(v) {
@@ -141,14 +134,14 @@ var circusComposables = (function(circus){
 
     filter: function(f) {
       return this.map(function (v) {
-        return f(v)? v: circus.FALSE
+        return f(v)? v: undefined
       })
     },
 
     // Apply a matcher function with optional mask to signal or block channel values.
     // The signal is blocked if all the channels are blocked
     // Output is taken from masked channels [default all]
-    // 
+    //
     // arguments:
     //  mask = object of channel matching key/values - supports wildcards
     //    key = 'n'  - match on channel 'n'
@@ -157,10 +150,10 @@ var circusComposables = (function(circus){
     //          '*'  - match on all remaining channels
     //
     //    value = true  - truthy test
-    //            value - equality test 
+    //            value - equality test
     //            false - falsey test
     //            undefined - ignore
-    //            
+    //
     //  fn = function that takes a channel value and a mask value and returns either of:
     //    truthy value     - signal the value
     //    falsey value     - block the value
@@ -209,7 +202,7 @@ var circusComposables = (function(circus){
             }
           })
         }
-        return keys.length 
+        return keys.length
       }
 
       fn = fn || function(v,m) {
@@ -237,7 +230,7 @@ var circusComposables = (function(circus){
           }
           passThru = all? passThru && (e || im) : passThru || e
         })
-        return passThru? obj.hasOwnProperty(dkey)? obj[dkey] : Object.keys(obj).length? obj : circus.UNDEFINED : circus.FALSE
+        return passThru? obj.hasOwnProperty(dkey)? obj[dkey] : Object.keys(obj).length? obj : circus.UNDEFINED : undefined
       }
       return this.map(match)
     },
@@ -250,24 +243,24 @@ var circusComposables = (function(circus){
       return this.match(arguments, and, true)
     },
 
-    // default: dropped value - needs to store previous value
+    // default: dropped value - mask on state
     or: function(){
-      var store = !arguments.length, pv
+      var store = !arguments.length
       function or(v,m) {
         if (store) {
-          m = pv, pv = v
+          m = this.value()
         }
         return v || m
       }
       return this.match(arguments, or)
     },
 
-    // default: detect change - needs to store previous value
+    // default: detect change - mask on state
     xor: function(){
-      var store = !arguments.length, pv
+      var store = !arguments.length
       function xor(v,m) {
         if (store) {
-          m = pv, pv = v
+          m = this.value()
         }
         return v && m!==v || !v && m
       }
