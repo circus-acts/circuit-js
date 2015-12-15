@@ -130,7 +130,7 @@ var circus = (function(){
     noop:function(){},
     copy: shallowCopy,
     merge: shallowMerge,
-    diff: diff,
+//    diff: diff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,

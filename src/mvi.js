@@ -120,7 +120,7 @@ var circusMVI = (function(circus){
 
       var _value = model.value.bind(model)
       model.value = function(v) {
-        state = v
+        state = _value()
         return _value(v)
       }
 

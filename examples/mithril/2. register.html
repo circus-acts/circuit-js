@@ -19,25 +19,32 @@
     return v
   }
 
+  // create a new base app and build a circuit on it. Here we are using
+  // an MVI pattern.
+
   var app = circus.mvi(),
       login = app.signal().and('login','user').httpPOST('http://login'),
       register = app.signal().and('register','user','details').httpPOST('/register'),
       specials = app.signal().merge(login,register).httpGET('/specials/:sessionId'),
+      // if not registered, pass remaining signal values unconditionally
       notRegistered = app.signal().and({notRegistered:true,'*':undefined})
 
+  //  one signal feeds another signal (group) and awaits their values
   app.model
     .feed(login,register,notRegistered)
     .merge(login,register,specials,notRegistered)
 
   app.view.map(loginOrRegister)
 
-  function loginOrRegister(model) {
+  function loginOrRegister(state) {
     return m('div', [
       m('h1', 'Please Login'),
       input('Email','email','user'),
       input('Password','password','user','password'),
-      !model.notRegistered &&  button('Log in', 'login') || '',
-      model.notRegistered &&  m('div', [
+      !state.notRegistered && [
+        button('Log in', 'login'),
+        input('Not registered?', 'notRegistered', false, 'checkbox')
+      ] || m('div', [
         input('Confirm','confirm',false,'password'),
         dropdown('Title','title',['Mr','Mrs']),
         input('First Name', 'firstName', 'details'),
@@ -51,22 +58,22 @@
           input('Country','country', 'details.address')
         ]),
         button('Register','register')
-      ]) || input('Not registered?', 'notRegistered', false, 'checkbox')
+      ])
     ])
 
-    // helpers to build markup and bind model and intentions
+    // helpers to build markup and bind state and intentions
     function input(label, name, ns, type) {
       var errorMsg = circus.lens(app.error,name, ns),
-          data = circus.lens(model,name,ns),
+          data = circus.lens(state,name,ns),
           intention = circus.lens(intentions,name, ns),
-          value = type === 'checkbox'? 'checked' : 'value',
+          valueAttr = type === 'checkbox'? 'checked' : 'value',
           action = type === 'checkbox'? 'onchange' : 'onblur',
           attrs = {
             type: type || 'text',
             value:data
           }
 
-      attrs[action] = m.withAttr(value,intention.value)
+      attrs[action] = m.withAttr(valueAttr,intention.value)
 
       return m('label',[
         label,
@@ -89,7 +96,7 @@
     }
   }
 
-  // construct the intention circuit using a signal block of named channels.
+  // construct the intention circuit from signal blocks of named channels.
   // each channel gets its own binding in the view
   var strength = app.signal(),
       password = required().error(strengthTest),
@@ -110,16 +117,46 @@
         }
       },
       intentions = {
-        user: user,
+        account: {
+          user: user,
+          details: details
+        }
         strength: strength,
         notRegistered: app.signal().tap(debug),
         confirm: required().error(match),
-        details: details,
         login: app.intent.cta(user).take(300)),
         register: app.intent.cta(user,details)
       }
 
   app.intent.join(intentions)
+
+  app =  {
+    account: {
+       user = {
+        email: required().error(formed),
+        password: password
+      },
+      details = {
+        title: required(),
+        firstName: required(),
+        lastName: required(),
+        address: {
+          line1: required(),
+          line2: app.signal(),
+          town: required(),
+          county: required(),
+          country: required()
+        }
+      }
+    }
+  }
+        },
+        strength: strength,
+        notRegistered: app.signal().tap(debug),
+        confirm: required().error(match),
+        login: app.intent.cta(user).take(300)),
+        register: app.intent.cta(user,details)
+      }
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {
@@ -139,8 +176,9 @@
     return (score < 6) && 'password too weak'
   }
 
-  // kick off
+  // kick off by stamping out a copy of the intentions with empty values
   var seed = circus.map(app.intent,function(){return ''})
+  // then initialize any of the values
   seed.user.email='m@m.com'
   seed.user.password = '1234'
 

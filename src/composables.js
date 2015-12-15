@@ -139,7 +139,7 @@ var circusComposables = (function(circus){
     },
 
     // Apply a matcher function with optional mask to signal or block channel values.
-    // The signal is blocked if all the channels are blocked
+    // By default, the signal is blocked if any channels are blocked
     // Output is taken from masked channels [default all]
     //
     // arguments:
@@ -149,19 +149,23 @@ var circusComposables = (function(circus){
     //          'n*' - match on all remaining channels starting with 'n'
     //          '*'  - match on all remaining channels
     //
-    //    value = true  - truthy test
-    //            value - equality test
-    //            false - falsey test
-    //            undefined - ignore
+    //    value = true  - match if truthy
+    //            value - match if equal (===)
+    //            false - match if falsey
+    //            undefined - match any
+    //
+    //    default: undefined
     //
     //  fn = function that takes a channel value and a mask value and returns either of:
-    //    truthy value     - signal the value
-    //    falsey value     - block the value
+    //    truthy value - signal the value
+    //    falsey value - block the value
     //
+    //    default: return !mask? c!==undefined : c===m || c && m===true || !c && m===false
+
     //  all = the signal is blocked if all channels are blocked
-    //  invert = take all channels not in mask
+    //  not = take all channels not in mask
     //
-    match: function(args, fn, all, invert){
+    match: function(args, fn, all, not){
       if (typeof args === 'function') {
         all = fn
         fn = args
@@ -213,7 +217,7 @@ var circusComposables = (function(circus){
         var m = mask || v
         if (!wcMask) {
           wcMask = {}
-          if (circus.typeOf(m)!==circus.typeOf.OBJECT || !memo(Object.keys(m),v, m,undefined,invert)) {
+          if (circus.typeOf(m)!==circus.typeOf.OBJECT || !memo(Object.keys(m),v, m,undefined,not)) {
             wcMask[dkey] = v
           }
         }
@@ -222,10 +226,10 @@ var circusComposables = (function(circus){
         Object.keys(wcMask).forEach(function(k){
           var vv = v && v.hasOwnProperty(k)? v[k] : v
           var take = wcMask[k]===undefined
-          var im = invert && wcMask[k]===iMatch
+          var im = not && wcMask[k]===iMatch
           var mv = (wcMask[k]===vMatch || im)? vv : wcMask[k]
           var e = take || fn(vv,mv)
-          if (e && !invert || im) {
+          if (e && !not || im) {
             obj[k] = (e===true || im)? vv : e === circus.UNDEFINED? undefined : e
           }
           passThru = all? passThru && (e || im) : passThru || e

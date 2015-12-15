@@ -18,9 +18,9 @@
         view: view
       }
 
-      // Opt-in mutable state. 
+      // Opt-in mutable state.
       // Mithril will only redraw guarded sections when their model
-      // bindings are dirty 
+      // bindings are dirty
       mithril.mutateOn = function(binding) {
         var args = [].slice.call(arguments,1)
         return mvi.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
@@ -39,7 +39,7 @@
       }
     }
 
-    // extend mithril into signal 
+    // extend mithril into signal
     var _signal = mvi.signal
     mvi.signal = function(seed) {
 
@@ -60,6 +60,8 @@
 
         return this.tap(function(v) {
           options = map(circus.copy(options),v)
+
+          //TODO: aggregate outstanding promises to ensure sequence
           mithril.request(options).then(response,error)
 
           // shape response / error into standard MVI channels
