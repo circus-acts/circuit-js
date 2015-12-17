@@ -6,11 +6,8 @@
 </style>
 <script src="../../node_modules/mithril/mithril.js"></script>
 <script src="../../src/circus.js"></script>
-<script src="../../src/model.js"></script>
-<script src="../../src/view.js"></script>
-<script src="../../src/intent.js"></script>
 <script src="../../src/signal.js"></script>
-<script src="../../src/composables.js"></script>
+<script src="../../src/mvi.js"></script>
 <script src="../../libraries/mithril-circus.js"></script>
 </head>
 <body>
@@ -25,7 +22,7 @@
   *  The direction of information travel is strictly M -> V -> I
   *
   *            +--> Model--+
-  *            ^           |  
+  *            ^           |
   *            |           v
   *          Intent  <--  View
   *
@@ -35,15 +32,23 @@
   *
   *     model.map(fn) // where fn: x > y
   *
-  *
-  *  MODEL: I -> Model -> V
-  *  The purpose of the model is to aggregate and map intention signals
-  *  onto application model state and pass this data on to the view.
-  *  The model is usually the place to tap the current application state 
-  *  into the domain. E.g., to save the application state to storage, to call
-  *  external services etc.
   */
-  var model = circus.signal().map(greet).tap(log)
+
+
+  /*
+  *  Application: Folds MVI values over time and returns a component suitable
+  *  for mounting.
+  */
+  var app = circus.mvi()
+
+  */
+  *  MODEL: I -> Model -> V
+  *  The purpose of the model is to aggregate and map signalled intentions
+  *  onto application state and pass this data on to the view.
+  *  The model is usually the place to tap the current state into the domain.
+  *  E.g., to save the application state to storage, to call external services etc.
+  */
+  app.model.map(greet).tap(log)
 
   function greet(i) {
     return {
@@ -57,13 +62,13 @@
     console.log(m.salute)
   }
 
-  /* 
+  /*
   *  VIEW: M -> View -> I
   *  The view maps the current model state over a render function.
-  *  The render function returns a view state suitable for mounting. 
+  *  The render function returns a view state suitable for mounting.
   *  The mounted view feeds the intention signal channel(s) through user actions
-  */ 
-  var view = circus.signal().map(render)
+  */
+  app.view.map(render)
 
   function render(model) {
     return m('div', [
@@ -92,19 +97,12 @@
     password: circus.signal()
   }
 
-  // use a matcher to ensure that both circuit channels are active
-  var intent = circus.signal().join(intentions).and()
-
-  /*
-  *  Application: Folds MVI values over time and returns a component suitable 
-  *  for mounting.
-  */
-  var app = circus.fold(model, view, intent)
+  app.intent.join(intentions)
 
   /*
   *  Pass the component on to mithril.
   */
-  m.module(document.body,app)
+  m.module(document.body,app.component())
 
 </script>
 </body>

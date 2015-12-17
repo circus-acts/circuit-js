@@ -2,9 +2,7 @@ var circusMVI = (function(circus){
 
   /*
   *  Circus MVI is implemented through the independent signals m, v and i
-  *  that feed into each other to form a circular channel folded over itself.
-  *  The resulting ring circuit responds to discrete signal value changes
-  *  over time.
+  *  that each feed one into the next in a circular m -> v -> i direction.
   */
 
   'use strict';
@@ -30,7 +28,7 @@ var circusMVI = (function(circus){
     if (path[0]!=='.') path = '.' + path
     path = ('root'+path).split('.')
     var pathData = path.reduce(pathToState,[{root:state},{root:value}])
-    var typeOfD = typeOf.call(pathData[0]), typeofV = typeOf.call(pathData[1])
+    var typeOfD = typeOf(pathData[0]), typeofV = typeOf(pathData[1])
     if ( typeOfD === typeofV && (typeOfD === typeOf.OBJECT || typeOfD === typeOf.ARRAY)) {
       return JSON.stringify(pathData[0]) !== JSON.stringify(pathData[1])
     }
@@ -40,13 +38,13 @@ var circusMVI = (function(circus){
 
   function MVI() {
     var mvi = this,
-        err = false,
-        errGraph
+        error = circus.signal(),
+        data = circus.signal([{}])
 
     mvi.signal = function(){
-      var signal = circus.signal()
-      signal.error = pushError
-      return signal
+      return circus.signal.apply(null,arguments).extend({
+        error: pushError()
+      })
     }
 
     /*
@@ -60,118 +58,102 @@ var circusMVI = (function(circus){
         view = mvi.view = new View(),
         intent = mvi.intent = new Intent()
 
-    function reset(){
-      // stamp out a 'valid' error graph
-      mvi.error = errGraph = circus.map(intent,function(){return false})
-      err = false
-    }
-
-    function pushError(fn) {
-      var n,ns,m,e, _this = this, step = this.step()
-      function push(v,c,msg) {
-        if (!errGraph) reset()
-        m = msg || (fn && fn(v))
-        if (m) {
-          n = n || _this.name || 'value'
-          ns = ns || _this.namespace || ''
-          e = circus.lens(errGraph,ns) || errGraph
-          e[n] = e[n] || m
-          err = err || m
-        }
-      }
-      if (typeof fn === 'function') {
-        this.lift(function(v){push(v)})
-      }
-      else {
-        var msg = fn
-        fn=undefined
-        push(null,null,msg)
-      }
-      return this
-    }
-
     return mvi
 
-    function prime(values,s) {
-      // block model feeds during traverse
-      var ma = model.active(false)
-      circus.traverse(s,visit)
-      model.active(ma)
+    function reset(graph){
+      circus.tap(graph,function(s){s.error(circus.UNDEFINED)})
+    }
 
-      function visit() {
-        var v = circus.lens(values,this.signal.name, this.signal.namespace)
-        this.signal.value(v)
+    function pushError() {
+      var msg = ''
+      return function(fn) {
+        function push(v) {
+          msg = msg || fn(v) || ''
+        }
+        if (arguments.length){
+          if (typeof fn === 'function') {
+            this.tap(function(v){push(v)})
+          }
+          else {
+            msg = fn===circus.UNDEFINED? '' : msg || fn || ''
+          }
+          return this
+        }
+        return msg
       }
     }
 
+    function pushValues(s) {
+      // block model feeds during traverse
+      var ma = model.active(false), err = ''
+      circus.tap(s,visit)
+      model.active(ma)
+      error.value(err)
 
-    function Model() {
+      function visit(s) {
+        s.value(s.head())
+        err =  err || s.error() || ''
+      }
+    }
 
-      var state = {}
+    function Model(seed) {
 
-      var model = mvi.signal()
-      .map(function(v){
-        return err? circus.FALSE : v
+      var state = seed || {}
+      return circus.join({error:error, data:data}).extend(function(ctx){
+        return {
+          dirty: function(path) {
+            return path===undefined? ctx.dirty() : mutated(state, ctx.value(), path)
+          }
+        }
       })
-      .finally(function(v){
-        v = err? view.head() : v
+      .prime(state)
+      .map(function(v){
+        v.data.error = v.error
+        return v.data
+      })
+      .map(function(v){
+        state = v
+        // on error, stop propagation at this state
+        // bypassing all user modelling. Go straight to view
+        return v.error? undefined : v
+      })
+      .after(function(v){
         view.value(v)
       })
-
-      var _value = model.value.bind(model)
-      model.value = function(v) {
-        state = _value()
-        return _value(v)
-      }
-
-      var _dirty = model.dirty.bind(model)
-      model.dirty = function(path) {
-        return path===undefined? _dirty() : mutated(state, _value(), path)
-      }
-
-      return model
     }
 
-    function View(){
+    function View(seed){
 
-      var view = mvi.signal().finally(reset)
-
-      view.click = function(signal,value) {
-        return signal.pulse().value.bind(signal,value||true)
-      }
-
-      return view
-    }
-
-    function Intent(){
-
-      var intent = mvi.signal().finally(function(v) {
-        model.value(v)
+      return mvi.signal(seed).extend({
+        click: function(signal,value) {
+          return signal.pulse().value.bind(signal,value||true)
+        }
       })
 
-      intent.prime = function(values,inactive) {
-        values = values || circus.map(intent,function(){return ''})
-        prime(values,intent)
-        if (inactive) reset()
-        view.value(values)
-      }
+    }
 
-      intent.cta = function(s) {
-        s = s || intent
-        if (!circus.isSignal(s)) {
-          s = circus.signal()
-          s.join.apply(s,arguments)
-        }
+    function Intent(seed){
 
-        return circus.signal().lift(function(v){
-          if (v) {
-            prime(view.head(),s)
-            this.active(undefined)
+      return mvi.signal(seed).extend({
+        cta: function(s) {
+          s = s || intent
+          if (!circus.isSignal(s)) {
+            s = circus.join(s)
           }
-        })
-      }
 
-      return intent
+          return circus.signal().tap(function(v){
+            if (v) {
+              reset(intent)
+              pushValues(s)
+              this.active(undefined)
+            }
+          })
+        }
+      })
+      .after(function(v) {
+        data.value(v)
+      })
+
     }
   }
 

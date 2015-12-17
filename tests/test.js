@@ -1,3 +1,48 @@
+/*
+	test.js - originally https://github.com/lhorie/mithril.js/blob/70b24895394b314da45e3a4d27ee24fa90a3fd2c/tests/test.js
+
+	usage:
+
+	runTests('suite name', function(){
+
+		test('test name', function(){
+			return 'test'.length === 4
+		})
+
+		test('test name with assert', function(){
+			return assert('test'.length,0) // Assert failure 4 -> 0
+		})
+
+		test('test name with circus assert', function(){
+			return assert({x:y:z:1}}},{x:y:z:2}}}, circus.deepEqual) // Assert failure {x:y:z:1}}} -> {x:y:z:2}}}
+		})
+
+		test('test name with custom assert', function(){
+			return assert('test','x', function(v1,v2){return ~v1.indexOf(v2)}) // Assert test failure -> 'x'
+		})
+
+		test('async test name', function(done){
+			setTimeout(function(){
+				done(function() {
+					return false
+				}
+			})
+		})
+
+		itest('include test', function(){ // include test
+			return true
+		})
+
+		xtest('exclude test', function(){ // exclude test
+			return true
+		})
+	})
+
+	irunTests('include suite name'), function(){}) // include suite
+	xrunTests('exclude suite name'), function(){}) // exclude suite
+*/
+
+
 //make "use strict" and nodejs happy
 var window = this
 
@@ -11,156 +56,165 @@ if (typeof window != "undefined") {
 	};
 }
 
-if (!this.console) {
-	var log = function(value) {document.write("<pre>" + value + "</pre>")}
-	this.console = {log: log, error: log}
-}
+var testQueue = [], curSuite, inclusiveTests
 
-var testQueue = [], curTest, inclusiveTests
 function xrunTests() {}
+
 function irunTests(name,tests) {
 	inclusiveTests = true
-	runTests(name,tests,true)
+	startRun(name,tests,true)
 }
-function runTests(name,registerTests, inclusive) {
-	var test = function(){
+
+function runTests(name,tests){
+	startRun(name,tests,false)
+}
+
+function startRun(name,registerTests, inclusive) {
+	new (function(){
 		this.setup = function(){}
 		this.total = 0
 		this.inclusive = inclusive
 		this.title = name
 		this.failures = []
 		this.tests = []
-		var test = curTest = this
+		var suite = curSuite = this
 		registerTests(mock.window)
 		this.tests.unshift(0)
 		this.tests.unshift(testQueue.length)
 		Array.prototype.splice.apply(testQueue,this.tests)
 		testQueue.push(function(){
-			if (!inclusiveTests || test.total > 0) {
-				print(test, function(value) {this.console.log(value)})
+			if (!inclusiveTests || suite.total > 0) {
+				print(suite, function(value) {this.console.log(value)})
 			}
 		})
-	}
-	new test()
+	})()
 	var len = testQueue.length
 	setTimeout(function(){
 		if (testQueue.length==len) wait()
 	},100)
 }
-var testRunning=0, waitCount=0
+var testRunning=0,timeout=500,tid=0,rtest
 function wait(){
 	if (!testRunning) {
 		if (testQueue.length) {
-			waitCount = 0
 			var test = testQueue.shift()
 			test.apply(test)
 		}
-		if (testQueue.length){
-			setTimeout(wait)
-		}
+		if (tid) clearTimeout(tid)
+	}
+	else {
+		tid = setTimeout(function(){
+			if (testRunning) {
+				testRunning--
+			}
+			tid=0
+		},timeout)
+	}
+	if (testQueue.length){
+		setTimeout(wait)
 	}
 }
 
 function setup(fn){
-	curTest.setup = fn
+	curSuite.setup = fn
 }
 
 function xtest() {}
 function itest(name,condition) {
 	inclusiveTests=true
-	test(name,condition,true)
+	startTest(curSuite,name,condition,true)
 }
-function test(name, condition, inclusive) {
-	var test = curTest
-	inclusive = inclusive || curTest.inclusive
-	curTest.tests.push(function() {
+
+function test(name,condition) {
+	startTest(curSuite,name,condition,false)
+}
+
+function startTest(suite, name, condition, inclusive) {
+	var fn = condition.toString()
+
+	inclusive = inclusive || suite.inclusive
+	suite.tests.push(function() {
 		if (inclusiveTests && !inclusive) return
 
-		test.total++
-		var duration = 0
-		var start = 0
+		suite.total++
 
-		if (typeof performance != "undefined" && performance.now) {
-			start = performance.now()
-		}
+		var async = /\(\s*done\s*\)/.test(fn)
+		runTest.call(suite, name, condition, async)
 
-		var fn = condition.toString()
-		var async = /function\s*\(\s*\)/m.test(fn) === false
-		var result = runTest.call(test,name + '\n' + fn, condition, async)
-
-		if (typeof performance != "undefined" && performance.now) {
-			duration = performance.now() - start
-		}
-
-		if (typeof window != "undefined") {
-			window.test_obj = {
-				name: "" + test.total,
-				result: result,
-				duration: duration
-			}
-
-			if (!result) {
-				window.global_test_results.tests.push(window.test_obj)
-			}
-
-			window.global_test_results.duration += duration
-			if (result) {
-				window.global_test_results.passed++
-			} else {
-				window.global_test_results.failed++
-			}
-		}	
-
+		return test
 	})
 }
 
-function runTest(name,condition, async) {
+function runTest(name, condition, async) {
 
 	testRunning++
 
 	var test = this
-	var result = true
-	var duration = 0
-	if (!async) {
-		test.setup()
-	}
+	test.setup()
 
 	try {
-		if (!condition(function(done){
-			testQueue.unshift(runTest.bind(test,name,done))
-			return true
-		})) {
-			throw new Error("failed")
+		test.failures.push(name)
+		var result = condition(function(result){
+			if (typeof result === 'function') {
+				testQueue.unshift(runTest.bind(test,name,result))
+				test.failures.pop()
+				return
+			}
+			if (testRunning) {
+				testRunning--
+				if (result) {
+					test.failures.pop()
+				}
+			}
+		})
+		if (!result) {
+			if (async) {
+				testRunning++
+			}
+			return
+		}
+		test.failures.pop()
+		if (result instanceof assert && result.fail) {
+			test.failures.push(name + result.fail)
 		}
 	}
 	catch (e) {
-		result = false
 		console.error(e)
 		console.log(name, e.stack)
-		test.failures.push(name)
 	}
 
 	testRunning--
-	return result
+}
+
+function assert(v1,v2, comp){
+	if (this instanceof assert) {
+		this.fail = comp(v1,v2)? false : '\nAssert Failure '+JSON.stringify(v1)+' -> '+JSON.stringify(v2)
+	}
+	else return new assert(v1,v2, comp || function(v1,v2){return v1 === v2})
 }
 
 function print(test, print) {
+	var failures = test.failures.length? "\nfailures: " + test.failures.length : ''
 	try {
 		var node = document.createElement('DIV')
-		var failures = test.failures.length? "\nfailures: " + test.failures.length : ''
-		node.appendChild(document.createTextNode(test.title + " tests: " + test.total + failures))
+		node.appendChild(document.createTextNode(test.title + " tests: " + test.total))
 		document.body.appendChild(node)
 		for (var i = 0; i < test.failures.length; i++) {
-			print(test.failures[i].toString())
-			node = document.createElement('PRE')
-			node.appendChild(document.createTextNode(test.failures[i].toString()))
-			document.body.appendChild(node)
+			var pre = document.createElement('PRE')
+			pre.style.color='red'
+			pre.appendChild(document.createTextNode(test.failures[i].toString()))
+			document.body.appendChild(pre)
 		}
+		var node = document.createElement('DIV')
+		node.appendChild(document.createTextNode(failures))
+		document.body.appendChild(node)
 	}
-	catch (e) {}
-	print(test.title + " tests: " + test.total + failures)
+	catch (e) {
+		print(test.title + " tests: " + test.total + failures)
 
-	if (test.failures.length > 0) {
-		throw new Error(test.failures.length + " tests did not pass")
+		if (test.failures.length > 0) {
+			print(test.failures.length + " tests did not pass")
+		}
+
 	}
 }

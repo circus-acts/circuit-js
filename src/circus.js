@@ -6,68 +6,38 @@ var circus = (function(){
 
   }
 
-  function Mutator (v) {this.value=shallowCopy(v)}
-
   var type = {}.toString, ARRAY='A',OBJECT='O',LITERAL = 'SNBDR'
 
-  // expose to mutation api for override
-  function shallowCopy(n,o) {
-    if (typeof n==='object') {
-      if (n.length) return n.slice()
-      var c={}
-      Object.keys(n).forEach(function(k){
-        if (o && o[k]!==undefined) c[k] = o[k]
-        else c[k] = n[k]
-      })
-      return c
-    }
-    return n
-  }
-
-  function shallowMerge(v1, v2) {
-    if (v1 === undefined) return shallowCopy(v2)
-    return shallowCopy(v1,v2)
-  }
-
-  /*
-  * a value is dirty if any of its properties are dirty, or for key diff..
-  *  dirty if that key value is dirty regardless of other changed props
-  */
-  function diff(m,v,d) {
-    var dirty = circus.FALSE, mutator = m instanceof Mutator
-    var mv = mutator? m.value : m, t = type.call(mv)[8]
-    if (~LITERAL.indexOf(t) || mv === undefined || v === undefined) {
-      dirty = mv!==v || circus.FALSE
+  function shallowDiff(v1,v2, recurse) {
+    var t = type.call(v1)[8]
+    if (~LITERAL.indexOf(t) || v1 === undefined || v2 === undefined) {
+      return v1!==v2
     }
     else {
-      if (mutator && m.key !== undefined) {
-        dirty = v[m.key] !== mv[m.key] && m.key || circus.FALSE
-      }
-      else {
         if (t === ARRAY) {
-          for (var i=0, l=mv.length; i<l; i++) {
-            if (d && diff(mv[i],v[i],d).dirty || mv[i] !== v[i]) {
-              dirty=i
-              break
-            }
-          }
+          return  v1.length !== v2.length || v1.some(function(v,i) {
+            return recurse? shallowDiff(v,v2[i],recurse) : v !== v2[i]
+          })
         } else if (t === OBJECT) {
-          var mk = Object.keys(mv), vk = Object.keys(v)
-          dirty = mk.length != vk.length || typeof v !== 'object' || mk.reduce(function(a,k){
-            return a!==circus.FALSE || (d && diff(mv[k],v[k],d).dirty) || (mv[k] !== v[k] && k) || a
-          },circus.FALSE)
+          var mk = Object.keys(v1), vk = Object.keys(v2)
+          return mk.length != vk.length || typeof v2 !== 'object' || mk.some(function(k,i){
+            return recurse? shallowDiff(v1[k],v2[k],recurse) : v1[k] !== v2[k] || mk[i] !== vk[i]
+          })
         }
-      }
     }
-    return {dirty:dirty,value:mv}
+    return false
   }
 
-  function equal(m,v){
-    return diff(new Mutator(m),v).dirty === circus.FALSE
+  function deepDiff(v1,v2){
+    return shallowDiff(v1,v2,true)
   }
 
-  function deepEqual(m,v){
-    return diff(new Mutator(m),v,true).dirty === circus.FALSE
+  function equal(v1,v2){
+    return !shallowDiff(v1,v2)
+  }
+
+  function deepEqual(v1,v2){
+    return !shallowDiff(v1,v2,true)
   }
 
   function pathToData(data, key){
@@ -93,31 +63,31 @@ var circus = (function(){
     return v!==undefined? v : def
   }
 
-  function reduce(s, jp, fn, acc) {
-    return traverse(s,jp,fn,acc)[1]
+  function reduce(s, fn, seed) {
+    return traverse(s, fn, seed)[1]
   }
 
-  function map(s, jp, fn) {
-    return traverse(s,jp,fn)[0]
+  function map(s, fn) {
+    return traverse(s, fn)[0]
   }
 
-  function traverse(s, jp, fn, acc) {
-    if (typeof jp === 'function'){
-      acc = fn
-      fn = jp
-      jp = undefined
-    }
-    var c = (jp? s.jp[jp].channels : s.channels).ordered
+  function tap(s, fn) {
+    traverse(s, fn)
+  }
+
+  function traverse(s, fn, acc) {
+    var c = s.channels, seed = arguments.length===3
     function stamp(c, fn){
       var obj = {}
       c.forEach (function(t){
-        var n = t.signal.name
-        if (t.channels && t.channels !== s.channels && !t.channels.sampleOnly) {
-          var a = stamp(t.channels.ordered,fn, acc)
-          acc = a[1],obj[n] = a[0]
+        var n = t.name
+        if (t.channels && t.channels !== s.channels) {
+          var a = stamp(t.channels,fn, acc)
+          obj[n] = a[0]
+          acc = a[1]
         }
         else {
-          acc = obj[n] = fn.call(t,acc)
+          acc = obj[n] = fn.apply(null, seed? [acc,t]:[t])
         }
       })
       return [obj,acc]
@@ -126,23 +96,27 @@ var circus = (function(){
   }
 
   var api = {
-    id: function(v) {return v},
-    noop:function(){},
-    copy: shallowCopy,
-    merge: shallowMerge,
-//    diff: diff,
+
+    TRUE: Object.freeze({state:true}),
+    FALSE: Object.freeze({state:false}),
+    NULL: Object.freeze({state:null}),
+    UNDEFINED: Object.freeze({state:undefined}),
+
+    diff:false,
+    shallowDiff: shallowDiff,
+    deepDiff: deepDiff,
     equal: equal,
     deepEqual: deepEqual,
     lens: lens,
     map: map,
     reduce: reduce,
-    traverse: function(s,j,f) {traverse(s,j,f)},
+    tap: tap,
     typeOf: function(t) {
       t = type.call(t)[8]
       return ~LITERAL.indexOf(t) && LITERAL || t
-    },
-    Mutator : Mutator
+    }
   }
+
   api.typeOf.ARRAY = ARRAY
   api.typeOf.OBJECT = OBJECT
   api.typeOf.LITERAL = LITERAL

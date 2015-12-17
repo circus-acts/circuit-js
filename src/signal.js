@@ -2,100 +2,115 @@ var signal = (function(circus){
 
 'use strict';
 
-// *** Lean ***
-//  no named join points, splits or switches - use joins, feeds and logic:
-//    split = signal.join(s1,s2)
-//    switch = signal.feed(s1.or(),s2.or())
-//    sample any = signal.sample(signal.merge(s1,s2))
-//
-//  state change after composition
-//    dirty on state change only (not join points)
-
 //todo: $ise public props
 
 circus = circus || require('circus');
 
 circus.TRUE =  Object.freeze({state:true})
 circus.FALSE =  Object.freeze({state:false})
+circus.NULL = Object.freeze({state:null})
 circus.UNDEFINED = Object.freeze({state:undefined})
 var NULLSTATE = Object.freeze({dirty:circus.FALSE,value:undefined})
 var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
 
 var cid=0
 
+// generate an new signal with optional seed semantics
 function Signal(seed){
 
   // private
+
   var _head, _state = NULLSTATE, _value
-  var _active
-  var _fifo = [], _filo = [], _inFinally=0, _step = 0
+  var _active, _step = 0
+  var _befores = [], _steps = [], _afters = []
   var _seed = circus.UNDEFINED
   var _depth = 1
   var _diff = circus.diff || function(v,s) { return v!==s }
 
-  // compose all steps on new value
-  //         next step on join value
-  function compose(ctx,v,ns) {
+  // _runToState - all steps on new value
+  //              next step on join value
+  function _runToState(ctx,v,ns) {
+    // before(s) in filo order
+    for (var j = 0, nl = _befores.length; j < nl; j += 1) {
+      _befores[j].call(ctx, v)
+    }
+
     if (_active || _active===undefined){
-      _active=true
-      for (var j = ns, nl = _fifo.length; j < nl; j += 1) {
-        var nv = _fifo[j].call(ctx, v)
-        if (nv===undefined) break
-        if (nv===circus.FALSE) return
-        v = nv
+      var nv = v
+      // steps in fifo order
+      for (var j = ns, nl = _steps.length; j < nl; j += 1) {
+        nv = _steps[j].call(ctx, v)
+        if (nv===undefined) break // stop here but mutate
+        if (nv===circus.FALSE) break; // don't mutate state
+        v = nv.hasOwnProperty('state')? nv.state : nv
       }
 
-      // mutate
-      var dirty = _state.value===undefined? v : !_diff(v,_state.value) && circus.FALSE || v
-      _state = {dirty:dirty, value:v}
+      if (nv!==circus.FALSE) _mutate(v)
 
-      if (_depth>1) {
-        if (_value.length===_depth) _value.shift();
-        _value.push(_state)
-      } else {
-        _value=_state
-      }
-
-      // finally(s) in filo order
-      for (var j = 0, nl = _filo.length; j < nl; j += 1) {
-        _filo[j].call(ctx, v)
+      // after(s) in filo order
+      for (var j = 0, nl = _afters.length; j < nl; j += 1) {
+        _afters[j].call(ctx, v)
       }
     }
   }
 
-  // properties
+  function _mutate(v) {
+    _active=true
+    var dirty = _state.value===undefined? v : !_diff(v,_state.value) && circus.FALSE || v
+    _state = {dirty:dirty, value:v}
+
+    if (_depth>1) {
+      if (_value.length===_depth) _value.shift();
+      _value.push(_state)
+    } else {
+      _value=_state
+    }
+  }
+
+  // public
 
   this.id = ++cid
-  this.name = ''
+  this.name = '' // empty name produces array like channels: {0:c1,1:c2...}
   this.namespace = ''
 
+  // returns the last value submitted to the signal
   this.head = function() {
+    // undeniably useful for detailed signal state control
     return _head
   }
 
-  // Set or read the signal value
-  //
+  // set signal state directly bypassing run steps.
+  // This method should only be used to establish primary state
+  this.prime = function(v) {
+    _mutate(v)
+    return this
+  }
+
+  // Set or read the signal state value
+  // This method produces state propagation throughout a connected circuit
   this.value = function(v) {
     if (_seed !== circus.UNDEFINED) {
       var sv = _seed
       _seed = circus.UNDEFINED
       for (var i=0, l=sv.length; i<l; i++) {
-        this.value(sv[i])
+        _mutate(sv[i])
       }
     }
     if (arguments.length) {
       _head = v
-      compose(this,v,0)
+      _runToState(this,v,0)
     }
     return _state.value
   }
 
   // Allow values to be injected into the signal at
-  // arbitrary step points > 0.
-  this.step = function(s) {
-    s = s || _step+1, ctx = this
+  // arbitrary step points.
+  this.step = function(sp) {
+    var ctx = this
+    if (sp===undefined) sp = _step+1
+    if (sp===circus.FALSE) sp = _step
     return function(v){
-      compose(ctx,v,s)
+      _runToState(ctx,v,sp)
     }
   }
 
@@ -111,7 +126,7 @@ function Signal(seed){
     return !!_active
   }
 
-  // Set the diff function for this signal
+  // Establish the diff function used when this signal mutates state
   this.diff = function(diff) {
     _diff = diff
     return this
@@ -119,17 +134,28 @@ function Signal(seed){
 
   // Map the current signal state onto a new state
   // The function will be called in signal context and
-  // can prevent propagation by returning undefined
+  // can prevent propagation by returning:
+  //   undefined - retain current state
+  //   circus.FALSE - revert to previous state
+  // Note that to map state onto undefined or null,
+  // the pseudo values circus.UNDEFINED or circus.NULL should be returned
   this.map = function(f) {
-    _fifo.push(f)
-    _step = _fifo.length
+    _steps.push(f)
+    _step = _steps.length
     return this
   }
 
-  // Lift a function onto a signal tail in FILO order
-  // FILO functions are executed after all FIFO functions regardless of propagation status
-  this.finally = function(f) {
-    _filo.unshift(f)
+  // Lift a function onto a signal head to be executed in FILO order
+  // before functions are executed before any step functions
+  this.before = function(f) {
+    _befores.unshift(f)
+    return this
+  }
+
+  // Lift a function onto a signal tail to be executed in FILO order
+  // after functions are executed after all step functions regardless of propagation status
+  this.after = function(f) {
+    _afters.unshift(f)
     return this
   }
 
@@ -154,130 +180,36 @@ function Signal(seed){
     return _state.dirty!==circus.FALSE
   }
 
-// Tap the current signal state value
-// The function will be called in signal context
-this.tap = function(f) {
-  return this.map(function(v){
-    f.call(this,v)
-    return v
-  })
-}
-
-// circuitry...
-//  join points - map multiple input signals onto one output signal
-//  feeds - map one input signal onto multiple output signals (fanout)
-
-function joinPoint(ctx, sampleOnly, joinOnly, args) {
-
-  var signals = [].slice.call(args), channels = [], step = ctx.step(), inclusive
-
-  // flatten joining signals into channels
-  // - accepts and blocks out nested signals
-  var ns = (ctx.namespace? ctx.namespace + '.' : '') + ctx.name
-  while (signals.length) {
-    var cblock = signals.shift()
-    if (cblock === circus.id) {
-      inclusive = ctx
-      cblock = ctx
-    }
-    if (!(cblock instanceof Signal)) {
-      Object.keys(cblock).forEach(function(k,i){
-        var s = cblock[k]
-        if (!(s instanceof Signal)) {
-          s = new Signal([k,ns]).join(s)
-        }
-        s.parent = ctx
-        s.name = s.name || k
-        s.namespace = ns
-        channels.push(s)
-      })
-    }
-    else {
-      channels.push(cblock)
-    }
-  }
-
-  var jv={}, sv, keys=[]
-  function merge(i,r) {
-    var active, key = keys[i] = channels[i].name || i
-    return function(v) {
-      active=true
-      if (joinOnly || sampleOnly) {
-        var nv = {}
-        for (var c=0, l=channels.length; c<l; c++) {
-          var s = channels[c]
-          active = active && s.active()
-          nv[keys[c]] = jv[keys[c]]
-        }
-        jv = nv
-        jv[key] = v
-      }
-      else {
-        jv = v
-      }
-
-      if (active) {
-        step(sampleOnly? sv : jv)
-      }
-
-      return r
-    }
-  }
-
-  for (var i=0, l = channels.length; i<l; i++) {
-    // merge incoming signals into join point
-    var s = channels[i], r = s===inclusive? circus.FALSE : undefined
-    s[r? 'map':'finally'](merge(i,r))
-  }
-  return sampleOnly? ctx.map(function(){}).finally(function(v){sv=v}) : ctx
-}
-
-// Join 2 or more input signals into 1 output signal
-// Input signal values will be preserved as output channels
-// Duplicate channels will be merged
-// The output signal will be active when all of the input signals are active
-this.join = function(){
-  return joinPoint(this,false,true,arguments)
-}
-
-// Merge 2 or more input signal values into 1 output signal
-// The output signal value will be the latest input signal value
-// The output signal will be active when any of the input signals are active
-this.merge = function(fn){
-  return joinPoint(this,false,false,arguments)
-}
-
-// Sample input signal(s)
-// The output signal will be active when all of the input signals are active
-this.sample = function() {
-  return joinPoint(this,true,false,arguments)
-}
-
-// Feed signal values into fanout signal(s)
-// The input signal is terminated
-this.feed = function() {
-  var feeds = [].slice.call(arguments)
-  return this.map(function(v){
-    feeds.forEach(function(s){
-      s.value(v)
+  // Tap the current signal state value
+  // The function will be called in signal context
+  this.tap = function(f) {
+    return this.map(function(v){
+      f.call(this,v)
+      return v===undefined? circus.UNDEFINED : v
     })
-  })
-}
+  }
 
-  // seed signal with any combination of:
-  //  name - string
-  //  value - array
+  // Feed signal values into fanout signal(s)
+  // The input signal is terminated
+  this.feed = function() {
+    var feeds = [].slice.call(arguments)
+    return this.map(function(v){
+      feeds.forEach(function(s){
+        s.value(v)
+      })
+    })
+  }
+
+  // seed signal with optional name followed by any combination of:
+  //  state - array
   //  signal - fanout
   if (seed!==undefined && seed[0] !== undefined) {
-    var ctx = this, ni=0, feeds=[];
-    [].slice.call(seed).forEach(function(arg){
-      if (typeof arg === 'string') {
-        if (!ni++) {
-          ctx.name = arg
-        }
-        else ctx.namespace = arg
-      }
-      else if (arg instanceof Signal) {
+    var ctx = this, ss=0, feeds=[], args=[].slice.call(seed);
+    while (typeof args[0] === 'string') {
+      ctx[++ss==1? 'name' : 'namespace'] = args.shift()
+    }
+    args.forEach(function(arg){
+      if (arg instanceof Signal) {
         feeds.push(arg)
       }
       else _seed = arg
@@ -287,15 +219,26 @@ this.feed = function() {
     }
   }
 
+}
 
-
+// Extend a signal with custom step functions either through an
+// object graph, or a context bound function that returns an object graph
+// Chainable step functions must return the context.
+Signal.prototype.extend = function(fn) {
+  var ctx=this, ext = typeof fn==='function'? fn(this) : fn
+  Object.keys(ext).forEach(function(k){
+    ctx[k] = ext[k]
+  })
+  return this
 }
 
 circus.signal = function(seed){return new Signal(arguments)}
 
-circus.signal.extendBy = function(obj) {
-  Object.keys(obj).forEach(function(k){
-    Signal.prototype[k] = obj[k]
+// Extend the signal prototype with custom step functions.
+// Chainable step functions must return the context.
+circus.signal.extendBy = function(ext) {
+  Object.keys(ext).forEach(function(k){
+    Signal.prototype[k] = ext[k]
   })
 }
 

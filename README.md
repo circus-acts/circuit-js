@@ -4,7 +4,7 @@
 
 A JavaScript frp library for front end developers.
 
-Signal takes an event such as a key press and maps it onto a signal whose value change discretely over time. Signals can be connected together to form logical circuits that turn asynchronous spaghetti into sequential code making it easier to understand the overall state of a program at any given point in time. 
+Signal takes an event such as a key press and maps it onto a signal whose value change discretely over time. Signals can be connected together to form logical circuits that turn asynchronous spaghetti into sequential code making it easier to understand the overall state of a program at any given point in time.
 
 Signal is part of the CircusJS set of class acts that fit together to create modern web applications, but it can be used independently.
 
@@ -29,7 +29,9 @@ Circus values are plain old JavaScript so they have core language mutability. Th
 Acts are circuit patterns
 
 ## Hot or cold?
-Circus doesn't really deal with observables because it has no notion of subscribers, but  patterns will be discerned, and in such cases, circus would be hot by default. Cold behaviour is always available through composition:
+Circus doesn't really deal with observables because it has no notion of subscribers, but  patterns will be discerned, and in such cases, circus would be hot by default. For example, two signals joined after their value has been set will not propagate until both signals are reset.
+
+Cold behaviour is always available through composition:
 
 ```javascript
 	signalA = circus.signal(['X','Y','Z'])
@@ -40,13 +42,13 @@ Circus doesn't really deal with observables because it has no notion of subscrib
 ### How shall we handle validation?
 ### Will animation enhance UX?
 
-### Lets build an intention circuit to define validation channels. 
+### Lets build an intention circuit to define validation channels.
 Each channel is conditionally merged with the error channel before joining the main intent channel. The error channel is then joined with the intent channel which eventually feeds the model.
 
 ```
 intent -----------------------------------------------------------J --> feed(model)
   error -------------------M ---------------M ----------------M --+
-  email ------> required -?+ ----> formed -?+ --------------------+ 
+  email ------> required -?+ ----> formed -?+ --------------------+
   password ---> required -?+ --> strength -?+ -JA --> equal -?+ --+
   register -------------------------------------------------------+
   confirm --------------------------------------+
@@ -63,7 +65,7 @@ intent -----------------------------------------------------------J --> feed(mod
 
 #### key:
 * -->  mapped or lifted function
-* --J  join 
+* --J  join
 * -JA  joinAll
 * --M  merge
 * --+  channel m/j point
@@ -116,6 +118,6 @@ Circus has a certain ring to it...
 
 Source code is licensed under the MIT License (MIT). See [LICENSE.txt](./LICENSE.txt)
 file in the project root. Documentation to the project is licensed under the
-[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) license. 
+[CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) license.
 
 

@@ -1,7 +1,7 @@
 {
   "name": "CircusJS",
   "npmName": "CircusJS",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "filename": "circus.js",
   "description": "Signal based FRP in JvaScript",
   "homepage": "http://philtoms.github.io/circusjs",
@@ -18,7 +18,7 @@
     "Phil Toms <phil.toms@hotmail.co.uk> (http://philtoms.github.io/circusjs)"
   ],
   "bugs": "https://github.com/philtoms/circusjs/issues",
-	"repository" : { 
+	"repository" : {
 	    "type" : "git",
 	    "url" : "http://github.com/philtoms/circusjs"
 	},

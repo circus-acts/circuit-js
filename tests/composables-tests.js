@@ -18,17 +18,17 @@ runTests('composables', function(mock) {
         for (var i=0; i<4; i++) s.value(i)
         return r.length === 2 &&
                 r[0].toString() === '0,1' &&
-                r[1].toString() === '2,3' 
+                r[1].toString() === '2,3'
     })
 
     test('compact', function() {
         var s = circus.signal().keep().compact()
         s.value(1)
-        s.value(circus.UNDEFINED)
+        s.value(undefined)
         s.value('')
         s.value(0)
         s.value(3)
-        return s.history().toString() === '1,3' 
+        return s.history().toString() === '1,3'
     })
 
     test('filter', function(){
@@ -39,35 +39,34 @@ runTests('composables', function(mock) {
         return s.history().toString() === '1,3'
     })
 
-    test('flatten', function(done){
-        var s = circus.signal([1,2]).keep().flatten()
-        return done(function(){
-            s.value([3,[4,5]])
-            s.value(6)
-            return s.history().toString() === '1,2,3,4,5,6'
-        })
+    test('flatten', function(){
+        var s = circus.signal().keep().flatten()
+        s.value([1,2])
+        s.value([3,[4,5]])
+        s.value(6)
+        return s.history().toString() === '1,2,3,4,5,6'
     })
 
-    test('flatten - flatmap', function(done){
-        var s = circus.signal([1,2]).keep().flatten(function(v){
+    test('flatten - flatmap', function(){
+        var s = circus.signal().keep().flatten(function(v){
             return v+1
         })
-        return done(function(){
-            s.value(3)
-            return s.history().toString() === '2,3,4'
-        })
+        s.value([1,2])
+        s.value(3)
+        return s.history().toString() === '2,3,4'
     })
 
     test('maybe', function(){
-        return circus.signal([123]).maybe(function(v){
+        var value = circus.signal().maybe(function(v){
             return true
-        },'nothing').value().just === 123
+        },'nothing').value(123)
+        return value.just === 123
     })
 
     test('maybe - nothing', function(){
-        var value = circus.signal([123]).maybe(function(v){
+        var value = circus.signal().maybe(function(v){
             return false
-        },'nothing').value();
+        },'nothing').value(123);
         return value.nothing === 'nothing'
     })
 
@@ -87,13 +86,6 @@ runTests('composables', function(mock) {
                 s.value()['b.b1[1]']===3
     })
 
-    test('pluck - channel', function() {
-        var s = circus.signal(),
-            s1 = circus.signal().join(s).pluck(1)
-        s.value(123)
-        return s1.value()===123
-    })
-
     test('project', function() {
         var s = circus.signal().project({a:'a.a1',b:'b.b1[1]'})
         s.value({a:{a1:1},b:{b1:[2,3]}})
@@ -108,7 +100,7 @@ runTests('composables', function(mock) {
         .reduce(function(a,v){
             return a+v
         }).tap(function(v){
-            e = v           
+            e = v
         })
         s.value(1)
         s.value(1)
@@ -122,7 +114,7 @@ runTests('composables', function(mock) {
         .reduce(function(a,v){
             return a+v
         },1).tap(function(v){
-            e = v           
+            e = v
         })
         s.value(1)
         s.value(1)
@@ -142,13 +134,6 @@ runTests('composables', function(mock) {
         return s.value() === 1
     })
 
-    test('then', function() {
-        var c = function(s) {
-            return s.map(inc).map(inc)
-        }
-        return circus.signal([1]).then(c).value() === 3
-    })
-
     test('window', function() {
         var s = circus.signal().window(2)
         for (var i=0; i<4; i++) s.value(i)
@@ -157,276 +142,14 @@ runTests('composables', function(mock) {
 
     test('zip - arrays', function() {
         var s1 = circus.signal()
-        var s2 = circus.signal().join(s1,circus.signal.allActive).zip().tap(function(v){r.push(v)})
-        var a = [0,1,2,3],r = []
-        a.map(function(i){
-            s2.value(i)
-            s1.value(i+1)
+        var s2 = circus.signal()
+        circus.join(s1,s2).zip().tap(function(v){r.push(v)})
+        var a = [1,2,3],b = [4,5,6], r = []
+        a.map(function(x,i){
+            s1.value(x)
+            s2.value(b[i])
         })
-        return r.length === 7 && r.toString() === '0,1,1,1,1,2,2,2,2,3,3,3,3,4'
-    })
-
-    test('zip - synchronised arrays', function() {
-        var s1 = circus.signal().pulse()
-        var s2 = circus.signal().keep().join(s1,circus.signal.allActive).zip()
-        var a = [0,1,2,3]
-        a.map(function(i){
-            s2.value(i)
-            s1.value(i+1)
-        })
-        var r = s2.history()
-        return r.length === 4 && r.toString() === '0,1,1,2,2,3,3,4'
-    })
-
-    test('match - take active', function() {
-        var r, v = {c1:1,c2:0,c3:undefined}
-        circus.signal([v]).match().tap(function(v){r=v}).value()
-        return circus.equal(r, {c1:1,c2:0})
-    })
-
-    test('match - block all inactive', function() {
-        var r, v = {c1:undefined,c2:undefined}
-        circus.signal([v]).match().tap(function(v){r=v}).value()
-        return r === undefined
-    })
-
-    test('match - mask', function() {
-        var r, v = {c1:undefined,c2:2,c3:3}
-        circus.signal([v]).match({c1:false,c2:true}).tap(function(v){r=v}).value()
-        return circus.equal(r, {c1:undefined,c2:2})
-    })
-
-    test('match - fn', function() {
-        var v = {c1:1,c2:0,c3:3}
-        var v1 = circus.signal([v]).match(function(v){return v===0}).value()
-        return circus.equal(v1, {c2:0})
-    })
-
-    test('match - fn + mask', function() {
-        var v = {c1:1,c2:0,c3:3}
-        var v1 = circus.signal([v]).match({c1:0},function(v,m){return v===m+1}).value()
-        return circus.equal(v1, {c1:1})
-    })
-
-    test('match - wildcard', function() {
-        var v = {c1:1,c2:2,c3:3}
-        var v1 = circus.signal([v]).match({'*':true}).value()
-        return circus.equal(v1, v)
-    })
-
-    test('match - leading wildcard', function() {
-        var v = {c1:1,c2:2,c3:3}
-        var v1 = circus.signal().match({'*1':true}).value(v)
-        return circus.equal(v1, {c1:1})
-    })
-
-    test('match - trailing wildcard', function() {
-        var v = {ca1:1,cb2:2,cc3:3}
-        var v1 = circus.signal([v]).match({'ca*':true}).value()
-        return circus.equal(v1, {ca1:1})
-    })
-
-    test('match - mixed wildcard', function() {
-        var v = {ca1:1,cb2:2,cc3:3}
-        var v1 = circus.signal([v]).match({'*1':false,'*':true}).value()
-        return circus.equal(v1, {cb2:2,cc3:3})
-    })
-
-    test('match - progressive join', function() {
-        var s1 = circus.signal('c1')
-        var s2 = circus.signal('c2').join(s1).and()
-        s1.value(1)
-        var v1 = circus.equal(s2.value(), undefined)
-        s2.value(2)
-        var v2 = circus.equal(s2.value(), {c1:1,c2:2})
-
-        return v1 && v2
-    })
-
-    test('match - progressive wildcard join', function() {
-        var s1 = circus.signal('c1')
-        var s2 = circus.signal('c2').join(s1).and({'*':true})
-        s1.value(1)
-        var v1 = circus.equal(s2.value(), undefined)
-        s2.value(2)
-        var v2 = circus.equal(s2.value(), {c1:1,c2:2})
-
-        return v1 && v2
-    })
-
-    test('and - take all truthy', function() {
-        var r, s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and().tap(function(v){r=v}).value(2)
-        return circus.equal(r, {s1:1,s2:2})
-    })
-
-    test('and - block on any falsey', function() {
-        var r,s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and().tap(function(v){r=v}).value(0)
-        return circus.equal(r, undefined)
-    })
-
-    test('and - list', function() {
-        var r, v = {ca1:1,cb2:2,cc3:3}
-        circus.signal([v]).and('ca1','cc3').tap(function(v){r=v}).value()
-        return circus.equal(r, {ca1:1,cc3:3})
-    })
-
-    test('and - mask', function() {
-        var r,mask = {
-            s1:true
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(1)
-        return circus.equal(r, {s1:1})
-    })
-
-    test('and - negative mask', function() {
-        var r, mask = {
-            s2:false
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(0)
-        return circus.equal(r, {s2:0})
-    })
-
-    test('and - blocked mask', function() {
-        var r,mask = {
-            s1:true,
-            s2:true
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(0)
-        return circus.equal(r, undefined)
-    })
-
-    test('and - value mask', function() {
-        var r,mask = {
-            s1:1
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(1)
-        return circus.equal(r, {s1:1})
-    })
-
-    test('and - blocked value mask', function() {
-        var r,mask = {
-            s1:1,
-            s2:2
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(1)
-        return circus.equal(r, undefined)
-    })
-
-    test('and - undefined value mask', function() {
-        var r,mask = {
-            s1:1,
-            s2:undefined
-        }
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).and(mask).tap(function(v){r=v}).value(1)
-        return circus.equal(r, {s1:1,s2:1})
-    })
-
-    test('or - take values', function() {
-        var s1 = circus.signal('s1')
-        s1.value(1)
-        var s2 = circus.signal('s2').join(s1).or()
-        s2.value(1)
-        return circus.equal(s2.value(), {s1:1,s2:1})
-    })
-
-    test('or - restore dropped value', function() {
-        var s1 = circus.signal('s1').or()
-        s1.value(1)
-        s1.value(0)
-        return circus.equal(s1.value(), 1)
-    })
-
-    test('or - take active (same as match()', function() {
-        var r, s1 = circus.signal('s1')
-        s1.value(1)
-        circus.signal('s2').join(s1).or().tap(function(v){r=v}).value(0)
-        return circus.equal(r,{s1:1})
-    })
-
-    test('or - default to mask value', function() {
-        var mask = {
-            s1:2,
-            '*':true
-        }
-        var s1 = circus.signal('s1')
-        s1.value(0)
-        var s2 = circus.signal('s2').join(s1).or(mask)
-        s2.value(2)
-        return circus.equal(s2.value(), {s1:2,s2:2})
-    })
-
-    test('xor - signal change', function() {
-        var r=0
-        var s1 = circus.signal().xor().tap(function(v){r++})
-        s1.value(1)
-        s1.value(1)
-        s1.value(2)
-        return r===2
-    })
-
-    test('xor - take value', function() {
-        var r, mask = {s1:3}
-        var s1 = circus.signal().xor(mask).tap(function(v){r=v})
-        s1.value({s1:1})
-        return circus.equal(r, {s1:1})
-    })
-
-    test('xor - take mask', function() {
-        var r, mask = {s1:3}
-        var s1 = circus.signal('s1').xor(mask).tap(function(v){r=v})
-        s1.value(0)
-        return circus.equal(r, {s1:3})
-    })
-
-    test('xor - block on equal', function() {
-        var r, mask = {s1:3}
-        var s1 = circus.signal().xor(mask).tap(function(v){r=v})
-        s1.value({s1:3})
-        return circus.equal(r, undefined)
-    })
-
-    test('not - signal on all falsey, take nothing (mask==all channels)', function() {
-        var r=false
-        var s = circus.signal().not().tap(function(v){r=true})
-        s.value({s1:0,s2:0,s3:0})
-        return r === true && s.value() === undefined
-    })
-
-    test('not - block on any truthy', function() {
-        var r=false
-        var s = circus.signal().not().tap(function(v){r=true})
-        s.value({s1:1,s2:0,s3:3})
-        return r === false && s.value() === undefined
-    })
-
-    test('not - signal on falsey keys, take all but mask', function() {
-        var r=false
-        var s = circus.signal().not('s2').tap(function(v){r=true})
-        s.value({s1:1,s2:0,s3:0})
-        return r === true && circus.equal(s.value(), {s1:1, s3:0})
-    })
-
-    test('not - block on truthy keys', function() {
-        var r=false
-        var s = circus.signal().not('s2').tap(function(v){r=true})
-        s.value({s1:1,s2:1,s3:0})
-        return r === false && s.value() === undefined
+        return r.length === 3 && circus.deepEqual(r, [[1,4],[2,5],[3,6]])
     })
 
 })

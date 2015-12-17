@@ -9,52 +9,27 @@
   function MithrilMVI() {
     var mvi = circusMVI()
 
-    // A simple decorator that kick starts the application before
-    // returning the rendered view wrapped in a mithril component.
-    mvi.component = function(seed) {
-      var started=0
-
-      return {
-        view: view
-      }
-
-      // Opt-in mutable state.
-      // Mithril will only redraw guarded sections when their model
-      // bindings are dirty
-      mithril.mutateOn = function(binding) {
-        var args = [].slice.call(arguments,1)
-        return mvi.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
-      }
-
-      // project latest render into mithril component. Note that the application state
-      // can vary independently of mithril redraw.
-      function view() {
-        // kick-start the app by priming with a seed value.
-        // if seed is provided, the app will enter an active (validated) state,
-        // otherwise it will enter an inactive state with empty values
-        if (!started++) {
-          mvi.intent.prime(seed, !seed)
-        }
-        return mvi.view.value()
-      }
+    // Opt-in mutable state.
+    // Mithril will only redraw guarded sections when their model
+    // bindings are dirty
+    mithril.mutateOn = function(binding) {
+      var args = [].slice.call(arguments,1)
+      return mvi.model.dirty(binding)? mithril.apply(null,args) : {subtree:'retain'}
     }
 
     // extend mithril into signal
-    var _signal = mvi.signal
-    mvi.signal = function(seed) {
+    circus.signal.extendBy({
 
-      var signal = _signal(seed)
-
-      signal.httpGET = function (url, map) {
+      httpGET: function (url, map) {
         return signal.request({url:url,method:'GET'},map)
-      }
+      },
 
-      signal.httpPOST = function (url,map) {
-        return signal.request({url:url,method:'POST'})
-      }
+      httpPOST: function (url,map) {
+        return signal.request({url:url,method:'POST'},map)
+      },
 
-      signal.request = function (options,map) {
-        var _this = this, s = this.next()
+      request: function (options,map) {
+        var ctx = this
 
         if (!map) map = populate
 
@@ -70,22 +45,42 @@
           }
 
           function error(err) {
-            _this.error(err || 'invalid request')
+            ctx.error(err || 'invalid request')
           }
         })
-      }
 
-      function populate(options,data) {
-        if (options.method === 'GET') {
-          Object.keys(data).forEach(function(k){
-            options.url.replace(':'+k,data[k])
-          })
+        function populate(options,data) {
+          if (options.method === 'GET') {
+            Object.keys(data).forEach(function(k){
+              options.url.replace(':'+k,data[k])
+            })
+          }
+          else options.data = data
+          return options
         }
-        else options.data = data
-        return options
+      }
+    })
+
+    // A simple decorator that kick starts the application before
+    // returning the rendered view wrapped in a mithril component.
+    mvi.component = function(seed) {
+      var started=0
+
+      return {
+        view: view
       }
 
-      return signal
+      // project latest render into mithril component. Note that the application state
+      // can vary independently of mithril redraw.
+      function view() {
+        // kick-start the app by priming with a seed value.
+        // if seed is provided, the app will enter an active (validated) state,
+        // otherwise it will enter an inactive state with empty values
+        if (!started++ && seed) {
+          mvi.intent.prime(seed)
+        }
+        return mvi.view.value()
+      }
     }
 
     return mvi

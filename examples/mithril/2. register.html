@@ -7,6 +7,7 @@
 <script src="../../node_modules/mithril/mithril.js"></script>
 <script src="../../src/circus.js"></script>
 <script src="../../src/signal.js"></script>
+<script src="../../src/logic.js"></script>
 <script src="../../src/composables.js"></script>
 <script src="../../src/mvi.js"></script>
 <script src="../../libraries/mithril-circus.js"></script>
@@ -23,11 +24,11 @@
   // an MVI pattern.
 
   var app = circus.mvi(),
-      login = app.signal().and('login','user').httpPOST('http://login'),
-      register = app.signal().and('register','user','details').httpPOST('/register'),
-      specials = app.signal().merge(login,register).httpGET('/specials/:sessionId'),
+      login = app.and('login','user').httpPOST('http://login'),
+      register = app.and('register','user','details').httpPOST('/register'),
+      specials = app.merge(login,register).httpGET('/specials/:sessionId'),
       // if not registered, pass remaining signal values unconditionally
-      notRegistered = app.signal().and({notRegistered:true,'*':undefined})
+      notRegistered = app.and({notRegistered:true,'*':undefined})
 
   //  one signal feeds another signal (group) and awaits their values
   app.model
@@ -63,9 +64,10 @@
 
     // helpers to build markup and bind state and intentions
     function input(label, name, ns, type) {
-      var errorMsg = circus.lens(app.error,name, ns),
+      var
           data = circus.lens(state,name,ns),
           intention = circus.lens(intentions,name, ns),
+          errorMsg = intention.error(),
           valueAttr = type === 'checkbox'? 'checked' : 'value',
           action = type === 'checkbox'? 'onchange' : 'onblur',
           attrs = {
@@ -130,33 +132,6 @@
 
   app.intent.join(intentions)
 
-  app =  {
-    account: {
-       user = {
-        email: required().error(formed),
-        password: password
-      },
-      details = {
-        title: required(),
-        firstName: required(),
-        lastName: required(),
-        address: {
-          line1: required(),
-          line2: app.signal(),
-          town: required(),
-          county: required(),
-          country: required()
-        }
-      }
-    }
-  }
-        },
-        strength: strength,
-        notRegistered: app.signal().tap(debug),
-        confirm: required().error(match),
-        login: app.intent.cta(user).take(300)),
-        register: app.intent.cta(user,details)
-      }
 
   // create some helper functions to simplify the circuit definition
   function required(msg) {

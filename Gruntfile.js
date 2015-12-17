@@ -75,25 +75,31 @@ module.exports = function(grunt) {
 		concat: {
 			uglify: {
 				src: [
-				"./src/circus.js", 
-				"./src/signal.js", 
-				"./src/model.js",
-				"./src/view.js", 
-				"./src/intent.js", 
-				], 
+				"./src/circus.js",
+				"./src/signal.js",
+				"./src/circuit.js",
+				"./src/logic.js",
+				"./src/composables.js",
+				"./src/mvi.js",
+				],
 				dest: currentVersionArchiveFolder + "/circus.js"},
 
 			test: {
 				src: [
-				"./tests/test.js", "./tests/mock.js", 
-				"./src/circus.js", 
-				"./src/signal.js", 
+				"./tests/test.js", "./tests/mock.js",
+				"./src/circus.js",
+				"./src/signal.js",
+				"./src/circuit.js",
+				"./src/logic.js",
 				"./src/composables.js",
-				"./src/mvi.js", 
+				"./src/mvi.js",
+				"./tests/circus-tests.js",
 				"./tests/signal-tests.js",
+				"./tests/circuit-tests.js",
+				"./tests/logic-tests.js",
 				"./tests/composables-tests.js",
 				"./tests/mvi-tests.js"
-				], 
+				],
 				dest: currentVersionArchiveFolder + "/circus-tests.js"}
 		},
 		replace: {
