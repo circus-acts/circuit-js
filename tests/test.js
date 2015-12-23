@@ -78,7 +78,7 @@ function startRun(name,registerTests, inclusive) {
 		this.failures = []
 		this.tests = []
 		var suite = curSuite = this
-		registerTests(mock.window)
+		registerTests()
 		this.tests.unshift(0)
 		this.tests.unshift(testQueue.length)
 		Array.prototype.splice.apply(testQueue,this.tests)

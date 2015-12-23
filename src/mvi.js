@@ -1,8 +1,20 @@
 var circusMVI = (function(circus){
 
   /*
-  *  Circus MVI is implemented through the independent signals m, v and i
-  *  that each feed one into the next in a circular m -> v -> i direction.
+  *  Circus.MVI
+  *  Application state and logic is completely expressed by and manipulated through
+  *  circus signals, arranged as M(odel) V(iew) I(ntent) circuitry that cyclically
+  *  feeds the values of each signal into the next.
+  *
+  *  The direction of information travel is strictly M -> V -> I
+  *
+  *            +--> Model--+
+  *            ^           |
+  *            |           v
+  *          Intent <--  View
+  *
+  *  This micro framework also provides a dedicated error signal that bypasses
+  *  the model and feeds directly into the view.
   */
 
   'use strict';
@@ -38,124 +50,124 @@ var circusMVI = (function(circus){
 
   function MVI() {
     var mvi = this,
-        error = circus.signal(),
-        data = circus.signal([{}])
+        head = function(s) {return s.head},
+        justIntent = function(v) {return v.intent || v},
+        justModel = function(v) {return v.intent? circus.map(mvi.intent,head) : v},
+        maybeError = {error:function(v){
+          return v===true || circus.FALSE}},
+        justValid = {error:function(v){
+          return v===false}}
+
+    var error = circus.signal('error').pulse(),
+        intent = new Intent(),
+        model = new Model(),
+        view = new View()
+
+
+    var mviError = false
+    circus.stateStart = function(ctx) {
+      mviError=false
+    }
+
+    circus.stateEnd = function(ctx) {
+      error.value(mviError)
+    }
 
     mvi.signal = function(){
-      return circus.signal.apply(null,arguments).extend({
-        error: pushError()
+      return circus.signal.apply(null,arguments).extend(function(ctx){
+        return {
+          value: trapValue(ctx),
+          error: pushError(ctx)
+        }
       })
     }
 
-    /*
-    Fold the app into a new circus act that feeds directed MVI signals
-      Model and intent are simple notifications that fire whenever
-      their value changes, but view feeds into intent through explicit
-      bindings in the render function. Put simply: views only feed
-      through user intentions
-    */
-    var model = mvi.model = new Model(),
-        view = mvi.view = new View(),
-        intent = mvi.intent = new Intent()
-
-    return mvi
-
-    function reset(graph){
-      circus.tap(graph,function(s){s.error(circus.UNDEFINED)})
+    mvi.prime = function(seed) {
+      circus.signal().tap(function(pv){
+        circus.tap(mvi.intent, function(s,v){
+          s.value(v)
+          s.error('')
+        }, seed || {})
+        mviError=pv
+      }).value(true)
+      return this
     }
 
-    function pushError() {
-      var msg = ''
-      return function(fn) {
-        function push(v) {
-          msg = msg || fn(v) || ''
+    function trapValue(ctx) {
+      var _value = ctx.value
+      return function(v) {
+        if (arguments.length) {
+          ctx.head = v
         }
-        if (arguments.length){
-          if (typeof fn === 'function') {
-            this.tap(function(v){push(v)})
-          }
-          else {
-            msg = fn===circus.UNDEFINED? '' : msg || fn || ''
-          }
-          return this
-        }
-        return msg
+        var nv = _value.apply(ctx,arguments)
+        return nv
       }
     }
 
-    function pushValues(s) {
-      // block model feeds during traverse
-      var ma = model.active(false), err = ''
-      circus.tap(s,visit)
-      model.active(ma)
-      error.value(err)
-
-      function visit(s) {
-        s.value(s.head())
-        err =  err || s.error() || ''
+    function pushError(ctx) {
+      var _error
+      function push(msg) {
+        _error = !msg? '' : _error || msg
+        mviError = mviError || !!_error
+      }
+      return function(f) {
+        if (typeof f !== 'function') {
+          if (arguments.length) {
+            push(f)
+          }
+          return _error
+        }
+        return ctx.map(function(v){
+          push(f(v))
+          return _error? undefined : v
+        })
       }
     }
 
-    function Model(seed) {
-
-      var state = seed || {}
-      return circus.join({error:error, data:data}).extend(function(ctx){
+    function Model() {
+      return mvi.model = mvi.signal('model').extend(function(ctx){
         return {
           dirty: function(path) {
             return path===undefined? ctx.dirty() : mutated(state, ctx.value(), path)
           }
         }
       })
-      .prime(state)
-      .map(function(v){
-        v.data.error = v.error
-        return v.data
-      })
-      .map(function(v){
-        state = v
-        // on error, stop propagation at this state
-        // bypassing all user modelling. Go straight to view
-        return v.error? undefined : v
-      })
-      .after(function(v){
-        view.value(v)
-      })
+      .merge(intent).match(justValid).map(justIntent)
     }
 
-    function View(seed){
-
-      return mvi.signal(seed).extend({
+    function View(){
+      return mvi.view = mvi.signal('view').extend({
         click: function(signal,value) {
-          return signal.pulse().value.bind(signal,value||true)
+          return signal.pulse().keep(0).value.bind(signal,value||true)
         }
       })
-
+      .merge(intent,model).map(justModel)
     }
 
-    function Intent(seed){
-
-      return mvi.signal(seed).extend({
-        cta: function(s) {
-          s = s || intent
-          if (!circus.isSignal(s)) {
-            s = circus.join(s)
-          }
-
-          return circus.signal().tap(function(v){
-            if (v) {
-              reset(intent)
-              pushValues(s)
-              this.active(undefined)
+    function Intent(){
+      mvi.intent = mvi.signal('intent').extend({
+        // Call To Action: this signal maps over a subset of intentions, feeding them
+        // with their own head values (as if the user had entered all of them through the view)
+        cta: function() {
+          // all intentions or subset?
+          var ss = arguments.length? mvi.join.apply(null,arguments) : mvi.intent
+          return mvi.signal().tap(function(v) {
+            if (v){
+              circus.tap(ss,function(s){
+                s.value(s.head)
+              })
             }
           })
         }
       })
-      .after(function(v) {
-        data.value(v)
-      })
-
+      return mvi.join(mvi.intent,error)
     }
+
+    return mvi
   }
+
+  MVI.prototype = Object.create(circus.prototype)
+  MVI.prototype.constructor = MVI
 
   return circus.mvi = function() {return new MVI()}
 

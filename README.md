@@ -1,5 +1,74 @@
 [![Build Status](https://travis-ci.org/philtoms/circus.svg?branch=master)](https://travis-ci.org/philtoms/circus)
 
+
+## State
+
+A signal can be in one of 3 states
+1. Active - the signal will propagate
+2. blocked - the signal will block
+3, undefined - the signal will block until it receives an input
+
+## Value
+
+A signal has a value that changes over time
+
+    signal.value(v)
+    v = signal.value()
+    h = signal.history()
+
+## Operators
+
+A signal has a set of chainable operators
+
+    signal.map(v -> fn)
+    signal.tap(v -> fn)
+    signal.feed({v -> fn | signal}+)
+
+##Circuits
+
+* join - one or more incoming signals to the current signal
+* merge - one or more incoming signals with the current signal
+* sample - one or more incoming signals pulses the current signal active state
+
+By default circuits are formed exclusively from active signals. This means that the output signal will only include active signal values. Inclusive circuits are formed from all inputs which must be active. This means that the output signal will block until all input signals are active.
+
+##Pattern matching
+
+match on f(value,mask) -> truthy (circus.FALSE, UNDEFINED are truthy values in this context)
+
+* all - all channels truthy
+* any - at least 1 channel truthy
+
+
+An optional mask can be applied to restrict the match to a subset of key/values.
+* The mask key can be wildcarded
+* The mask value can be truthy, falsey, undefined or function
+  * truthy values propagate when matched
+  * falsey values block when matched
+  * undefined values always propagate
+  * functions receive v and return truthy or falsey values or circus.FALSE
+    * circus.FALSE stops propagation (finally will be called)
+
+### logical mask functions
+
+* and(v) => pv & v
+* or(v)  => pv | v
+* xor(v) => pv ^ v
+* not(v) => !v
+
+
+# MVI - micro framework
+
+The MVI framework simplifies a signal based application by providing a strong pattern based implementation
+
+## Operators
+
+MVI extends the standard signal operators to include
+
+* error - toggle active state and optionally set a signal error message
+* cta - toggle active state (may not be needed if active state becomes exclusive propagation factor)
+
+
 # CircusJS MVI
 
 A JavaScript frp library for front end developers.
@@ -29,15 +98,14 @@ Circus values are plain old JavaScript so they have core language mutability. Th
 Acts are circuit patterns
 
 ## Hot or cold?
-Circus doesn't really deal with observables because it has no notion of subscribers, but  patterns will be discerned, and in such cases, circus would be hot by default. For example, two signals joined after their value has been set will not propagate until both signals are reset.
+Circus doesn't really deal with observables because it has no built-in facility for subscribers or events. But patterns will be discerned, and in such cases, circus would be hot by default. For example, two signals joined after their value has been set will not propagate until both signals are reset.
 
 Cold behaviour is always available through composition:
 
 ```javascript
-	signalA = circus.signal(['X','Y','Z'])
-	signalB = circus.signal(signalA.keep().history()).map(doSomething)
+	signalA = circus.value(['X','Y','Z']).keep()
+	signalB = circus.prime(signalA.history()).map(doSomething)
 ```
-
 ## Prep
 ### How shall we handle validation?
 ### Will animation enhance UX?
@@ -64,7 +132,7 @@ intent -----------------------------------------------------------J --> feed(mod
 
 
 #### key:
-* -->  mapped or lifted function
+* -->  lifted function
 * --J  join
 * -JA  joinAll
 * --M  merge

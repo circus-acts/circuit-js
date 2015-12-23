@@ -1,3 +1,0 @@
-runTests('view', function(mock) {
-	
-})

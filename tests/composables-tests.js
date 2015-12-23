@@ -143,7 +143,7 @@ runTests('composables', function(mock) {
     test('zip - arrays', function() {
         var s1 = circus.signal()
         var s2 = circus.signal()
-        circus.join(s1,s2).zip().tap(function(v){r.push(v)})
+        circus.join(s1,s2,true).zip().tap(function(v){r.push(v)})
         var a = [1,2,3],b = [4,5,6], r = []
         a.map(function(x,i){
             s1.value(x)

@@ -7,6 +7,7 @@
 <script src="../../node_modules/mithril/mithril.js"></script>
 <script src="../../src/circus.js"></script>
 <script src="../../src/signal.js"></script>
+<script src="../../src/circuit.js"></script>
 <script src="../../src/mvi.js"></script>
 <script src="../../libraries/mithril-circus.js"></script>
 </head>
@@ -26,7 +27,7 @@
   *            |           v
   *          Intent  <--  View
   *
-  *  The values in the circuit form the application state and are manipulated
+  *  The values in the circuit represent the application state and are manipulated
   *  through functional composition using map / reduce semantics. For example,
   *  the model will likely map its input onto a different shaped output:
   *
@@ -36,12 +37,12 @@
 
 
   /*
-  *  Application: Folds MVI values over time and returns a component suitable
-  *  for mounting.
+  *  Application: Create a basic mvi circuit exposing model, view and intent circuit points.
+  *  In this case, the app also exposes a mithril component suitable for mounting
   */
   var app = circus.mvi()
 
-  */
+  /*
   *  MODEL: I -> Model -> V
   *  The purpose of the model is to aggregate and map signalled intentions
   *  onto application state and pass this data on to the view.
@@ -71,18 +72,18 @@
   app.view.map(render)
 
   function render(model) {
-    return m('div', [
-      m('h1', 'Please register'),
+    return m('div',
+      model.salute? m('div',[m('span','Welcome'),m('span',model.salute)]) : [
+      m('h1', 'Please login'),
       m('label',['name', m('input', {
         onchange:m.withAttr('value',intentions.name.value),
-        value:model.name
+        value:model.name || ''
       })]),
       m('label',['password', m('input', {
         type: 'password',
         onchange:m.withAttr('value',intentions.password.value),
-        value:model.password
-      })]),
-      model.salute? m('div',[m('span','Welcome'),m('span',model.salute)]) : ''
+        value:model.password || ''
+      })])
     ])
   }
 
@@ -100,9 +101,10 @@
   app.intent.join(intentions)
 
   /*
-  *  Pass the component on to mithril.
+  * creating a component with an empty model will start the application and set it to a predictable state:
   */
-  m.module(document.body,app.component())
+  m.module(document.body,app.component({}))
+
 
 </script>
 </body>

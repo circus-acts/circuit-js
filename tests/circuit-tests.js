@@ -37,7 +37,7 @@ runTests('circuit', function(mock) {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		s2.active(false)
-		var j = circus.join(s1,s2)
+		var j = circus.join(s1,s2,true)
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
@@ -194,11 +194,11 @@ runTests('circuit', function(mock) {
 		return r === 1
 	})
 
-	test('sample - all (default)', function() {
+	test('sample - all', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		var s3 = circus.signal()
-		var s = s1.sample(s2,s3).map(inc)
+		var s = s1.sample(s2,s3,true).map(inc)
 		s1.value(1)
 		var r1 = s.value() // blocked
 		s2.value(2)
@@ -209,11 +209,11 @@ runTests('circuit', function(mock) {
 	})
 
 
-	test('sample - any', function() {
+	test('sample - any (default)', function() {
 		var s1 = circus.signal()
 		var s2 = circus.signal()
 		var s3 = circus.signal()
-		var s = s1.sample(circus.merge(s2,s3)).map(inc)
+		var s = s1.sample(s2,s3).map(inc)
 		s1.value(1)
 		var r1 = s.value()
 		s2.value(2)

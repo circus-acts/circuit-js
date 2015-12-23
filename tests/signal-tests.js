@@ -23,41 +23,6 @@ runTests('signal', function(mock) {
 		return circus.signal().name === ''
 	})
 
-	test('seed - primitive', function() {
-		var s = circus.signal([123])
-		return s.value() === 123
-	})
-
-	test('seed - array',function() {
-		var s = circus.signal([[123]])
-		return s.value()[0] === 123
-	})
-
-	test('seed - object',function() {
-		var a = {x:123}
-		var s = circus.signal([a])
-		return s.value().x === 123
-	})
-
-	test('seed - undefined',function() {
-		var s = circus.signal()
-		return s.value()===undefined
-	})
-
-	test('seed - hot',function() {
-		var s = circus.signal([1,2,3])
-		return s.value()===3
-	})
-
-	test('seed - cold',function() {
-		var s = circus.signal([1,2,3]).keep()
-		s.value(4)
-		var c1 = circus.signal(s.history()).value()
-		s.value(5)
-		var c2 = circus.signal(s.history()).value()
-		return c1===4 && c2===5
-	})
-
 	test('value ',function() {
 		return circus.signal().value(2) === 2
 	})
@@ -327,18 +292,13 @@ runTests('signal', function(mock) {
 		return s.head() === 1 && s.value() === 1
 	})
 
-	test('before', function() {
-		var r,s = circus.signal().before(function(){r=true})
-		s.value(1)
-		return r
-	})
-
-	test('before - filo', function() {
-		var r = [], s = circus.signal()
-		s.before(function(v){r.push(1)})
-		s.before(function(v){r.push(2)})
-		s.value(1)
-		return r[0] === 2 && r[1] === 1
+	test('prime - cold',function() {
+		var s = circus.signal([1,2,3]).keep()
+		s.value(4)
+		var c1 = circus.signal().prime(s.history()).value()
+		s.value(5)
+		var c2 = circus.signal().prime(s.history()).value()
+		return c1===4 && c2===5
 	})
 
 	test('after', function() {
@@ -349,16 +309,36 @@ runTests('signal', function(mock) {
 
 	test('after - filo', function() {
 		var r = [], s = circus.signal()
-		s.after(function(v){r.push(1)})
-		s.after(function(v){r.push(2)})
+		s.after(function(v){r.push(1); return v})
+		s.after(function(v){r.push(2); return v})
 		s.value(1)
 		return r[0] === 2 && r[1] === 1
 	})
 
-	test('after - after halted prpagation', function() {
+	test('after - halted propagation', function() {
 		var r,s = circus.signal().map(function(){return circus.FALSE}).after(function(){r=true})
 		s.value(1)
+		return !r
+	})
+
+	test('finally', function() {
+		var r,s = circus.signal().after(function(){r=true})
+		s.value(1)
 		return r
+	})
+
+	test('finally - filo', function() {
+		var r = [], s = circus.signal()
+		s.finally(function(v){r.push(1)})
+		s.finally(function(v){r.push(2)})
+		s.value(1)
+		return r[0] === 2 && r[1] === 1
+	})
+
+	test('finally - halted propagation', function() {
+		var r,s = circus.signal().map(function(){return circus.FALSE}).finally(function(){r=true})
+		s.value(1)
+		return !r
 	})
 
 	test('feed', function() {
@@ -376,20 +356,36 @@ runTests('signal', function(mock) {
 		return s1.value() === 3 && s2.value() === 3
 	})
 
-	test('signal of signals - inverted feed', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var s = circus.signal(s1,s2)
-		s.value(1)
-		return s1.value() === 1 && s2.value() === 1
-	})
+    test('error - set / get', function(){
+        var s = circus.signal().error(function(v){return v==1})
+        s.value(1)
+        return s.error() === true
+    })
 
-	test('named signal of signals', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var s = circus.signal('s',s1,s2)
-		s.value(1)
-		return s.name === 's' && s1.value() === 1 && s2.value() === 1
-	})
+    test('error - message', function(){
+        var s = circus.signal().error(function(v){return v==1 && 'msg'})
+        s.value(1)
+        return s.error() === 'msg'
+    })
+
+    test('error - not set', function(){
+        var s = circus.signal().error(function(v){return v==2 && 'msg'})
+        s.value(1)
+        return s.error() === ''
+    })
+
+    test('error - first', function(){
+        var i=0, msg=function(v){return ++i}
+        var s = circus.signal().error(msg).error(msg)
+        s.value(1)
+        return s.error() === 1
+    })
+
+    test('error - next', function(){
+        var i=0, msg = function() {return ++i===2 && 2}
+        var s = circus.signal().error(msg).error(msg)
+        s.value(1)
+        return s.error() === 2
+    })
 
 })

@@ -31,6 +31,18 @@ var circusComposables = (function(circus){
       })
     },
 
+    debounce: function(t){
+      var dbid
+      return this.map(function(v, next){
+        if (!dbid) {
+          dbid = setTimeout(function(){
+            dbid=false
+            next(v)
+          },t||0)
+        }
+      })
+    },
+
     filter: function(f) {
       return this.map(function (v) {
         return f(v)? v: circus.FALSE
