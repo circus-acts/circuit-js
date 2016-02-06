@@ -1,13 +1,13 @@
-  var mithrilCircus = (function(circus,circusMVI,mithril){
+  var mithrilCircus = (function(Circus,CircusMVI,mithril){
 
   'use strict';
 
-  circus = circus || require('circus')
-  circusMVI = circusMVI || require('circusMVI')
+  Circus = Circus || require('Circus')
+  CircusMVI = CircusMVI || require('CircusMVI')
   mithril = mithril || require('mithril')
 
   function MithrilMVI() {
-    var mvi = circusMVI()
+    var mvi = CircusMVI()
     //mvi.view.debounce()
 
     // Opt-in mutable state. Mithril will only redraw guarded sections
@@ -21,7 +21,7 @@
     var requestId=0
 
     // extend mithril into signal
-    circus.signal.extendBy({
+    mvi.extend({
 
       httpGET: function (url, map) {
         return this.request({url:url,method:'GET'},map)
@@ -36,7 +36,7 @@
         if (!map) map = autoPopulate
 
         return this.map(function(v, next) {
-          options = map(circus.map(options),v)
+          options = map(Circus.map(options),v)
           mithril.request(options).then(response(++requestId),error)
 
           // shape response / error into standard MVI channels
@@ -50,8 +50,8 @@
 
           function error(err) {
             // todo: sort out signal inheritance
-            //ctx.error(err || 'invalid request')
-            next(circus.FALSE)
+            ctx.error(err || 'invalid request')
+            next(Circus.FALSE)
           }
         })
 
@@ -88,11 +88,11 @@
     return mvi
   }
 
-  circus.mvi = function(seed) {return new MithrilMVI(seed)}
+  Circus.mvi = function(seed) {return new MithrilMVI(seed)}
 
-  return circus
+  return Circus
 
-})(circus,circusMVI,m)
+})(Circus,CircusMVI,m)
 
 if (typeof module != "undefined" && module !== null && module.exports) module.exports = mithrilCircus;
 else if (typeof define == "function" && define.amd) define(function() {return mithrilCircus});

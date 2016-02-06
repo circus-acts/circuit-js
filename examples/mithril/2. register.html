@@ -1,39 +1,48 @@
 <html>
-<head>
-<style>
-  label {display:block; width:250px;text-align: right;}
-  span,input {margin:5px;}
-</style>
-<script src="../../node_modules/mithril/mithril.js"></script>
-<script src="../../src/signal.js"></script>
-<script src="../../src/circus.js"></script>
-<script src="../../src/circuit.js"></script>
-<script src="../../src/match.js"></script>
-<script src="../../src/composables.js"></script>
-<script src="../../src/mvi.js"></script>
-<script src="../../libraries/mithril-circus.js"></script>
-</head>
-<body>
-<script>
+ <head>
+  <style>
+    label {display:block; width:250px;text-align: right;}
+    span,input {margin:5px;}
+  </style>
+
+  <script src="../../node_modules/mithril/mithril.js"></script>
+  <script src="../../src/signal.js"></script>
+  <script src="../../src/circus.js"></script>
+  <script src="../../src/circuit.js"></script>
+  <script src="../../src/match.js"></script>
+  <script src="../../src/composables.js"></script>
+  <script src="../../src/mvi.js"></script>
+  <script src="../../libraries/mithril-Circus.js"></script>
+ </head>
+ <body>
+ <script>
 
   var debug = function(v) {
     console.log(this.name)
     return v
   }
 
-  // create a new base app and build a circuit on it.
+  // create a new MVI app exposing model, view and intention signals as properties.
+  // The app will extend these signals through appropriate circuitry:
+  // - app.model will handle user identity and status
+  // - app.view will collect user credential and registration details
+  // - app.intent will validate and shape user inputs
 
-  var app = circus.mvi(),
-      login = circus.match('logIn').httpPOST('http://login'),
-      register = circus.match('register').httpPOST('/register'),
+  var app = Circus.mvi()
+
+  // Model: I -> M -> V
+  // Create
+  var login = app.match('logIn').httpPOST('http://login'),
+      register = app.match('register').httpPOST('/register'),
       specials = app.merge(login,register).httpGET('/specials/:sessionId')
 
   // A useful pattern: one signal feeds another signal (group) and awaits their values
   app.model
     .feed(login,register)
     .merge(login,register)
-    .join(specials)
+    .join(specials,true)
 
+  // View: M -> V -> I
   app.view.map(loginOrRegister)
 
   function loginOrRegister(model) {
@@ -64,8 +73,8 @@
     // helpers to build markup and bind model and intentions
     function input(name, label, type) {
       var
-          data = circus.lens(model,name),
-          intention = circus.lens(intentions,name),
+          data = Circus.lens(model,name),
+          intention = Circus.lens(intentions,name),
           errorMsg = intention.error(),
           valueAttr = type === 'checkbox'? 'checked' : 'value',
           action = type === 'checkbox'? 'onchange' : 'onblur',
@@ -85,7 +94,7 @@
     }
 
     function button(name, label){
-      return m('button', {onclick:app.view.click(circus.lens(intentions,name),true)},[label || name])
+      return m('button', {onclick:app.view.click(Circus.lens(intentions,name),true)},[label || name])
     }
 
     function dropdown(name, options, label) {
@@ -100,8 +109,9 @@
     }
   }
 
+  // Intent: V -> I -> M
   // construct the intention circuit from signal blocks of named channels.
-  // each channel gets its own binding in the view
+  // Most of the channels will be fed by view bindings.
   var strength = app.signal(),
       confirm = required().error(match),
       password = required().error(strengthTest),
@@ -141,27 +151,30 @@
     return app.signal().error(function(v){return !v && (msg ||'required')})
   }
 
-  var email = /\S+@\S+\.\S+/i
   function formed(v) {
-    return !email.test(v) && 'invalid email'
+    return !/\S+@\S+\.\S+/i.test(v) && 'invalid email'
   }
+
   function match(v) {
     return v!==password.value() && 'password does not match'
   }
+
   function strengthTest(v){
-    var score = (v || '').length
+    var score = (v || '').length + (v || '').replace(/[^A-Z0-9]/g, '').length
     strength.value(score)
     return (score < 6) && 'password too weak'
   }
 
+  // App -> run
   // kick off by stamping out a copy of the intentions with empty values
-  var seed = circus.map(app.intent,function(){return ''})
-  // then initialize any of the values
+  var seed = Circus.map(app.intent,function(){return ''})
+  // ..then initialize any of the values
   seed.account.user.email='m@m.com'
   seed.account.user.password = '123456'
   seed.account.details.title = 'Mr'
+
   m.module(document.body,  app.component(seed))
 
-</script>
-</body>
+ </script>
+ </body>
 </html>

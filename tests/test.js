@@ -25,7 +25,7 @@
 			setTimeout(function(){
 				done(function() {
 					return false
-				}
+				})
 			})
 		})
 

@@ -2,224 +2,149 @@ runTests('circuit', function(mock) {
 
 	var inc = function(v){return v+1}
 	var dbl = function(v){return v+v}
-	var mul = function(v){return v*3}
+	var sqr = function(v){return v*v}
 
-	test('join', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join(s1,s2)
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return typeof r === 'object' && r[0] === 1 && r[1] === 2
+	var app
+	setup(function(){
+		app = new Circuit({a:'abc'})
 	})
 
-	test('join - compose', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var r,j = circus.join(s1,s2).tap(function(v){r=v})
-		s1.value(1)
-		s2.value(2)
-		return typeof r === 'object' && r[0] === 1 && r[1] === 2
+	test('new circuit - prime', function() {
+		return new Circuit(123).getState()===123
 	})
 
-	test('join - stop propagation', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join(s1,s2).map(function(){return circus.FALSE})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return r === undefined && s1.value()===1 && s2.value()===2
+	test('new circuit - prime channels', function() {
+		return new Circuit({a:123}).getState().a===123
 	})
 
-	test('join - not all active', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		s2.active(false)
-		var j = circus.join(s1,s2,true)
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return r === undefined
+	test('new circuit - prime channels', function() {
+		return new Circuit({a:123}).getState().a===123
 	})
 
-	test('join - already active', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal([2])
-		var j = circus.join(s1,s2)
-		s1.value(1)
-		var r = j.value()
-		return typeof r === 'object' && r[0] === 1 && r[1] === 2
+	test('new circuit - is signal', function() {
+		return Circus.isSignal(app.join())
 	})
 
-	test('join (shallow diff) - always dirty', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join(s1,s2)
-		s1.value(1)
-		s2.value(1)
-		s1.value(1)
-		s2.value(1)
-		return j.dirty()
+	test('channels - key signal', function() {
+		var a = app.signal(), b=app.signal()
+		var c = app.join({
+			n: {
+				a:a,
+				b:b
+			}
+		}).channels
+		return Circus.isSignal(c.n)
 	})
 
-	test('join - dirty', function() {
-		function diff(v1,v2) {
-			return v1[0]!==v2[0] || v1[1]!==v2[1]
-		}
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join(s1,s2).diff(diff)
-		s1.value(1)
-		s2.value(2)
-		s1.value(1)
-		s2.value(3)
-		return j.dirty()
+	test('fold - pass channel value and change state', function() {
+		var r = app.signal().fold(function(acc,v){
+			return acc.a+v
+		}).value(123)
+		return r === 123 && app.getState() === 'abc123'
 	})
 
-	test('join - clean', function() {
-		function diff(v1,v2) {
-			return v1[0]!==v2[0] || v1[1]!==v2[1]
-		}
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join(s1,s2).diff(diff)
-		s1.value(1)
-		s2.value(1)
-		s1.value(1)
-		s2.value(1)
-		return !j.dirty()
+	test('fold - app', function() {
+		app.fold(function(acc,v){
+			return {a:acc.a+v}
+		}).value(123)
+		return app.getState().a === 'abc123'
 	})
 
-	test('join - named key', function() {
-		var s1 = circus.signal('k1')
-		var s2 = circus.signal('k2')
-		var j = circus.join(s1,s2)
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return circus.deepEqual(r,{k1:1,k2:2})
+	test('channel key -> value flow', function(){
+		var r,a = app.join({
+			a: function(v) {
+				return r = v+1
+			}
+		}).channels.a.map(inc).value(123)
+
+		return a === 124, r === 125
 	})
 
-	test('join - channel block', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join({
-			k1:s1,
-			k2:s2
+	test('channel value - implied map', function(){
+		var r,a = app.join({
+			a: function(v) {
+				return r = v+1
+			}
+		}).channels.a.map(inc).value(123)
+
+		return a === 124, r === 125
+	})
+
+	test('channel key -> value compose', function(){
+		var b=app.signal().map(inc)
+		var a=app.join({
+			a: b
+		}).channels.a.map(inc)
+		a.value(123)
+
+		return a.value()===124 && b.value()===125
+	})
+
+	test('channel value', function(){
+		var a=app.signal().map(inc)
+		var r = app.join({
+			a: a
 		})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return circus.deepEqual(r,{k1:1,k2:2})
+		r.value({a:123})
+
+		return a.value()===124 && r.channels.a.value()===123
 	})
 
-	test('join - merge channel blocks', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join({
-			k1:s1
-		},
-		{
-			k2:s2
+	test('channel value - literal (always)', function(){
+		var r = app.join({
+			a: 'a'
 		})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return circus.deepEqual(r,{k1:1,k2:2})
+		r.channels.a.value(123)
+		return r.value().a==='a'
 	})
 
-	test('join - aggregate signal block', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join({
-			k1:s1,
-			k2:circus.join({
-				k3:s2
+	test('channel value - deep', function(){
+		var a=app.signal().map(inc)
+		var r = app.join({
+			b: {
+				a: a
+			}
+		})
+		r.value({b:{a:123}})
+
+		return a.value()===124
+	})
+
+	test('circuit value - prime', function(){
+		var a=app.signal().map(inc)
+		var r = app.join({
+			a: a
+		})
+		r.prime({a:123})
+
+		return a.value()===123 && r.channels.a.value()===undefined
+	})
+
+	test('circuit value - join state', function(){
+		var a,r = app.join({
+			a: app.signal().map(function(v,sv) {
+				a=sv
+				return v
 			})
 		})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return circus.deepEqual(r,{k1:1,k2:{k3:2}})
+		r.value('abc')
+		r.channels.a.value(123)
+
+		return a==='abc' && r.value().a===123
 	})
 
-	test('join - object into aggregate signal block', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var j = circus.join({
-			k1:s1,
-			k2:{
-				k3:s2
-			}
+
+	test('circuit value - merge state', function(){
+		var a,r = app.merge({
+			a: app.signal().map(function(v,sv) {
+				a=sv
+				return v
+			})
 		})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return circus.deepEqual(r,{k1:1,k2:{k3:2}})
+		r.value('abc')
+		r.channels.a.value(123)
+
+		return a==='abc' && r.value()===123
 	})
 
-	test('join - auto name spacing', function() {
-		var j = {
-			a: {
-				b: {
-					c: circus.signal()
-				}
-			}
-		}
-		var s = circus.join(j)
-		return j.a.b.c.namespace === 'a.b'
-	})
-
-	test('merge', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var m = circus.merge(s1,s2)
-		s1.value(1)
-		var r1 = m.value()
-		s2.value(2)
-		var r2 = m.value()
-		return r1 === 1 && r2 === 2
-	})
-
-	test('merge - not all active',function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		s2.active(false)
-		var m = circus.merge(s1,s2)
-		s1.value(1)
-		s2.value(2)
-		var r = m.value()
-		return r === 1
-	})
-
-	test('sample - all', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var s3 = circus.signal()
-		var s = s1.sample(s2,s3,true).map(inc)
-		s1.value(1)
-		var r1 = s.value() // blocked
-		s2.value(2)
-		var r2 = s.value() // blocked
-		s3.value(3)
-		var r3 = s.value()
-		return r1 === 1 && r2 === 1 && r3 === 2
-	})
-
-
-	test('sample - any (default)', function() {
-		var s1 = circus.signal()
-		var s2 = circus.signal()
-		var s3 = circus.signal()
-		var s = s1.sample(s2,s3).map(inc)
-		s1.value(1)
-		var r1 = s.value()
-		s2.value(2)
-		var r2 = s.value()
-		s3.value(3)
-		var r3 = s.value()
-		return r1 === 1 && r2 === 2 && r3 === 3
-	})
 })

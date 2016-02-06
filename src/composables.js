@@ -1,10 +1,10 @@
-var circusComposables = (function(circus){
+var CircusComposables = (function(Circus){
 
   'use strict';
 
-  circus = circus || require('circus')
+  Circus = Circus || require('Circus')
 
-  circus.signal.extendBy({
+  Circus.extend({
     // A steady state signal
     always: function(v){
       return this.map(function(){
@@ -27,8 +27,16 @@ var circusComposables = (function(circus){
     // Remove undefined values from the signal
     compact: function(){
       return this.map(function(v){
-        return v || circus.FALSE
+        return v || Circus.FALSE
       })
+    },
+
+    compose: function(){
+      var args = [].slice.call(arguments)
+      for (var i=args.length-1; i>=0; i--) {
+        this.map(args[i])
+      }
+      return this
     },
 
     debounce: function(t){
@@ -45,23 +53,32 @@ var circusComposables = (function(circus){
 
     filter: function(f) {
       return this.map(function (v) {
-        return f(v)? v: circus.FALSE
+        return f(v)? v: Circus.FALSE
       })
     },
 
     flatten: function(f) {
       var s = this.step()
       function flatten(v) {
-        if (circus.typeOf(v) === circus.typeOf.ARRAY) {
+        if (Circus.typeOf(v) === Circus.typeOf.ARRAY) {
           v.forEach(flatten)
         }
         else {
           s(f? f(v) : v)
         }
-        return circus.FALSE
+        return Circus.FALSE
       }
       return this.map(flatten)
     },
+
+    flow: function(){
+      var args = [].slice.call(arguments)
+      for (var i=0; i<args.length; i++) {
+        this.map(args[i])
+      }
+      return this
+    },
+
 
     maybe: function(f,n) {
       return this.map(function(v){
@@ -73,8 +90,8 @@ var circusComposables = (function(circus){
     pluck: function() {
       var args = [].slice.call(arguments), a0 = args[0]
       return this.map(function(v) {
-        return args.length===1 && (v[a0] || circus.lens(v,a0)) || args.reduce(function(r,key){
-          r[key] = circus.lens(v,key)
+        return args.length===1 && (v[a0] || Circus.lens(v,a0)) || args.reduce(function(r,key){
+          r[key] = Circus.lens(v,key)
           return r
         },{})
       })
@@ -87,7 +104,7 @@ var circusComposables = (function(circus){
         var r = {}
         return args.reduce(function(r,arg){
           Object.keys(arg).forEach(function(key){
-            r[key] = circus.lens(v,arg[key])
+            r[key] = Circus.lens(v,arg[key])
           })
           return r
         },{})
@@ -113,7 +130,7 @@ var circusComposables = (function(circus){
     // The signal will not propagate until n + 1
     skip: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? circus.FALSE : v
+        return (n-- > 0)? Circus.FALSE : v
       })
     },
 
@@ -121,7 +138,7 @@ var circusComposables = (function(circus){
     // The signal will not propagate after n
     take: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? v: circus.FALSE
+        return (n-- > 0)? v: Circus.FALSE
       })
     },
 
@@ -144,14 +161,14 @@ var circusComposables = (function(circus){
       var fn = function(v) {
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]
-        }) : circus.FALSE
+        }) : Circus.FALSE
       }
       return this.map(fn)
     }
 
   })
-})(circus)
+})(Circus)
 
-if (typeof module != "undefined" && module !== null && module.exports) module.exports = circusComposables;
-else if (typeof define == "function" && define.amd) define(function() {return circusComposables});
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = CircusComposables;
+else if (typeof define == "function" && define.amd) define(function() {return CircusComposables});
 

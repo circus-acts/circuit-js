@@ -1,284 +1,309 @@
-// Feed in or create a new circus with at least the
-// properties expressed in this module. Either way, the
-// output will be a circus name-space with signalling utility.
-var circus = (function(circus){
+var Circus = (function(){
 
 'use strict';
 
-//todo: $ise public props
-
-function extend(ctx,ext,_super) {
-  Object.keys(ext).forEach(function(k){
-    var kext = _super && typeof ext[k] === 'function'? ext[k](ctx[k]) : ext[k]
-    ctx[k] = kext
-  })
-}
-
-// name-space + signalling utility
-
-var fstate = 'fs'
-circus.TRUE =  Object.freeze({state:fstate, value:true})
-circus.FALSE =  Object.freeze({state:fstate, value:false})
-circus.NULL = Object.freeze({state:fstate, value:null})
-circus.UNDEFINED = Object.freeze({state:fstate, value:undefined})
-
-var NULLSTATE = {dirty:false,value:undefined}
+var fstate = 'fs', cid = 0, extensions={}
 var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
 
-var cid=0
-
-circus.signal = function(seed){return new Signal(arguments)}
-circus.prototype.signal = circus.signal
-
-// Extend the signal prototype with custom step functions.
-// Chainable step functions must return the context.
-circus.signal.extendBy = function(ext,_super) {
-  extend(Signal.prototype,ext,_super)
-}
-
-circus.isSignal = function(s) {
-  return s instanceof Signal
-}
-
-circus.extend = function(ext, signal, _super){
-  extend(circus.prototype,ext,_super)
-  if (signal) {
-    extend(Signal.prototype,ext,_super)
+function _Signal() {}
+function extend() {
+  var args = [].slice.call(arguments), ctx = args.shift(), ext = args.shift();
+  if (ext) {
+    Object.keys(ext).forEach(function(k){
+      ctx[k] = ext[k]
+    })
+    args.unshift(ctx)
+    ctx = extend.apply(null,args)
   }
+  return ctx
 }
 
-// move to circus instance?
-// Circuits are unstable by default. This means that a value
-// may be introduced at any point in the circuit at any time
-// and the circuit will become active until all of the signals
-// have reached a new steady state. When this happens the
-// circuit is guaranteed to be stable and a useful event is fired.
-var activeCircuit=0, activeCtx, stableCircuit
-function stateStart(ctx, v){
-  if (!activeCircuit++ && circus.stateStart && !stableCircuit) {
-    circus.stateStart.call(activeCtx = {}, ctx, v)
+function Circus() {
+  // public
+  this.stateChange = function(s,e) {
+    _events.unshift({start:s,end:e||function(){}})
   }
-}
 
-function stateEnd(ctx,v){
-  // circuits are not re-entrant. Any 'extra' circuit work
-  // performed in the stable state will simply prolong
-  // this state until eventually there are no more state changes.
-  if (!(--activeCircuit) && circus.stateEnd) {
-    if (!stableCircuit) {
-      stableCircuit = true
-      circus.stateEnd.call(activeCtx, ctx, v)
-    }
-    else stableCircuit = false
+  this.id = function() {
+    return new Signal().map(function(v){return v})
   }
-}
 
-// Generate a new (optionally named) signal
-function Signal(args){
+  this.signal = function() {
+    return ctxExtentions.reduce(function(s,ext){
+      return s.extend(ext)
+    },new Signal(arguments))
+  }
+
+  this.asSignal = function() {
+    return this.signal()
+  }
+
+  this.extend = function(ext){
+    if (typeof ext==='function') ctxExtentions.push(ext)
+    else extend(_proto,ext)
+  }
+
+  // propagate value changes using registered diff
+  this.pure = function(v){
+    _pure = arguments.length? !!v : true
+    return this;
+  }
 
   // private
-  var _ctx = this
-  var _state = NULLSTATE, _history, _active
-  var _step = 0, _pulse = circus.FALSE
-  var _steps = [], _finallys = []
-  var _depth = 1
-  var _diff = circus.diff || function(v,s) { return v!==s }
+  var _events = [], ctxExtentions = [], _proto, _pure=true
 
-  // _runToState - all steps on new value
-  //              next step on join value
-  function _runToState(v,ns) {
-    stateStart(_ctx, v)
-    if (_active!==false) {
-      // steps in fifo order
-      var nv=v
-      for (var i = ns, il = _step; i < il && _active !== false; i++) {
-        nv = _steps[i].call(_ctx, v)
-        if (nv===undefined || nv===circus.FALSE) break;
-        v = nv.state===fstate? nv.value : nv
+  // Circuits are unstable by default. This means that a value
+  // may be introduced at any point in the circuit at any time
+  // and the circuit will become active until all of the signals
+  // have reached a new steady state. When this happens the
+  // circuit is guaranteed to be stable until the next value.
+  var activeCircuit=0, stableCircuit=true
+  function stateStart(ctx, v){
+    if (!activeCircuit++ && stableCircuit && _events.length) {
+      for (var i=0,el=_events.length; i < el; i++) {
+        _events[i].start(ctx,v)
       }
+    }
+  }
 
-      _mutate(v,nv)
-
-      // afters(s) in filo order
-      if (_active) {
-        for (var a = _step, al = _steps.length; a < al; a++) {
-          _steps[a].call(_ctx, v)
+  function stateEnd(ctx,v){
+    // Circuit states are not re-entrant. Any 'extra' circuit work
+    // performed in the stable state will simply prolong
+    // this state until eventually there are no more value
+    // updates.
+    if (!(--activeCircuit) && _events.length) {
+      if (stableCircuit) {
+        stableCircuit = false
+        for (var i=0,el=_events.length; i < el; i++) {
+          _events[i].end(ctx,v)
         }
       }
+      else stableCircuit = true
+    }
+  }
+
+  // Generate a new (optionally named) signal
+  function Signal(args){
+
+    // private
+    var _ctx = this, _id = ++cid
+    var _head, _state, _active, _pulse = Circus.FALSE
+    var _step = 0, _steps = [], _finallys = []
+    var _history, _keep = 1, _impure=false
+    var _diff = function(v,s) { return v!==s }
+
+    // _runToState - all steps on new value
+    //              next step on join value
+    function _runToState(v,ns,impure) {
+      stateStart(_ctx, v)
+      var hv = v, dontDiff = impure || _impure || !_pure
+      if (_active!==false && (dontDiff || _diff(v,_head))) {
+        // steps in fifo order
+        var nv = v
+        for (var i = ns, il = _step; i < il && _active!==false; i++) {
+          nv = _ctx.functor? _ctx.functor(_steps[i], v) : _steps[i].call(_ctx, v)
+          if (nv===undefined || nv===Circus.FALSE) break;
+          v = nv.state===fstate? nv.value : nv
+        }
+        _mutate(v,nv)
+      }
+      _head = hv;
+      // finally(s) in filo order
+      if (nv!==undefined) {
+        for (var f = 0, fl = _finallys.length; f < fl; f++) {
+          _finallys[f].call(_ctx, v)
+        }
+      }
+
+      if (_pulse!==Circus.FALSE) _mutate(_pulse)
+
+      stateEnd(_ctx, v)
     }
 
-    // finally(s) in filo order
-    if (nv!==undefined) {
-      for (var f = 0, fl = _finallys.length; f < fl; f++) {
-        _finallys[f].call(_ctx, v)
+    function _mutate(v,nv) {
+      _active = nv===undefined || nv===Circus.FALSE? undefined : true
+      if (v && v.state===fstate) v = v.value
+      if (nv!==Circus.FALSE && _keep) {
+        if (_keep>1) {
+          if (_history.length===_keep) _history.shift()
+          _history.push(v)
+        } else {
+          _history=v
+        }
+        _state=v
       }
     }
 
-    if (_pulse!==circus.FALSE) _mutate(_pulse)
+    // public
 
-    stateEnd(_ctx, v)
-  }
+    //this.id = _id
+    // empty name produces array like channels: {0:c1,1:c2...}
+    this.name = args && args[0] || ''
 
-  function _mutate(v,nv) {
-    _active = nv===undefined || nv===circus.FALSE? undefined : true
-    if (v && v.state===fstate) v = v.value
-    if (nv!==circus.FALSE) {
-      var dirty = _depth? _state===NULLSTATE? true : _diff(v,_state.value) : false
-      _state = {dirty:dirty, value:v}
+    this.asSignal = function() {return this}
 
-      if (_depth>1) {
-        if (_history.length===_depth) _history.shift();
-        _history.push(_state)
-      } else {
-        _history=_state
+    // Set signal state directly bypassing propagation steps
+    this.prime = function(v) {
+      _mutate(v,v)
+      return this
+    }
+
+    // Set or read the signal state value
+    // This method produces state propagation throughout a connected circuit
+    this.value = function(v,impure) {
+      if (arguments.length) {
+        _runToState(v,0,impure)
+      }
+      return _state
+    }
+
+    // Allow values to be injected into the signal at arbitrary step points.
+    // State propagation continues from this point
+    this.step = function(sp) {
+      var ns = sp? _step : _step+1
+      return function(v,impure){
+        _runToState(v,ns,impure)
       }
     }
-  }
 
-  // public
-
-  this.id = ++cid
-  // empty name produces array like channels: {0:c1,1:c2...}
-  this.name = args && args[0] || ''
-  this.namespace = args && args[1] || ''
-
-  // Set signal state directly bypassing propagation steps
-  this.prime = function(v) {
-    _mutate(v,v)
-    return this
-  }
-
-  // Set or read the signal state value
-  // This method produces state propagation throughout a connected circuit
-  this.value = function(v) {
-    if (arguments.length) {
-      _runToState(v,0)
+    // An active signal will propagate state
+    // An inactive signal will prevent state propagation
+    var _reset = []
+    this.active = function(reset) {
+      if (arguments.length) {
+        if (!reset) {_reset.push(_active), _active = false }
+        else        {_active = _reset.pop() }
+      }
+      return !!_active
     }
-    return _state.value
-  }
 
-  // Allow values to be injected into the signal at arbitrary step points.
-  // State propagation continues from this point
-  this.step = function(sp) {
-    var ns = sp? _step : _step+1
-    return function(v){
-      _runToState(v,ns)
+    // Return to inactive pristine (or v) state after propagation
+    this.pulse = function(v){
+      _pulse = v
+      return this
     }
-  }
 
-  // An active signal will propagate state
-  // An inactive signal will prevent state propagation
-  var _reset = []
-  this.active = function(reset) {
-    if (arguments.length) {
-      if (!reset) {_reset.push(_active), _active = false }
-      else        {_active = _reset.pop() }
+    // Establish the diff function used when this signal mutates state
+    this.diff = function(diff) {
+      _diff = diff
+      return this
     }
-    return _active
-  }
 
-  // By default, a dirty signal is one whose identity reference has changed.
-  // Note that join points are always dirty unless a shallow or deep diff is used.
-  this.dirty = function() {
-    return _state.dirty
-  }
+    // Map the current signal state onto a new state and propagate
+    // The function will be called in signal context
+    // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
+    // can cancel propagation by returning Circus.FALSE - revert to previous state (finally(s) invoked)
+    // Note that to map state onto undefined the pseudo value Circus.UNDEFINED should be returned
+    this.map = function(f,async) {
+      var ctx = this, step = this.step(), mf=f
+      if ( async ) {
+        mf = function async(v) {
+          stateStart(ctx,v)
+          try {
+            var args = [].slice.call(arguments).concat(step)
+            return f.apply(ctx, args)
+          }
+          finally {
+            stateEnd(ctx,v)
+          }
+        }
+      }
+      _steps.splice(_step++,0,mf)
+      return this
+    }
 
-  // Return to inactive pristine state after propagation
-  this.pulse = function(v){
-    _pulse = v
-    return this
-  }
+    // finally functions are executed in FILO order after all step and after functions regardless of state
+    this.finally = function(f) {
+      if (Circus.isSignal(f)) {
+        var fs=f
+        f = function(v) {
+          fs.value(v)
+        }
+      }
+      _finallys.unshift(f)
+      return this
+    }
 
-  // Establish the diff function used when this signal mutates state
-  this.diff = function(diff) {
-    _diff = diff
-    return this
-  }
+    this.pure = function(p) {
+      _impure = !p
+      return this
+    }
 
-  // Map the current signal state onto a new state and propagate
-  // The function will be called in signal context
-  // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
-  // can cancel propagation by returning circus.FALSE - revert to previous state (finally(s) invoked)
-  // Note that to map state onto undefined the pseudo value circus.UNDEFINED should be returned
-  this.map = function(f) {
-    var ctx = this, step = this.step(), mf=f
-    if ( /^f\S+\s*\([^\)]+,[^\)]+\)/.test(f.toString()) ) {
-      mf = function async(v) {
-        stateStart(ctx,v)
-        return f(v, function(v){
-          step(v)
-          stateEnd(ctx,v)
+    // signal keep:
+    //  n == undefined - keep all
+    //  n == 0         - don't keep - always pristine
+    //  n >= 1         - keep n
+    this.keep = function(n) {
+      _keep = arguments.length? n : MAXDEPTH
+      if (_keep > 1 && _history===undefined) _history=[]
+      return this
+    }
+
+    // Return the current signal history as an array
+    this.history = function() {
+      return !_keep? undefined : _keep>1? _history:[_history]
+    }
+
+    // Tap the current signal state value
+    // The function will be called in signal context
+    this.tap = function(f) {
+      return this.map(function(v){
+        f.call(this,v)
+        return v===undefined? Circus.UNDEFINED : v
+      })
+    },
+
+    // After functions are executed in FILO order after all step functions and signal is active
+    this.after = function(f) {
+      return this.finally(function(v){ if (this.active()) f(v) })
+    },
+
+    // Feed signal values into fanout signal(s)
+    // The input signal is terminated
+    this.feed = function() {
+      var feeds = [].slice.call(arguments)
+      return this.map(function(v){
+        feeds.forEach(function(s){
+          s.value(v)
         })
-      }
+      })
+    },
+
+    // Extend a signal with custom step functions either through an
+    // object graph, or a context bound function that returns an object graph
+    // Chainable step functions need to return the context.
+    this.extend = function(ext) {
+      ext = typeof ext==='function'? ext(this) : ext
+      return extend(this,ext)
     }
-    _steps.splice(_step++,0,mf)
+
     return this
   }
 
-  // after functions are executed after all step functions and signal is active
-  this.after = function(f) {
-    _steps.splice(_step,0,f)
-    return this
-  }
-
-  // finally functions are executed in FILO order after all step and after functions regardless of state
-  this.finally = function(f) {
-    _finallys.unshift(f)
-    return this
-  }
-
-  // signal keep:
-  //  n == undefined - keep all
-  //  n == 1         - keep 1
-  //  n == 0         - don't keep - always pristine
-  this.keep = function(n) {
-    _depth = arguments.length? n : MAXDEPTH
-    if (_depth > 1 && _history===undefined) _history=[]
-    return this
-  }
-
-  // Return the current signal history as an array
-  this.history = function(f) {
-    return !_depth? undefined : (_depth>1? _history:[_history]).map(function(v){return v.value})
-  }
-
+  // constructor
+  _proto = extend({}, extensions)
+  _proto.constructor = _Signal
+  Signal.prototype = _proto
 }
 
-// helper functions
+// static
+Circus.TRUE =  Object.freeze({state:fstate, value:true})
+Circus.FALSE =  Object.freeze({state:fstate, value:false})
+Circus.NULL = Object.freeze({state:fstate, value:null})
+Circus.UNDEFINED = Object.freeze({state:fstate, value:undefined})
+Circus.ID = Object.freeze({state:fstate, value:undefined})
 
-// Tap the current signal state value
-// The function will be called in signal context
-Signal.prototype.tap = function(f) {
-  return this.map(function(v){
-    f.call(this,v)
-    return v===undefined? circus.UNDEFINED : v
-  })
+Circus.isSignal = function(s) {
+  return s && s.constructor === _Signal
 }
 
-// Feed signal values into fanout signal(s)
-// The input signal is terminated
-Signal.prototype.feed = function() {
-  var feeds = [].slice.call(arguments)
-  return this.map(function(v){
-    feeds.forEach(function(s){
-      s.value(v)
-    })
-  })
+Circus.extend = function(ext) {
+  extend(extensions,ext)
 }
 
-// Extend a signal with custom step functions either through an
-// object graph, or a context bound function that returns an object graph
-// Chainable step functions must return the context.
-Signal.prototype.extend = function(ext,_super) {
-  ext = typeof ext==='function'? ext(this) : ext
-  extend(this,ext,_super)
-  return this
-}
+return Circus
 
-return circus
+})()
 
-})(function(){})
-
-if (typeof module != "undefined" && module !== null && module.exports) module.exports = circus;
-else if (typeof define == "function" && define.amd) define(function() {return circus});
-
+if (typeof module != "undefined" && module !== null && module.exports) module.exports = Circus;
+else if (typeof define == "function" && define.amd) define(function() {return Circus});
