@@ -1,7 +1,7 @@
 runTests('match', function(mock) {
 
     var inc = function(v){return v+1}
-    var app = new Circuit().pure(false)
+    var app = new Circuit()
 
     test('match - pass truthy literal', function() {
         var r=0, v=1
@@ -290,15 +290,55 @@ runTests('match', function(mock) {
     })
 
     test('switch - pass all keys', function(){
-        var sig=app.signal().map(inc), a = app.any({a:sig,b:sig})
+        var sigA=app.signal().map(inc),
+            sigB=app.signal().map(inc),
+            a = app.any({a:sigA,b:sigB})
         a.value({a:1,b:2})
-        return sig.value()===3 && Circus.equal(a.value(),{a:2,b:3})
+        return sigA.value()===2 &&  sigB.value()===3 && Circus.equal(a.value(),{a:2,b:3})
     })
 
     test('switch - pass match keys only', function(){
         var s=app.signal().map(inc), a = app.any({a:s,b:s})
         a.value({a:1})
         return s.value()===2 && Circus.equal(a.value(),{a:2})
+    })
+
+    // joinpoint - all
+
+    test('join - all active', function() {
+        var s1 = app.signal()
+        var s2 = app.signal()
+        s2.active(false)
+        var r,j = app.join(s1,s2).all().tap(function(){r=true})
+        var j = app.join(s1,s2).all()
+        s1.value(1)
+        s2.value(2)
+        return r === undefined
+    })
+
+    test('join - already active', function() {
+        var s1 = app.signal()
+        var s2 = app.signal()
+        s2.value(2)
+        var r,j = app.join(s1,s2).all().tap(function(){r=true})
+        s1.value(1)
+        return r
+    })
+
+
+    test('sample - all', function() {
+        var s1 = app.signal()
+        var s2 = app.signal()
+        var s3 = app.signal()
+        var all = app.signal().join(s2,s3).all()
+        var s = s1.sample(all).map(inc)
+        s1.value(1)
+        var r1 = s.value() // blocked
+        s2.value(2)
+        var r2 = s.value() // blocked
+        s3.value(3)
+        var r3 = s.value()
+        return r1 === 1 && r2 === 1 && r3 === 2
     })
 
 })

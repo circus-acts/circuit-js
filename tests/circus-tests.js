@@ -1,149 +1,310 @@
-runTests('Circus', function(mock) {
+runTests('circus', function(mock) {
 
-    var app, channels, sigBlock, valBlock
-    setup(function(){
+	var inc = function(v){return v+1}
+	var dbl = function(v){return v+v}
+	var mul = function(v){return v*3}
+	var noop = function(){}
 
-        app = new Circuit()
+	var app = new Circus(),
+		signal = app.signal.bind(app)
 
-        sigBlock = {
-            i1:app.signal(),
-            i2:app.signal(),
-            i3: {
-                i4:app.signal(),
-                i5:app.signal()
-            }
-        }
+	test('named signal',function() {
+		var r = signal('sig1')
+		return r.name === 'sig1'
+	})
 
-        valBlock = {
-            i1:1,
-            i2:new Date(),
-            i3:{
-                i4:1,
-                i5:2
-            }
-        }
+	test('unnamed signal', function() {
+		return signal().name === undefined
+	})
 
-        channels = app.join(sigBlock);
-    })
+	test('value ',function() {
+		return signal().value(2) === 2
+	})
 
-    test('new signal', function(){
-        return Circus.isSignal(app.signal())
-    })
+	test('value - undefined',function() {
+		return signal().value(undefined) === undefined
+	})
 
-    test('new signal - ctx', function(){
-        var s = app.asSignal(app)
-        return Circus.isSignal(s)
-    })
+	test('value - pure',function() {
+		var r=0, s = signal().pure().tap(function(){r++})
+		s.value(1)
+		s.value(1)
+		return r===1
+	})
 
-    test('existing signal', function(){
-        var s = app.signal()
-        var n = s.asSignal()
-        return n===s
-    })
+	test('value - impure',function() {
+		var r=0, s = signal().tap(function(){r++})
+		s.value(1)
+		s.value(1)
+		return r===2
+	})
 
-    test('extend - Circus', function(){
-        Circus.extend({a:true})
-        Circus.extend({b:true})
-        var ctx = new Circus()
-        return ctx.signal().a && ctx.signal().b
-    })
+	test('set value ',function() {
+		var s = signal()
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		return s.value() === 3
+	})
 
-    test('extend - app ctx', function(){
-        var ctx = new Circus()
-        ctx.extend({c:true})
+	test('tap',function() {
+		var e = 'xyz'
+		var s = signal().tap(function(v){
+			e=v
+		})
+		s.value(123)
+		return e === 123
+	})
 
-        return ctx.signal().c && !app.signal().c
-    })
+	test('tap / tap', function() {
+		var e = 0,e1,e2
+		var t1 = function(v) {
+			e1=v
+		}
+		var t2 = function(v) {
+			e2=v
+		}
+		var s = signal().map(inc).tap(t1).map(inc).tap(t2)
+		s.value(e)
+		return e1 === 1 && e2 === 2
+	})
 
-    test('extend - signal', function(){
-        var s1 = app.signal().extend({s:true}),
-            s2 = app.signal()
+	test('map',function() {
+		var e = 'xyz'
+		var s = signal().map(dbl).tap(function(v){
+			e = v
+		})
+		s.value(123)
+		return e === 246
+	})
 
-        return s1.s && !s2.s
-    })
+	test('map - undefined stops propagation',function() {
+		return signal().map(function(v){return undefined}).map(inc).value(1) === 1
+	})
 
-    test('extend - signal ctx', function(){
-        var r,s = app.signal().extend(function(ctx) {
-            r=ctx
-            return {s:true}
+	test('map - Circus.UNDEFINED continues propagation',function() {
+		var r = 1
+		return signal().map(function(v){return Circus.UNDEFINED}).map(function(v){}).value(1) === undefined
+	})
+
+	test('map - Circus.FALSE aborts propagation',function() {
+		return signal().map(function(v){return Circus.FALSE}).map(inc).value(1) === undefined
+	})
+
+	test('map - signal',function() {
+		var b = signal().map(inc)
+		return signal().map(b).value(1) === 2 && b.value()===2
+	})
+
+	test('map - signal flow',function() {
+		var b = signal().map(inc)
+		return signal().map(dbl).map(b).map(mul).value(1) === 9 && b.value()===3
+	})
+
+	test('map - signal flow inline merge',function() {
+		var b = signal().map(inc)
+		var s = signal().map(dbl).map(b).map(mul)
+		return b.value(1) === 2 && s.value()===6
+	})
+
+
+	test('map - async',function(done) {
+		var r = 0
+		function async(v,next) {
+			setTimeout(function(){
+				next(v+1)
+			})
+		}
+		signal().map(async).tap(function(v){done(v===2)}).value(1)
+	})
+
+    test('flow',function() {
+        var e,s = app.signal()
+        .flow(inc,dbl,dbl).tap(function(v){
+            e = v
         })
-        return s.s && r===s
+        s.value(0)
+        return e === 4
     })
 
-    test('extend - app ctx + signal ctx', function(){
-        var r1,r2,ctx = new Circus()
-        ctx.extend(function(c1){r1=c1;return {b:true}})
-        ctx.extend(function(c2){r2=c2;return {c:true}})
-        var s = ctx.signal()
-        return r1===s && r2===s
+    test('bind - pre',function() {
+        var e,s = app.signal().map(inc).tap(function(v){
+            e = v
+        })
+        s.bind(function(f,args){return f(args[0]+1)}).value(0)
+        return e === 3
     })
 
-
-    test('lens', function(){
-        return Circus.lens(sigBlock, 'i1')
+    test('bind',function() {
+        var s = app.signal().map(inc).map(dbl)
+        var e = s.bind(function(f,args){return f(args[0]+1)}).value(0)
+        return e === 6
     })
 
-    test('lens - namespace', function(){
-        return Circus.lens(sigBlock, 'i4', 'i3')
+    test('bind - no functors',function() {
+        var e = app.signal().bind(function(f,args){return f(args[0]+1)}).value(0)
+        return e === 0
     })
 
-    test('lens - traverse', function(){
-        return Circus.lens(sigBlock, 'i5')
+    test('bind - includes taps',function() {
+        var e,s = app.signal().map(inc).map(dbl).tap(function(v){
+            e = v
+        })
+        s.bind(function(f,args){return f(args[0]+1)}).value(0)
+        return e === 7
     })
 
-    test('map', function(){
-        function id(s){return s.name}
-        return Circus.deepEqual(Circus.map(channels, id),{
-                                                    i1:'i1',
-                                                    i2: 'i2',
-                                                    i3: {
-                                                        i4: 'i4',
-                                                        i5: 'i5'
-                                                    }
-                                                })
+    test('bind - composed',function() {
+    	var b = function(f,args){return f(args[0]+1)}
+        var e = app.signal().map(inc).bind(b).bind(b).value(0)
+        return e === 3
     })
 
-    test('map - copy', function(){
-        return Circus.deepEqual(Circus.map(valBlock),valBlock)
-    })
+	test('active - initial state', function() {
+		var s = signal()
+		return s.active() === false
+	})
 
-    test('map - prime', function(){
-        function prime(s,v){return v}
-        return Circus.deepEqual(Circus.map(channels,prime,valBlock),valBlock)
-    })
+	test('active - state', function() {
+		var s = signal()
+		s.value(1)
+		return s.active() === true
+	})
 
-    test('reduce', function(){
-        function error(err,s){
-            return err || s.name==='i4'}
-        return Circus.reduce(channels, error) === true
-    })
+	test('active - nested state', function() {
+		var s = signal()
+		s.active(true)
+		s.active(true)
+		s.active(false)
+		s.active(false)
+		return !s.active()
+	})
 
-    test('typeof - Array', function(){
-        return Circus.typeOf([]) === Circus.typeOf.ARRAY
-    })
+	test('active - prevent propagation', function() {
+		var s = signal()
+		s.value(1)
+		s.active(false)
+		s.value(2)
+		return s.value() === 1
+	})
 
-    test('typeof - Object', function(){
-        return Circus.typeOf({}) === Circus.typeOf.OBJECT
-    })
+	test('keep - depth', function() {
+		var s = signal().keep(2)
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		var v = s.toArray()
+		return v.toString() === '2,3'
+	})
 
-    test('typeof - Date', function(){
-        return Circus.typeOf(new Date()) === Circus.typeOf.LITERAL
-    })
+	test('keep - history', function() {
+		var s = signal().keep(2)
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		var v = s.toArray()
+		return v.length === 2 && v[0]===2
+	})
 
-    test('typeof - String', function(){
-        return Circus.typeOf('') === Circus.typeOf.LITERAL
-    })
+	test('history - drop', function() {
+		var s = signal()
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		return s.toArray()[0] === 3 && s.toArray().length === 1
+	})
 
-    test('typeof - Number', function(){
-        return Circus.typeOf(1) === Circus.typeOf.LITERAL
-    })
+	test('history - keep', function() {
+		var s = signal().keep()
+		s.value(1)
+		s.value(2)
+		s.value(3)
+		return s.toArray()[0] === 1 && s.toArray().length === 3
+	})
 
-    test('typeof - Boolean', function(){
-        return Circus.typeOf(true) === Circus.typeOf.LITERAL
-    })
+	test('prime', function() {
+		return signal().map(inc).prime(1).value() === 1
+	})
 
-    test('typeof - Regex', function(){
-        return Circus.typeOf(/a/) === Circus.typeOf.LITERAL
-    })
+	test('after - halted propagation', function() {
+		var r,s = signal().map(function(){return Circus.FALSE}).after(function(){r=true})
+		s.value(1)
+		return !r
+	})
+
+	test('finally', function() {
+		var r,s = signal().finally(function(){r=true})
+		s.value(1)
+		return r
+	})
+
+	test('finally - filo', function() {
+		var r = [], s = signal()
+		s.finally(function(v){r.push(1)})
+		s.finally(function(v){r.push(2)})
+		s.value(1)
+		return r[0] === 2 && r[1] === 1
+	})
+
+	test('finally - halted propagation', function() {
+		var r,s = signal().map(function(){return Circus.FALSE}).finally(function(){r=true})
+		s.value(1)
+		return r
+	})
+
+	test('feed', function() {
+		var s1 = signal()
+		var s2 = signal().feed(s1).map(inc)
+		s2.value(2)
+		return s1.value() === 2 & s2.value() === 2
+	})
+
+	test('feed - fanout', function() {
+		var s1 = signal()
+		var s2 = signal()
+		var s3 = signal().feed(s1,s2)
+		s3.value(3)
+		return s1.value() === 3 && s2.value() === 3
+	})
+
+	test ('before', function(){
+		var s = signal().map(inc)
+		var b = s.before().map(dbl)
+		s.map(mul).value(1)
+
+		return s.value()===9
+	})
+
+	test ('before - take steps', function(){
+		var s = signal().map(inc)
+		var b = s.before(true).map(dbl)
+		s.map(mul).value(1)
+
+		return s.value()===12
+	})
+
+	test ('after', function(){
+		var s = signal().map(inc)
+		var a = s.after().map(dbl)
+		s.map(mul).value(1)
+
+		return s.value()===12
+	})
+
+	test ('after - take steps', function(){
+		var s = signal().map(inc)
+		var a = s.after(true).map(dbl)
+		s.map(mul).value(1)
+
+		return s.value()===8
+	})
+
+	test ('after - shared state', function(){
+		var s = signal().map(inc)
+		var a = s.after().map(dbl)
+		a.value(1)
+
+		return s.value()===4 && a.value()===4
+	})
 
 })

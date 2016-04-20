@@ -1,5 +1,12 @@
 # Wiring up a Todo application using Circus and React
 
+The requirements for a working Todo app are just complicated enough to demonstrate a fully working Circus application constructed from component parts mounted on a circuit.
+
+Standard Circus architecture will be applied to produce a set of pure functional components, logically connected together and mounted on a stateful circuit. In this architectural pattern, all stateful values are held in signals connected together to form a circuit.
+
+## The Model
+The Model is the set of components responsible for shaping
+
 
 Circus helps you keep your application pure by dividing your logic it into declarative. An application is divid
 

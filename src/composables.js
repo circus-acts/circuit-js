@@ -27,7 +27,7 @@ var CircusComposables = (function(Circus){
     // Remove undefined values from the signal
     compact: function(){
       return this.map(function(v){
-        return v || Circus.FALSE
+        return v !== undefined? v : Circus.FALSE
       })
     },
 
@@ -59,26 +59,19 @@ var CircusComposables = (function(Circus){
 
     flatten: function(f) {
       var s = this.step()
-      function flatten(v) {
-        if (Circus.typeOf(v) === Circus.typeOf.ARRAY) {
-          v.forEach(flatten)
+      return this.map(function(v,next){
+        function flatten(v) {
+          if (Circus.typeOf(v) === Circus.typeOf.ARRAY) {
+            v.forEach(flatten)
+          }
+          else {
+            next(f? f(v) : v)
+          }
+          return Circus.FALSE
         }
-        else {
-          s(f? f(v) : v)
-        }
-        return Circus.FALSE
-      }
-      return this.map(flatten)
+        return flatten(v)
+      })
     },
-
-    flow: function(){
-      var args = [].slice.call(arguments)
-      for (var i=0; i<args.length; i++) {
-        this.map(args[i])
-      }
-      return this
-    },
-
 
     maybe: function(f,n) {
       return this.map(function(v){
@@ -157,7 +150,7 @@ var CircusComposables = (function(Circus){
     // Zip signal channel values into a true array.
     zip: function(keys) {
       keys = keys || [0,1]
-      var kl = keys.length, i=-1
+      var kl = keys.length, i=0
       var fn = function(v) {
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]

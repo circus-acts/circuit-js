@@ -45,3 +45,6 @@ circuit1.value({channel1: 2, channel2: 4}) // {channel1: 3, channel2: 16}
 // ES2015 shorthand comes in handy when the channel and the signal have the same binding name
 const circuit2 = Circus.join( { signal1, signal2 }).value({ signal1: 123 })
 ```
+
+## Channels
+A channel is a pair of input and output signals that share common state. Channels are formed when signals are added to a circuit. They provide a clear distinction between circuit inputs and circuit outputs so that, for example, a circuit's inputs can be bound to a user input form (the view), and its outputs mapped over a set of functional components (the model). The processing path between inputs and outputs defines the application's intent and might include such functional concepts as validation, animation and data shaping, as well as providing the facility for additional circuit routing when inputs are related in some way.

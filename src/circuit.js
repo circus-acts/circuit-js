@@ -5,6 +5,15 @@ var Circuit = (function(Circus){
   Circus = Circus || require('./circus');
   // private
 
+
+  function sdiff(v1,v2,isJoin) {
+    if (!isJoin || v2 === undefined) return v1 !== v2
+    for(var i=0, k=Object.keys(v1); i< k.length; i++) {
+      if (v1[k[i]]!==v2[k[i]]) return true
+    }
+    return false
+  }
+
   function rest(o1, o2) {
     // accept object or function as donor - otherwise just replace
     if (typeof o2 !== 'object' && typeof o2 !== 'function')  return o2
@@ -16,81 +25,98 @@ var Circuit = (function(Circus){
     return o1
   }
 
-  function functor(app,s) {
+  function toSignal(app,s) {
     if (!Circus.isSignal(s)) {
       var v = s, fn = typeof s === 'object' ? 'join' : 'map'
       if (typeof s !== 'function' && fn==='map') s = function() {return v}
       s = app.signal()[fn](s)
     }
-    return s.pure(false)
+    return s
   }
 
   function JoinPoint(app) {return function(sampleOnly, joinOnly, args) {
 
-    var ctx = this.asSignal()
-    var signals = [].slice.call(args), any=true;
+    var ctx = this.asSignal().pure(sampleOnly? false : sdiff), _error=''
+    ctx.isJoin = joinOnly
+    ctx.error = function() {
+      var error = _error
+      _error = ''
+      return error
+    }
+
+    var signals = [].slice.call(args)
     if (typeof signals[0] === 'string') {
-      ctx.name = signals.shift()
+      ctx.name(signals.shift())
     }
 
     // flatten joining signals into channels
     // - accepts and blocks out nested signals into circuit
     var circuit={}, channels = [], cIdx=0
     while (signals.length) {
-      var cblock = signals.shift()
-      if (!Circus.isSignal(cblock)) {
-        if (typeof cblock === 'boolean') {
-          any = !cblock
-        }
-        else Object.keys(cblock).forEach(function(k){
-          var s = functor(app,cblock[k])
-          s.name = s.name || k
-          var marker = sampleOnly? s : app.signal(s.name).finally(s)
-          marker.channels = s.channels; s.channnels = undefined
-          marker.prime = s.prime
-          circuit[k] = marker
+      var signal = signals.shift()
+      if (!Circus.isSignal(signal)) {
+        Object.keys(signal).forEach(function(k){
+          var output = toSignal(app,signal[k]), input = output, passive = !output.id
+          if (!passive) {
+            output.name = output.name || k
+            if (output.before) input = output.before()
+            input.name = k
 
-          s.functor = function(f,v) {
-            return f.call(s,v,ctx.value())
+            // bind each joining signal to the context value
+            output.bind(function(f,args) {
+              var m = f.apply(output,args.concat(ctx.value()))
+              if (m.nothing) {
+                _error = _error || m.nothing
+                // stop
+                return undefined
+              }
+              return m.hasOwnProperty('just')? m.just : m
+            })
+
+            // for overlays
+            input.output = output
           }
-          channels.push(s)
+          else input().name = k
+          circuit[k] = input
+          channels.push(input)
         })
       }
       else {
-        channels.push(cblock)
-        circuit[cblock.name || cIdx++] = cblock
+        channels.push(signal)
+        circuit[signal.name || cIdx++] = signal.id()
       }
     }
 
     var jv, keys=[]
     var step = ctx.step(!sampleOnly)
     function merge(i) {
-      var active, key = keys[i] = channels[i].name || i
+      var key = keys[i] = channels[i].name || i
       return function(v) {
-        active=!any
         if (joinOnly || sampleOnly) {
           jv = {} // dirty by default
           for (var c=0, l=channels.length; c<l; c++) {
             var s = channels[c]
             jv[keys[c]] = s.value()
-            active = any? active || s.active() : active && s.active()
           }
           jv[key] = v
         }
-        else {
-          active = channels[i].active()
-          jv = v
-        }
-
-        if (active) {
-          step(sampleOnly? ctx.value() : jv, sampleOnly)
-        }
+        else jv = v
+        step(sampleOnly? ctx.value() : jv, sampleOnly)
       }
     }
 
     for (var i=0, l = channels.length; i<l; i++) {
-      // merge incoming signals into join point - but after channel state change
-      channels[i].after(merge(i))
+      // merge incoming signals or values into join point
+      var channel = channels[i], passive = !channel.id
+      if (passive) {
+        channels[i] = channel()
+        keys[i] = channels[i].name
+      }
+      else channel.finally(merge(i),true)
+
+      //development
+      channels[i].$jp = channels[i].$jp || []
+      channels[i].$jp.push(ctx)
     }
 
     // hide the channel array but expose as circuit
@@ -100,91 +126,81 @@ var Circuit = (function(Circus){
     return sampleOnly? ctx.map(function(){}) : ctx
   }}
 
-  function Circuit(seed) {
+  // overlay circuit behaviour aligned on channel input / outputs
+  function overlay(ctx) {
+    return function recurse(g,c) {
+      c = c || ctx
+      Object.keys(g).forEach(function(k) {
+        var oo = typeof g[k] !=='function' && g[k].length? g[k] : [null,g[k]]
+        for (var i=0; i<2; i++) {
+          var o = oo[i]
+          if (Circus.isSignal(o) || typeof o === 'function') {
+            var s = c.channels[k] || c.channels[Object.keys(c.channels).find(function(ck){return c.channels[ck].output.name===k})].output
+            s.map(o,!i)
+          }
+          else if (o) recurse(o,c.channels[k])
+        }
+      })
+      return ctx
+    }
+  }
+
+  function value(ctx,op) {
+    var _op = ctx[op]
+    return function(v) {
+      var args = [].slice.call(arguments)
+      if (typeof v === 'object' && ctx.channels) {
+        Object.keys(v).filter(function(k) {
+          return ctx.channels[k]
+        }).forEach(function(k) {
+          ctx.channels[k][op](v[k])
+        })
+      }
+      return _op.apply(ctx,args)
+    }
+  }
+
+  function Circuit() {
 
     var app = new Circus()
     var joinPoint = new JoinPoint(app)
 
-    function value(ctx,op) {
-      var _op = ctx[op]
-      return function(v,impure) {
-        var args = [].slice.call(arguments)
-        if (v===Circus.ID && op==='value') {
-          v=_op() || seed
-          args.unshift()
-          args.shift(v)
-          seed = undefined
-        }
-        if (typeof v === 'object' && ctx.channels) {
-          Object.keys(v).filter(function(k) {
-            return ctx.channels[k]
-          }).forEach(function(k) {
-            ctx.channels[k][op](v[k],impure)
-          })
-        }
-        return _op.apply(ctx,args)
-      }
-    }
-
-    // Fold incoming signal values into circuit state.
-    // - this is the only state input after seed.
-    app.fold = function(f,a) {
-      var s = this.asSignal()
-      return s.map(function(v){
-        var state = circuit.value()
-        circuit.value(rest(state,f(state,v)))
-        return v
-      },a)
-    }
-
-    app.getState = function() {
-      return circuit.value()
-    }
+    // public
 
     // Join 1 or more input signals into 1 output signal
     // Input signal channels will be mapped onto output signal keys
     // - duplicate channels will be merged
-    // The output signal will be active when:
-    // - ANY input signals are active: default
-    // - ALL input signals are active: last argument is boolean true
     app.join = function() {
       return joinPoint.call(this,false,true,arguments)
     }
 
     // Merge 1 or more input signals into 1 output signal
     // The output signal value will be the latest input signal value
-    // The output signal will be active when:
-    // - ANY input signals are active: default
-    // - ALL input signals are active: last argument is boolean true
     app.merge = function() {
       return joinPoint.call(this,false,false,arguments)
     }
 
     // Sample input signal(s)
-    // The output signal will be active when:
-    // - ANY input signals are active: default
-    // - ALL input signals are active: last argument is boolean true
     app.sample = function() {
       return joinPoint.call(this,true,false,arguments)
     }
 
-    // public
-
-    app.extend({
-      join: app.join,
-      merge: app.merge,
-      sample: app.sample,
-      fold: app.fold
-    })
+    app.maybe = function(j,n) {
+      return function(v) {
+        return j.apply(this,arguments)? {just: v} : {nothing: n || true}
+      }
+    }
 
     app.extend(function(ctx){
       return {
+        join: app.join,
+        merge: app.merge,
+        sample: app.sample,
         value: value(ctx, 'value'),
-        prime: value(ctx, 'prime')
+        prime: value(ctx, 'prime'),
+        overlay: overlay(ctx)
       }
     })
-
-    var circuit = app.signal().prime(seed)
 
     return app
   }

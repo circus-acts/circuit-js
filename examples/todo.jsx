@@ -1,87 +1,118 @@
-import Circuit from './circuit'
 import React from 'react';
 import {render} from 'react-dom';
+import Circuit from './circuit'
 
 const testData = {
   todos:[
-    { id: 0, description: '1st todo', completed: false },
-    { id: 1, description: '2nd todo', completed: true }
+    { id: 1, description: '1st todo', completed: false },
+    { id: 2, description: '2nd todo', completed: true }
   ],
   filter:'all'
 }
 
-const app = new Circuit(testData)
+const app = new Circuit()
 
 // Model : i -> M -> v aka functional components
 const addToList = (description, todos) => todos.slice().concat({
-  id: todos.length,
+  id: todos.length+1,
   description,
   completed: false
 })
-const replaceInList = (todo, todos) => todos.map(t => t.id===todo.id? todo : t)
-const removeFromList = (todo, todos) => todos.filter(t => t.id!==todo.id)
-const filterList = ({ filter, todos }) => todos.filter(t => filter==='all' || t.completed===filter)
+const replaceInList = (todo, todos) => todos.map(t => t.id===todo.id? {...todo} : t)
+const removeFromList = (id, todos) => todos.filter(t => t.id!==id)
+const purgeList = (_,todos) => todos.filter(t => !t.completed)
+const toggleList = completed => (_, todos) => {completed=!completed; return todos.map(t => ({...t, completed}))}
+const filterList = ({ filter, todos, editing }) => ({
+  todos: todos.filter(t => filter==='all' || t.completed===filter),
+  editing
+})
 
 // circuit : aka structural components
 const circuit = app.join({
   todos: app.merge({
-    newTodo: addToList,
+    addTodo: addToList,
     editTodo: replaceInList,
     completeTodo: replaceInList,
-    deleteTodo: removeFromList
+    deleteTodo: removeFromList,
+    clearComplete: purgeList,
+    toggleComplete: toggleList()
   }),
   filter: app.merge({
     all: 'all',
     completed: true,
-    notCompleted: false
-  })
+    active: false
+  }),
+  editing: app.signal().pulse()
 }).map(filterList)
 
 // Intentions : v -> I -> m aka channel bindings
+// Extract the channel inputs - there are quite a lot of them!
 const {
-  filter: { channels: { all, completed, notCompleted }},
-  todos: { channels: {completeTodo, editTodo, deleteTodo, newTodo }}
+  editing,
+  filter: { channels: { all, completed, active }},
+  todos: { channels: {completeTodo, editTodo, deleteTodo, addTodo, clearComplete, toggleComplete }}
 } = circuit.channels
 
-
-const bind = todo => ({
-  todo,
-  completeTodo: e => completeTodo.value({...todo, completed: e.target.checked}),
-  editTodo:     e => editTodo.value({...todo, description: e.target.value}),
-  deleteTodo:  () => deleteTodo.value(todo)
-})
-
-newTodo.map(e => {
-  const v = e.target.value
-  if (e.keyCode===13 && v.length) {
-    e.target.value=''
+// a helper function filtering on keyboard behaviour
+const take = (e,t) => {
+  if ((e.keyCode===13 || t==='blur')) {
+    const v = e.target.value
+    if (t==='reset') e.target.value=''
     return v
   }
+}
+
+// extend the input signal intentions
+const newTodo = e => addTodo.value(take(e,'reset'))
+addTodo.map(v => v)
+editTodo.map(v => v.description && v)
+
+// bundle up bound signal values for convenience.
+const props = (todo) => ({
+  todo,
+  editing:      editing.value() === todo.id,
+  toggleEdit:   e => editing.value(todo.id),
+  completeTodo: e => completeTodo.value({...todo, completed: e.target.checked}),
+  deleteTodo:   e => deleteTodo.value(todo.id),
+  editTodo:     t => e => editTodo.value({...todo, description: take(e,t)})
 })
 
 // View : m -> V -> i
-const TodoList = todos =>
+const TodoList = ({todos}) =>
 render(
-  <div>
-    <h1>TODOs</h1>
-    <input placeholder="What do you want to do?" onKeyUp={newTodo.value}/>
-    <ul>
-      {todos.map(todo => <Todo key={todo.id} {...bind(todo)}/>)}
-    </ul>
-    <footer>
-      <button onClick={all.value}>all</button>
-      <button onClick={completed.value}>completed</button>
-      <button onClick={notCompleted.value}>notCompleted</button>
-    </footer>
+  <div className="todoapp">
+    <div className="header">
+      <h1>TODO</h1>
+      <input className="new-todo" placeholder="What needs to be done?" onKeyUp={newTodo}/>
+    </div>
+    <section className="main">
+      <button className="toggle-all" onClick={toggleComplete.value}/>
+      <ul className="todo-list">
+        {todos.map(todo => <Todo key={todo.id} {...props(todo)}/>)}
+      </ul>
+    </section>
+    {todos.length ?
+    <footer className="footer">
+      <ul className="filters">
+        <li><button onClick={all.value}>all</button></li>
+        <li><button onClick={active.value}>active</button></li>
+        <li><button onClick={completed.value}>completed</button></li>
+      </ul>
+      <button className="clear-completed" onClick={clearComplete.value}>Clear completed</button>
+    </footer> : null}
   </div>,
   document.querySelector('#app')
 )
 
-const Todo = ({todo, completeTodo, editTodo, deleteTodo }) => <li>
-  <input type="checkbox" defaultChecked={todo.completed} onClick={completeTodo} />
-  <input className={todo.completed} value={todo.description} onChange={editTodo} />
-  <input type="checkbox" onClick={deleteTodo} />
-</li>
+const Todo = ({todo, completeTodo, editTodo, deleteTodo, toggleEdit, editing}) =>
+  editing
+  ? <input className="edit" defaultValue={todo.description} onKeyUp={editTodo()} onBlur={editTodo('blur')} autoFocus={true}/>
+  : <li className={todo.completed? 'completed':''}>
+    <div className="view">
+      <input className="toggle" type="checkbox" checked={todo.completed} onChange={completeTodo}/>
+      <label onDoubleClick={toggleEdit}>{todo.description}</label>
+      <button className="destroy" type="checkbox" onClick={deleteTodo} />
+    </div>
+  </li>
 
-// kick off with an identity test.
-circuit.map(TodoList).value(Circuit.ID);
+circuit.map(TodoList).value(testData)

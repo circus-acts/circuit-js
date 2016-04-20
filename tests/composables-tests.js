@@ -31,7 +31,7 @@ runTests('composables', function(mock) {
         s.value('')
         s.value(0)
         s.value(3)
-        return s.history().toString() === '1,3'
+        return s.toArray().toString() === '1,,0,3'
     })
 
     test('compose',function() {
@@ -48,16 +48,7 @@ runTests('composables', function(mock) {
             return v % 2
         })
         for (var i=0; i<4; i++) s.value(i)
-        return s.history().toString() === '1,3'
-    })
-
-    test('flow',function() {
-        var e,s = app.signal()
-        .flow(inc,dbl,dbl).tap(function(v){
-            e = v
-        })
-        s.value(0)
-        return e === 4
+        return s.toArray().toString() === '1,3'
     })
 
     test('flatten', function(){
@@ -65,7 +56,7 @@ runTests('composables', function(mock) {
         s.value([1,2])
         s.value([3,[4,5]])
         s.value(6)
-        return s.history().toString() === '1,2,3,4,5,6'
+        return s.toArray().toString() === '1,2,3,4,5,6'
     })
 
     test('flatten - flatmap', function(){
@@ -74,7 +65,7 @@ runTests('composables', function(mock) {
         })
         s.value([1,2])
         s.value(3)
-        return s.history().toString() === '2,3,4'
+        return s.toArray().toString() === '2,3,4'
     })
 
     test('maybe', function(){
@@ -146,7 +137,7 @@ runTests('composables', function(mock) {
     test('skip, take - keep', function() {
         var s = app.signal().keep(2).skip(2).take(2)
         for (var i=0; i<5; i++) s.value(i)
-        return s.history().toString() === '2,3'
+        return s.toArray().toString() === '2,3'
     })
 
     test('take',function() {
