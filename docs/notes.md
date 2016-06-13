@@ -101,8 +101,6 @@ It's no coincidence that circuits resemble Haskell do notation, and that Circus 
 
 2. Signal values can be
 
-# Blog
-Like many Javascript developers today, and thanks to the efforts of others, I've become more and more aware of a functional approach to problem solving in the front end application domain.
 
 ## Monadic vs applicative behaviour
 In FP, the monadic style of programming leads to Circuit supports these two stalwart FP patterns - through behaviour if not
@@ -193,3 +191,36 @@ s.value(5)
 
 s.toArray() // [1,3,5]
 ```
+
+# Useful functional patterns
+## Maybe
+The maybe pattern works well with circuits that need to bail early - usually with a failure message. Form validation and service calls are just two examples where circuits might need to stop propagating and divert to a different channel.
+
+Circus provides two convenience functions that can be used to set up a maybe circuit: maybeBinder and maybe. The general usage is:
+
+```
+const p = v=> v===p // a predicate
+      m = 'a message'
+
+circuit.bind(maybeBinder).map(maybe(p,m)).match({
+  just,
+  nothing
+})
+```
+
+## MaybeBinder
+Binds signal values to a maybe context and generates circuit level just, nothing and fail channels.
+
+The MaybeBinder lets you bail out of circuit propagation at any point with an optional fail message. Each of the output channels can be extended reactively. For example, a validation circuit might be connected to a form so that valid input propagates to the next step, whereas fails are redirected back to the user.
+
+A circuit bound to the MaybeBinder will continue to propagate just signal values, but will halt propagation on nothing. The binding also accepts an optional message which when coupled to nothing
+will be placed on a fail channel.
+
+maybe(predicate, message)
+  predicate:  v -> one of
+                true - continue propagation of value through just channel
+                truthy - continue propagation of truthy value through just channel
+                falsey - halt propagation and activate nothing channel
+  message:    optional value activated on the fail channel
+
+

@@ -1,5 +1,5 @@
 import circuit from './circuit'
-import login from './loginService'
+import tryLogin from './loginService'
 import view from './view'
 
-circuit.overlay({login, view}).value({email:''})
+circuit.overlay({tryLogin, view}).prime({email:''})

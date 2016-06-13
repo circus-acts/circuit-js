@@ -2,6 +2,8 @@ var CircusComposables = (function(Circus){
 
   'use strict';
 
+  var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
+
   Circus = Circus || require('Circus')
 
   Circus.extend({
@@ -24,13 +26,6 @@ var CircusComposables = (function(Circus){
       return this.map(batch)
     },
 
-    // Remove undefined values from the signal
-    compact: function(){
-      return this.map(function(v){
-        return v !== undefined? v : Circus.FALSE
-      })
-    },
-
     compose: function(){
       var args = [].slice.call(arguments)
       for (var i=args.length-1; i>=0; i--) {
@@ -51,9 +46,20 @@ var CircusComposables = (function(Circus){
       })
     },
 
+    // Feed signal values into fanout signal(s)
+    // The input signal is terminated
+    feed: function() {
+      var feeds = [].slice.call(arguments)
+      return this.map(function(v){
+        feeds.forEach(function(s){
+          s.value(v)
+        })
+      })
+    },
+
     filter: function(f) {
       return this.map(function (v) {
-        return f(v)? v: Circus.FALSE
+        return f(v)? v: undefined
       })
     },
 
@@ -67,7 +73,7 @@ var CircusComposables = (function(Circus){
           else {
             next(f? f(v) : v)
           }
-          return Circus.FALSE
+          return undefined
         }
         return flatten(v)
       })
@@ -104,9 +110,9 @@ var CircusComposables = (function(Circus){
       })
     },
 
-    // continuously reduce incoming signal values into
+    // continuously fold incoming signal values into
     // an accumulated outgoing value
-    reduce: function(f,accum) {
+    fold: function(f,accum) {
       return this.map(function(v){
         if (!accum) {
           accum = v
@@ -119,11 +125,27 @@ var CircusComposables = (function(Circus){
       })
     },
 
+    // signal keep:
+    //  h == 0 or undefined - keep all
+    //  h >= 1         - keep n
+    keep: function(h) {
+      var accum = []
+      var keep = h || MAXDEPTH
+      this.toArray = function() {
+        return accum
+      }
+      return this.map(function(v) {
+        if (accum.length===keep) accum.shift()
+        accum.push(v)
+        return v
+      })
+    },
+
     // Skip the first n values from the signal
     // The signal will not propagate until n + 1
     skip: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? Circus.FALSE : v
+        return (n-- > 0)? Circus.fail(v) : v
       })
     },
 
@@ -131,7 +153,7 @@ var CircusComposables = (function(Circus){
     // The signal will not propagate after n
     take: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? v: Circus.FALSE
+        return (n-- > 0)? v: Circus.fail(v)
       })
     },
 
@@ -154,7 +176,7 @@ var CircusComposables = (function(Circus){
       var fn = function(v) {
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]
-        }) : Circus.FALSE
+        }) : undefined
       }
       return this.map(fn)
     }

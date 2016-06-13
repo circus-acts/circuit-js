@@ -2,7 +2,7 @@ runTests('join', function(mock) {
 
 	var inc = function(v){return v+1}
 	var dbl = function(v){return v+v}
-	var mul = function(v){return v*3}
+	var mul3 = function(v){return v*3}
 
 	var app = new Circuit()
 	var signal = app.signal.bind(app)
@@ -24,16 +24,6 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		return typeof r === 'object' && r[0] === 1 && r[1] === 2
-	})
-
-	test('join - stop propagation', function() {
-		var s1 = signal()
-		var s2 = signal()
-		var j = app.join(s1,s2).map(function(){return Circus.FALSE})
-		s1.value(1)
-		s2.value(2)
-		var r = j.value()
-		return r === undefined && s1.value()===1 && s2.value()===2
 	})
 
 	test('join - named key', function() {

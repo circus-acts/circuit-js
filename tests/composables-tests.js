@@ -12,7 +12,6 @@ runTests('composables', function(mock) {
         return r.value() === 123
     })
 
-
     test('batch', function() {
         var s = app.signal().batch(2).tap(function(v){
             r.push(v)
@@ -24,16 +23,6 @@ runTests('composables', function(mock) {
                 r[1].toString() === '2,3'
     })
 
-    test('compact', function() {
-        var s = app.signal().keep().compact()
-        s.value(1)
-        s.value(undefined)
-        s.value('')
-        s.value(0)
-        s.value(3)
-        return s.toArray().toString() === '1,,0,3'
-    })
-
     test('compose',function() {
         var e,s = app.signal()
         .compose(inc,dbl,dbl).tap(function(v){
@@ -43,16 +32,32 @@ runTests('composables', function(mock) {
         return e === 5
     })
 
+
+    test('feed', function() {
+        var s1 = app.signal()
+        var s2 = app.signal().feed(s1).map(inc)
+        s2.value(2)
+        return s1.value() === 2 & s2.value() === 2
+    })
+
+    test('feed - fanout', function() {
+        var s1 = app.signal()
+        var s2 = app.signal()
+        var s3 = app.signal().feed(s1,s2)
+        s3.value(3)
+        return s1.value() === 3 && s2.value() === 3
+    })
+
     test('filter', function(){
-        var s = app.signal().keep().filter(function(v){
+        var s = app.signal().filter(function(v){
             return v % 2
-        })
+        }).keep()
         for (var i=0; i<4; i++) s.value(i)
         return s.toArray().toString() === '1,3'
     })
 
     test('flatten', function(){
-        var s = app.signal().keep().flatten()
+        var s = app.signal().flatten().keep()
         s.value([1,2])
         s.value([3,[4,5]])
         s.value(6)
@@ -60,9 +65,9 @@ runTests('composables', function(mock) {
     })
 
     test('flatten - flatmap', function(){
-        var s = app.signal().keep().flatten(function(v){
+        var s = app.signal().flatten(function(v){
             return v+1
-        })
+        }).keep()
         s.value([1,2])
         s.value(3)
         return s.toArray().toString() === '2,3,4'
@@ -106,10 +111,10 @@ runTests('composables', function(mock) {
                 s.value().b===3
     })
 
-    test('reduce', function() {
+    test('fold', function() {
         var e = 'xyz'
         var s = app.signal()
-        .reduce(function(a,v){
+        .fold(function(a,v){
             return a+v
         }).tap(function(v){
             e = v
@@ -120,10 +125,10 @@ runTests('composables', function(mock) {
         return e === 6
     })
 
-    test('reduce - accum', function() {
+    test('fold - accum', function() {
         var e = 'xyz'
         var s = app.signal()
-        .reduce(function(a,v){
+        .fold(function(a,v){
             return a+v
         },6).tap(function(v){
             e = v
@@ -134,16 +139,42 @@ runTests('composables', function(mock) {
         return e === 12
     })
 
-    test('skip, take - keep', function() {
-        var s = app.signal().keep(2).skip(2).take(2)
+    test('keep - depth', function() {
+        var s = app.signal().keep(2)
+        s.value(1)
+        s.value(2)
+        s.value(3)
+        var v = s.toArray()
+        return v.toString() === '2,3'
+    })
+
+    test('keep - history', function() {
+        var s = app.signal().keep(2)
+        s.value(1)
+        s.value(2)
+        s.value(3)
+        var v = s.toArray()
+        return v.length === 2 && v[0]===2
+    })
+
+    test('history - keep', function() {
+        var s = app.signal().keep()
+        s.value(1)
+        s.value(2)
+        s.value(3)
+        return s.toArray()[0] === 1 && s.toArray().length === 3
+    })
+
+    test('skip', function() {
+        var r,s = app.signal().skip(2).map(inc).tap(function(v){r=r||v})
         for (var i=0; i<5; i++) s.value(i)
-        return s.toArray().toString() === '2,3'
+        return r === 3
     })
 
     test('take',function() {
-        var s = app.signal().take(2)
+        var r,s = app.signal().take(2).map(inc).tap(function(v){r=v})
         for (var i=0; i<5; i++) s.value(i)
-        return s.value() === 1
+        return r === 2
     })
 
     test('window', function() {

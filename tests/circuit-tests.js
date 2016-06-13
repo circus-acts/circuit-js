@@ -14,6 +14,32 @@ runTests('circuit', function(mock) {
 		return Circus.isSignal(app.join())
 	})
 
+	test('circuit - stop propagation', function() {
+		var s1 = app.signal()
+		var s2 = app.signal()
+		var j = app.join(s1,s2).map(Circus.fail)
+		s1.value(1)
+		s2.value(2)
+		var r = j.value()
+		return r[0] === 1 && r[1] === 2 && s1.value()===1 && s2.value()===2
+	})
+
+	test('circuit - error', function() {
+		var s1 = app.signal().map(Circus.fail)
+		var j1 = app.join(s1)
+		var f,j = app.join(j1).finally(function(v){f=v})
+		s1.value(2)
+		return j.error()===2
+	})
+
+	test('circuit - finally takes fail', function() {
+		var s1 = app.signal().map(Circus.fail)
+		var j1 = app.join(s1)
+		var f,j = app.join(j1).finally(function(v){f=v})
+		s1.value(2)
+		return f instanceof Circus.fail
+	})
+
 	test('channel - input', function() {
 		var a = app.signal()
 		var c = app.join({a:a})
@@ -42,19 +68,19 @@ runTests('circuit', function(mock) {
 	})
 
 	test('associativity', function(){
-		var s=[], set = function(v){return function(){s.push(v)}}
-		var b=app.signal().tap(set(2))
+		var s=[], step = function(v){return function(){s.push(v)}}
+		var b=app.signal().tap(step(2))
 		var j=app.join({
 			a: b
-		}).tap(set(3))
-		var a = j.channels.a.tap(set(1))
+		}).tap(step(3))
+		var a = j.channels.a.tap(step(1))
 		a.value(123)
 
 
 		return s.toString() === '1,2,3'
 	})
 
-	test('channel - deep associativity', function(){
+	test('associativity - deep', function(){
 		var steps=[]
 		app.extend({seq:function(s){return this.tap(function(){
 			steps.push(s)
@@ -87,24 +113,24 @@ runTests('circuit', function(mock) {
 		return r.b==='abc'
 	})
 
-	test('channel value - deep', function(){
-		var a=app.signal().map(inc)
+	test('circuit value - prime', function(){
+		var a=app.signal()
+		var r = app.join({
+			a: a
+		})
+		r.prime({a:123})
+
+		return a.value()===123
+	})
+
+	test('channel value - prime deep', function(){
+		var a=app.signal()
 		var r = app.join({
 			b: {
 				a: a
 			}
 		})
-		r.value({b:{a:123}})
-
-		return a.value()===124
-	})
-
-	test('circuit value - prime', function(){
-		var a=app.signal().map(inc)
-		var r = app.join({
-			a: a
-		})
-		r.prime({a:123})
+		r.prime({b:{a:123}})
 
 		return a.value()===123
 	})
@@ -134,6 +160,17 @@ runTests('circuit', function(mock) {
 		r.channels.a.value(123)
 
 		return a==='abc' && r.value()===123
+	})
+
+	test('circuit - placeholder', function(){
+		var c = app.join({a:Circus.UNDEFINED})
+		return c.channels.a.value(1) === 1
+	})
+
+	test('circuit - overlay placeholder', function(){
+		var o = {a:inc}
+		var c = app.join({a:Circus.UNDEFINED}).overlay(o)
+		return c.channels.a.value(0) === 1
 	})
 
 	test('circuit - overlay input (pre)', function(){
@@ -178,55 +215,86 @@ runTests('circuit', function(mock) {
 		return c.channels.a.channels.a.channels.a.value(1) === 2
 	})
 
-	test('maybe - just', function() {
-		var m = app.maybe(function(v){return !!v})(1)
-		return m.just === 1 && m.nothing === undefined
+	test('circuit - overlay aggregate', function(){
+		var a = app.signal('a')
+		var b = app.signal('b')
+		var o = {a:inc,b:inc}
+		var c = app.join({a:a}).sample({b:b}).overlay(o)
+		return c.channels.a.value(1) === 2 && c.channels.b.value(1) === 2
 	})
 
-	test('maybe - nothing', function() {
-		var m = app.maybe(function(v){return !!v})(0)
-		return m.just === undefined && m.nothing===true
+	test('circuit - overlay aggregate map fn', function(){
+		var a = app.signal('a')
+		var b = app.signal('b')
+		var o = {a:inc}
+		var c = app.join({b:b}).map({a}).overlay(o)
+		return c.channels.a.value(0) === 1
 	})
 
-	test('maybe - nothing value', function() {
-		var m = app.maybe(function(v){return !!v},'xyz')(0)
-		return m.just === undefined && m.nothing === 'xyz'
+	test('circuit - overlay aggregate finally fn', function(){
+		var a = app.signal('a')
+		var b = app.signal('b')
+		var o = {a:inc}
+		var c = app.merge({b:b}).finally({a}).overlay(o)
+		c.value(0)
+		return c.channels.a.value() === 1
 	})
 
-	test('maybe - circuit valid', function() {
-		var m = app.maybe(function(v){return !!v},'error!')
-		var c = app.merge({m}).map(inc)
-		c.channels.m.value(1)
-		return c.error() === '' && c.value() === 2
+	test('test - true', function() {
+		var m = app.test(function(v){return true})(1)
+		return m === 1
 	})
 
-	test('maybe - circuit error', function() {
-		var m = app.maybe(function(v){return !!v})
-		var c = app.merge({m}).map(inc)
-		c.channels.m.value(0)
-		return c.error() === true && c.value() === undefined
+	test('test - value', function() {
+		var m = app.test(function(v){return v+1})(1)
+		return m === 2
 	})
 
-	test('maybe - circuit error msg', function() {
-		var m = app.maybe(function(v){return !!v},'error!')
-		var c = app.join({m})
-		c.value({m:false})
-		return c.error() === 'error!'
+	test('test - fail', function() {
+		var m = app.test(function(v){return !!v})(0)
+		return m instanceof Circus.fail
 	})
 
-	test('maybe - circuit error clear', function() {
-		var m = app.maybe(function(v){return !!v},'error!')
-		var c = app.join({m})
-		c.value({m:false})
-		return c.error() && !c.error()
+	test('test - fail with reason', function() {
+		var m = app.test(function(v){return !!v},'xyz')(0)
+		return m.value === 'xyz'
 	})
 
-	test('maybe - first error only', function() {
-		var e=0, m = app.maybe(function(v){return !!v},++e)
-		var c = app.merge({m}).map(inc)
-		c.channels.m.value(0)
-		c.channels.m.value(0)
-		return c.error() === 1 && c.value() === undefined
+	test('test - circuit valid', function() {
+		var m = app.test(function(v){return !!v},'error!')
+		var s = app.merge({m}).map(inc)
+		s.channels.m.value(1)
+		return s.error() === '' && s.value() === 2
+	})
+
+	test('test - circuit error', function() {
+		var m = app.test(function(v){return !!v})
+		var s = app.merge({m}).map(inc)
+		s.channels.m.value(0)
+		return s.error() === true
+	})
+
+	test('test - circuit error msg', function() {
+		var m = app.test(function(v){return !!v},'error!')
+		var s = app.merge({m}).map(inc)
+		s.channels.m.value(0)
+		return s.error() === 'error!'
+	})
+
+	test('test - first error only', function() {
+		var m1 = app.test(function(v){return !!v},1)
+		var m2 = app.test(function(v){return !!v},2)
+		var s = app.merge({m1,m2}).map(inc)
+		s.channels.m1.value(0)
+		s.channels.m2.value(0)
+		return s.error() === 1
+	})
+
+	test('test - circuit error clear', function() {
+		var m = app.test(function(v){return !!v})
+		var s = app.merge({m}).map(inc)
+		s.channels.m.value(0)
+		return s.error() === true && s.error() === ''
 	})
 
 })

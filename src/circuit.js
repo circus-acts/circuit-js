@@ -5,6 +5,7 @@ var Circuit = (function(Circus){
   Circus = Circus || require('./circus');
   // private
 
+  var idSignal = function(v) {return v}
 
   function sdiff(v1,v2,isJoin) {
     if (!isJoin || v2 === undefined) return v1 !== v2
@@ -26,6 +27,7 @@ var Circuit = (function(Circus){
   }
 
   function toSignal(app,s) {
+    if (s===Circus.UNDEFINED) s = idSignal
     if (!Circus.isSignal(s)) {
       var v = s, fn = typeof s === 'object' ? 'join' : 'map'
       if (typeof s !== 'function' && fn==='map') s = function() {return v}
@@ -38,11 +40,6 @@ var Circuit = (function(Circus){
 
     var ctx = this.asSignal().pure(sampleOnly? false : sdiff), _error=''
     ctx.isJoin = joinOnly
-    ctx.error = function() {
-      var error = _error
-      _error = ''
-      return error
-    }
 
     var signals = [].slice.call(args)
     if (typeof signals[0] === 'string') {
@@ -51,7 +48,7 @@ var Circuit = (function(Circus){
 
     // flatten joining signals into channels
     // - accepts and blocks out nested signals into circuit
-    var circuit={}, channels = [], cIdx=0
+    var circuit=ctx.channels || {}, channels = [], cIdx=0
     while (signals.length) {
       var signal = signals.shift()
       if (!Circus.isSignal(signal)) {
@@ -59,18 +56,12 @@ var Circuit = (function(Circus){
           var output = toSignal(app,signal[k]), input = output, passive = !output.id
           if (!passive) {
             output.name = output.name || k
-            if (output.before) input = output.before()
+            input = output.channel(Circus.before)
             input.name = k
 
             // bind each joining signal to the context value
             output.bind(function(f,args) {
-              var m = f.apply(output,args.concat(ctx.value()))
-              if (m.nothing) {
-                _error = _error || m.nothing
-                // stop
-                return undefined
-              }
-              return m.hasOwnProperty('just')? m.just : m
+              return f.apply(output,args.concat(ctx.value()))
             })
 
             // for overlays
@@ -87,18 +78,17 @@ var Circuit = (function(Circus){
       }
     }
 
-    var jv, keys=[]
+    var keys=[]
     var step = ctx.step(!sampleOnly)
     function merge(i) {
       var key = keys[i] = channels[i].name || i
       return function(v) {
-        if (joinOnly || sampleOnly) {
-          jv = {} // dirty by default
+        var jv = {}
+        if ((joinOnly || sampleOnly) && !(v instanceof Circus.fail)) {
           for (var c=0, l=channels.length; c<l; c++) {
             var s = channels[c]
             jv[keys[c]] = s.value()
           }
-          jv[key] = v
         }
         else jv = v
         step(sampleOnly? ctx.value() : jv, sampleOnly)
@@ -112,7 +102,7 @@ var Circuit = (function(Circus){
         channels[i] = channel()
         keys[i] = channels[i].name
       }
-      else channel.finally(merge(i),true)
+      else channel.finally(merge(i))
 
       //development
       channels[i].$jp = channels[i].$jp || []
@@ -136,7 +126,7 @@ var Circuit = (function(Circus){
           var o = oo[i]
           if (Circus.isSignal(o) || typeof o === 'function') {
             var s = c.channels[k] || c.channels[Object.keys(c.channels).find(function(ck){return c.channels[ck].output.name===k})].output
-            s.map(o,!i)
+            s.map(i && o || Circus.before(o))
           }
           else if (o) recurse(o,c.channels[k])
         }
@@ -145,18 +135,17 @@ var Circuit = (function(Circus){
     }
   }
 
-  function value(ctx,op) {
-    var _op = ctx[op]
+  function prime(ctx) {
+    var _prime = ctx.prime.bind(ctx)
     return function(v) {
-      var args = [].slice.call(arguments)
       if (typeof v === 'object' && ctx.channels) {
         Object.keys(v).filter(function(k) {
           return ctx.channels[k]
         }).forEach(function(k) {
-          ctx.channels[k][op](v[k])
+          ctx.channels[k].prime(v[k])
         })
       }
-      return _op.apply(ctx,args)
+      return _prime(v)
     }
   }
 
@@ -185,9 +174,10 @@ var Circuit = (function(Circus){
       return joinPoint.call(this,true,false,arguments)
     }
 
-    app.maybe = function(j,n) {
+    app.test = function(f,m) {
       return function(v) {
-        return j.apply(this,arguments)? {just: v} : {nothing: n || true}
+        var j = f.apply(this,arguments)
+        return j? (j===true? v : j) : Circus.fail(m)
       }
     }
 
@@ -196,8 +186,7 @@ var Circuit = (function(Circus){
         join: app.join,
         merge: app.merge,
         sample: app.sample,
-        value: value(ctx, 'value'),
-        prime: value(ctx, 'prime'),
+        prime: prime(ctx),
         overlay: overlay(ctx)
       }
     })

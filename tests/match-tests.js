@@ -270,9 +270,9 @@ runTests('match', function(mock) {
     })
 
     test('not - block on truthy', function() {
-        var r, p, s = app.any({a:Circus.not}).tap(function(){p=true})
-        r = s.value({a:1})
-        return p !== true && Circus.equal(r,{a:1})
+        var p, s = app.any({a:Circus.not}).tap(function(){p=true})
+        s.value({a:1})
+        return p !== true && Circus.equal(s.value(),{a:1})
     })
 
     // switches (signal PM values)

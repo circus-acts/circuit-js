@@ -3,7 +3,8 @@ var Circus = (function(){
 'use strict'
 
 var FSTATE = 'fs', cid = 0, extensions={}
-var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
+var AFTER = 'after'
+var BEFORE = 'before'
 
 function _Signal() {}
 
@@ -26,7 +27,7 @@ function Circus() {
     _events.unshift({start:s,stop:e||function(){}})
   }
 
-  this.signal = function(name) {
+  var createSignal = this.signal = function(name) {
     return appExtentions.reduce(function(s,ext){
       return s.extend(ext)
     }, new Signal(name))
@@ -81,74 +82,82 @@ function Circus() {
     var _head, _state, _active, _pulse = Circus.FALSE
     var _reset = []
     var _astep = 0, _step = 0, _steps = [], _finallys = []
-    var _history, _keep = 1, _pure, _after
+    var _pure, _after, _fail
     var _diff = function(v1, v2) {return v1!==v2}
 
     // _runToState - next step
     function _runToState(v,ns,_b) {
+      var nv
       propagationStarts(_ctx, v)
-      if (_active!==false && (!_pure || _diff(v,_head,_ctx.isJoin))) {
+      if (v instanceof Circus.fail) {
+        _fail = nv = _fail || v
+      }
+      else if (_active!==false && (!_pure || _diff(v,_head,_ctx.isJoin))) {
         _head = _pure && v
+        nv = v
         // steps in FIFO order
-        var nv = v
         for (var i = ns, il = _steps.length; i < il && _active!==false; i++) {
           nv = _b(_steps[i], [v])
-          if (nv===undefined || nv===Circus.FALSE) break
-          v = nv.state===FSTATE? nv.value : nv
+          if (nv===undefined || nv instanceof Circus.fail) break;
+          v = nv
         }
         _mutate(v,nv)
       }
 
-      // finallys in FILO order
+      // finallys in FILO order - last value
       if (nv!==undefined) {
         for (var f = 0, fl = _finallys.length; f < fl; f++) {
-          _finallys[f].call(_ctx, v)
+          _finallys[f].call(_ctx, nv)
         }
       }
 
       if (_pulse!==Circus.FALSE) _mutate(_pulse)
 
-      propagationEnds(_ctx, v)
+      propagationEnds(_ctx, _state)
+      return nv
     }
 
     function _mutate(v,nv) {
-      _active = nv===undefined || nv===Circus.FALSE? undefined : true
+      _fail = nv instanceof Circus.fail && nv, _active = nv===undefined || _fail? undefined : true
       if (v && v.state===FSTATE) v = v.value
-      if (nv!==Circus.FALSE && _keep) {
-        if (_keep>1) {
-          if (_history.length===_keep) _history.shift()
-          _history.push(v)
-        } else {
-          _history=v
-        }
-        _state=v
-      }
+      _state=v
     }
 
     function _bindEach(f,args) {
       return f.apply(_ctx, args)
     }
 
+    function _bind(f) {
+      if (Circus.isSignal(f)) {
+        f = f.value.bind(f)
+      }
+      else if (typeof f === 'object' && _ctx.channels) {
+        for(var p in f) if (f.hasOwnProperty(p)) {
+          var s = _ctx.asSignal(f[p])
+          _ctx.channels[p]=s
+          return _bind(s)
+        }
+      }
+      return f
+    }
+
     function _functor(f) {
-      if ( Circus.isAsync(f) ) {
+      var _f = _bind(f)
+      if (f!==_f && f.finally) f.finally(_next())
+      if ( Circus.isAsync(_f) ) {
         var done = _next()
         return function async(v) {
           propagationStarts(_ctx,v)
           try {
             var args = [].slice.call(arguments).concat(done)
-            return f.apply(_ctx, args)
+            return _f.apply(_ctx, args)
           }
           finally {
             propagationEnds(_ctx,v)
           }
         }
       }
-      // NB: signal async won't work with current implementation
-      if (Circus.isSignal(f)) {
-        f.finally(_next())
-        f = f.value.bind(f)
-      }
-      return f
+      return _f
     }
 
     // Identity returns self. Useful for passive joins
@@ -157,23 +166,6 @@ function Circus() {
       ctx.name = _name
       ctx.id = function() {return _ctx}
       ctx.id.constructor = _Signal
-    }
-
-    function _split(owner) {
-      // after / before already staged
-      delete _ctx.after; delete _ctx.before
-      var split = extend({}, _ctx, {constructor: _Signal})
-      var map = function(f,fifo) {
-        f = _functor(f)
-        fifo? _steps.splice(_step,0,f) : _steps.push(f)
-        return this
-      }
-      _identity(split)
-      // return split as after / before, with step ownership resolved
-      _after = !this
-      if (_after? !!owner : !owner) _step=0
-      if (_after) split.map = map; else _ctx.map = map
-      return split
     }
 
     // Allow values to be injected into the signal at arbitrary step points.
@@ -192,7 +184,11 @@ function Circus() {
 
     this.name = _name
 
-    this.asSignal = function() {return this}
+    this.asSignal = function(v) {
+      if (Circus.isSignal(v || this)) return v || this
+      var s = createSignal()
+      return (typeof v === 'function'? s.map(v) : s)
+    }
 
     // Set signal state directly bypassing propagation steps
     this.prime = function(v) {
@@ -203,7 +199,7 @@ function Circus() {
     // Set or read the signal state value
     // This method produces state propagation throughout a connected circuit
     this.value = function(v) {
-      if (arguments.length) { _runToState(v,0,_bindEach) }
+      if (arguments.length) { return _runToState(v,0,_bindEach) }
       return _state
     }
 
@@ -237,11 +233,29 @@ function Circus() {
     // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
     // can cancel propagation by returning Circus.FALSE - revert to previous state (finally(s) invoked)
     // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
-    this.map = function(f,fifo) {
-      f = _functor(f)
-      fifo? _steps.unshift(f) : _steps.splice(_step,0,f)
+    this.map = function(f) {
+      var _b = f.state===BEFORE, _f = _functor(_b && f.value || f)
+      _b? _steps.unshift(_f) : _steps.splice(_step,0,_f)
       _step++
       return this
+    }
+
+    // create an I/O channel where 2 signals share state and flow in i -> o order
+    // Optionally:
+    // - take behaviour
+    this.channel = function(io,take) {
+      var split = extend({}, this, {constructor: _Signal})
+      var map = function(f) {
+        var _b = f.state===BEFORE, _f = _functor(_b && f.value || f)
+        _b? _steps.splice(_step,0,_f) : _steps.push(_f)
+        return this
+      }
+      _identity(split)
+      // return split as after / before, with step ownership resolved
+      _after = !io || io===Circus.after
+      if (_after? !!take : !take) _step=0
+      if (_after) split.map = map; else this.map = map
+      return split
     }
 
     // convenient compose functor that maps from left to right
@@ -259,7 +273,7 @@ function Circus() {
     this.bind = function(f) {
       var __b = _bindEach
       _bindEach = function(step,args) {
-        var n = function(){
+        var n = function() {
           return __b(step, arguments)
         }
         return f.call(_ctx, n, args)
@@ -267,15 +281,16 @@ function Circus() {
       return this
     }
 
-    // finally functions are executed in FILO order after all step and after functions regardless of state
-    this.finally = function(f, fifo) {
-      if (Circus.isSignal(f)) {
-        var fs=f
-        f = function(v) {
+    // finally functions are executed in FILO order after all step functions regardless of state
+    this.finally = function(f) {
+      var fifo = f.state===BEFORE, _f = _bind(fifo && f.value || f)
+      if (Circus.isSignal(_f)) {
+        var fs=_f
+        _f = function(v) {
           fs.value(v)
         }
       }
-      _finallys[fifo? 'push' : 'unshift'](f)
+      _finallys[fifo? 'unshift' : 'push'](_f)
       return this
     }
 
@@ -285,19 +300,13 @@ function Circus() {
       return this
     }
 
-    // signal keep:
-    //  n == undefined - keep all
-    //  n == 0         - don't keep - always pristine
-    //  n >= 1         - keep n
-    this.keep = function(n) {
-      _keep = arguments.length? n : MAXDEPTH
-      if (_keep > 1 && _history===undefined) _history=[]
-      return this
-    }
-
-    // Return the current signal history as an array
-    this.toArray = function() {
-      return !_keep? undefined : _keep>1? _history:[_history]
+    this.error = function() {
+      if (_fail) {
+        var v = _fail.value
+        _fail = false
+        return v || true
+      }
+      return ''
     }
 
     // Tap the current signal state value
@@ -308,27 +317,6 @@ function Circus() {
         return v===undefined? Circus.UNDEFINED : v
       })
     }
-
-    // Feed signal values into fanout signal(s)
-    // The input signal is terminated
-    this.feed = function() {
-      var feeds = [].slice.call(arguments)
-      return this.map(function(v){
-        feeds.forEach(function(s){
-          s.value(v)
-        })
-      })
-    },
-
-    // generate a new output signal that shares state and propagates after the
-    // current signal completes. Optionally:
-    // - reset propagation (take behaviour)
-    this.after = _split.bind(null)
-
-    // generate a new input signal that shares state and propagates before the
-    // current signal starts. Optionally:
-    // - reset propagation (take behaviour)
-    this.before = _split.bind(this)
 
     // Extend a signal with custom step functions either through an
     // object graph, or a context bound function that returns an object graph
@@ -346,6 +334,8 @@ function Circus() {
   _proto.constructor = _Signal
   Signal.prototype = _proto
 }
+
+Circus.fail = function(v) {if (!(this instanceof Circus.fail)) return new Circus.fail(v); this.value=v}
 
 // static
 Circus.TRUE =  Object.freeze({state:FSTATE, value:true})
@@ -365,6 +355,14 @@ Circus.extend = function(ext) {
 var _fnArgs = /function\s.*?\(([^)]*)\)/
 Circus.isAsync = function(f){
   return f.length && f.toString().match(_fnArgs)[1].indexOf('next')>0
+}
+
+Circus.after = function(f) {
+  return {state:AFTER, value:f}
+}
+
+Circus.before = function(f) {
+  return {state:BEFORE, value:f}
 }
 
 return Circus

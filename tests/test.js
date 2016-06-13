@@ -148,6 +148,7 @@ function startTest(suite, name, condition, inclusive) {
 function runTest(name, condition, async) {
 
 	testRunning++
+	if (async) testRunning++
 
 	var test = this
 	test.setup()
@@ -168,9 +169,6 @@ function runTest(name, condition, async) {
 			}
 		})
 		if (!result) {
-			if (async) {
-				testRunning++
-			}
 			return
 		}
 		test.failures.pop()
