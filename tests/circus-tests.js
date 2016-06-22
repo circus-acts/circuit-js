@@ -47,6 +47,11 @@ runTests('circus', function(mock) {
 		return s.value() === 3
 	})
 
+	test('value - bind',function() {
+		var bv = signal().value
+		return bv(2)===2
+	})
+
 	test('tap',function() {
 		var e = 'xyz'
 		var s = signal().tap(function(v){

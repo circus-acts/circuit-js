@@ -129,7 +129,7 @@ function Circus() {
 
     function _bind(f) {
       if (Circus.isSignal(f)) {
-        f = f.value.bind(f)
+        f = f.value
       }
       else if (typeof f === 'object' && _ctx.channels) {
         for(var p in f) if (f.hasOwnProperty(p)) {

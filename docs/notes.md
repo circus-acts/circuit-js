@@ -223,10 +223,10 @@ maybe(predicate, message)
   message:    optional value activated on the fail channel
 
 # Pattern matching
-Circus provides simple but effective pattern matching based on the shape and state of a signal. The operator Signal.match accepts an object graph and attempts to match each of its keys to a signal channel before testing the channel value against the object key value. Here's how it works:
+Circus provides simple but effective pattern matching based on the shape and state of a signal. The operator Signal.match accepts an object graph and attempts to match each of its keys to a signal channel before testing each matching channel value against the object key value. Here's the basic form:
 
 ```
-const match = signal.filter({
+const match = signal.match({
   a : 1,
   b : 2
 }).value
@@ -235,12 +235,4 @@ match({a:1}) // block
 match({b:2}) // block
 match({a:1,b:2}) // match
 
-```
-
-const factorial = signal().one(
-  Circus.eq(0,() => 1),
-  v => v * factorial(v - 1)
-}).value
-
-factorial(6) // 720
 ```
