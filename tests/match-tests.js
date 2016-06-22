@@ -4,26 +4,32 @@ runTests('match', function(mock) {
     var app = new Circuit()
 
     test('match - pass truthy literal', function() {
-        var r=0, v=1
+        var r, v=1
         app.match().tap(function(v){r=v}).value(v)
         return r === v
     })
 
-    test('match - pass truthy object', function() {
-        var r=0, v={a:1,b:2}
-        app.match().tap(function(v){r=v}).value(v)
-        return Circus.equal(r, v)
-    })
-
-    test('match - block falsey', function() {
+    test('match - block falsey literal', function() {
         var r, v=0
         app.match().tap(function(v){r=v}).value(v)
         return r !== v
     })
 
-    test('match - block falsey object', function() {
-        var r, v={a:1,b:undefined}
+    test('match - pass truthy object', function() {
+        var r, v={a:1,b:2}
         app.match().tap(function(v){r=v}).value(v)
+        return Circus.equal(r, v)
+    })
+
+    test('match - pass object with some', function() {
+        var r, v={a:false,b:2}
+        app.match().tap(function(v){r=v}).value(v)
+        return Circus.equal(r, v)
+    })
+
+    test('match - block object with every', function() {
+        var r, v={a:false,b:2}
+        app.match(-1,-1).tap(function(v){r=v}).value(v)
         return r === undefined
     })
 
@@ -40,15 +46,15 @@ runTests('match', function(mock) {
         return r === undefined
     })
 
-    test('match - pass default mask', function() {
+    test('match - pass channel mask', function() {
         var r, v = {c1:1,c2:3}
-        app.match({c1:undefined}).tap(function(v){r=v}).value(v)
+        app.match({c1:1}).tap(function(v){r=v}).value(v)
         return Circus.equal(r, v)
     })
 
-    test('match - pass fn', function() {
-        var r,v = {c1:1,c2:2,c3:3}
-        app.match(function(v,m){return v===m}).tap(function(v){r=v}).value(v)
+    test('match - pass default mask', function() {
+        var r, v = {c1:1,c2:3}
+        app.match({c1:undefined}).tap(function(v){r=v}).value(v)
         return Circus.equal(r, v)
     })
 
@@ -74,7 +80,9 @@ runTests('match', function(mock) {
 
     test('match - fn mask + fn', function() {
         var r, v = {ca1:1,cb2:2,cc3:0}
-        app.match({ca1:function(v,m){return v===1}},function(v,m){return v===m})
+        app.match({ca1:function(v){
+            return v===1 && 2}},function(v,m){
+            return m===2})
         .tap(function(v){r=v}).value(v)
         return assert(r,v,Circus.equal)
     })
@@ -93,7 +101,7 @@ runTests('match', function(mock) {
 
     test('match - block leading wildcard', function() {
         var r, v = {c11:1,c21:0}
-        app.match({'*1':true}).tap(function(v){r=v}).value(v)
+        app.match({'*1':true},-1,-1).tap(function(v){r=v}).value(v)
         return r===undefined
     })
 
@@ -103,10 +111,10 @@ runTests('match', function(mock) {
         return Circus.equal(r,v)
     })
 
-    test('match - mixed wildcard block', function() {
+    test('match - mixed wildcard', function() {
         var r,v = {ca1:1,cb2:2,cc3:3}
-        app.match({'*1':false,'*':true}).tap(function(v){r=v}).value(v)
-        return r === undefined
+        app.match({'*1':1,'*':true}).tap(function(v){r=v}).value(v)
+        return Circus.equal(r,v)
     })
 
     test('match - pass list', function() {
@@ -117,190 +125,199 @@ runTests('match', function(mock) {
 
     test('match - block list', function() {
         var r, v = {ca1:1,cb2:2,cc3:0}
-        app.match('ca1','cc3').tap(function(v){r=v}).value(v)
+        app.match('ca1','cc3', -1, -1).tap(function(v){r=v}).value(v)
         return r===undefined
     })
 
-    test('all - take all truthy', function() {
+    test('every - take all truthy', function() {
         var r, v = {c1:1,c2:2}
-        app.all().tap(function(v){r=v}).value(v)
+        app.every().tap(function(v){r=v}).value(v)
         return Circus.equal(r, v)
     })
 
-    test('all - block falsey', function() {
+    test('every - block some falsey', function() {
         var r, v = {c1:1,c2:0}
-        app.all().tap(function(v){r=v}).value(v)
+        app.every().tap(function(v){r=v}).value(v)
         return r === undefined
     })
 
-    test('all - mask', function() {
+    test('every - mask', function() {
         var r,mask = {
             s1:true
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s1.value(1)
         return Circus.equal(r, {s1:1, s2:undefined})
     })
 
-    test('all - negative mask', function() {
+    test('every - negative mask', function() {
         var r, mask = {
             s2:false
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s1.value(1)
         return Circus.equal(r, {s1:1,s2:undefined})
     })
 
-    test('all - blocked mask', function() {
+    test('every - blocked mask', function() {
         var r,mask = {
             s1:true,
             s2:true
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s1.value(1)
         s2.value(0)
         return Circus.equal(r, undefined)
     })
 
-    test('all - value mask', function() {
+    test('every - value mask', function() {
         var r,mask = {
             s1:1
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s2.value(1)
         s1.value(1)
         return Circus.equal(r, {s1:1, s2:1})
     })
 
-    test('all - blocked value mask', function() {
+    test('every - blocked value mask', function() {
         var r,mask = {
             s1:1,
             s2:2
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s2.value(1)
         s1.value(1)
         return Circus.equal(r, undefined)
     })
 
-    test('all - undefined value mask', function() {
+    test('every - undefined value mask', function() {
         var r,mask = {
             s1:1,
             s2:undefined
         }
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).all(mask).tap(function(v){r=v})
+        app.join(s1,s2).every(mask).tap(function(v){r=v})
         s2.value(1)
         s1.value(1)
         return Circus.equal(r, {s1:1,s2:1})
     })
 
-    test('any - signal values', function() {
+    test('some - signal values', function() {
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        var jp = app.join(s1,s2).any()
+        var jp = app.join(s1,s2).some()
         s1.value(1)
         s2.value(1)
         return Circus.equal(jp.value(), {s1:1,s2:1})
     })
 
-    test('any - some signal values', function() {
+    test('some - some signal values', function() {
         var s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        var jp = app.join(s1,s2).any()
+        var jp = app.join(s1,s2).some()
         s2.value(1)
         return Circus.equal(jp.value(), {s1:undefined,s2:1})
     })
 
-    test('any - block on no values', function() {
+    test('some - block on no values', function() {
         var r, s1 = app.signal('s1')
         var s2 = app.signal('s2')
-        app.join(s1,s2).any().tap(function(v){r=v})
+        app.join(s1,s2).some().tap(function(v){r=v})
         s1.value(0)
         s2.value(0)
+        return r === undefined
+    })
+
+    test('one - pass on only one', function() {
+        var r, s1 = app.signal('s1')
+        var s2 = app.signal('s2')
+        app.join(s1,s2).one().tap(function(v){r=v}).value({s1:0,s2:2})
+        return Circus.equal(r, {s1:0,s2:2})
+    })
+
+    test('one - block on more than one', function() {
+        var r, s1 = app.signal('s1')
+        var s2 = app.signal('s2')
+        app.join(s1,s2).one().tap(function(v){r=v}).value({s1:1,s2:2})
+        return r === undefined
+    })
+
+    test('none - block on any value', function() {
+        var r, s1 = app.signal('s1')
+        var s2 = app.signal('s2')
+        app.join(s1,s2).none().tap(function(v){r=v}).value({s1:1})
         return r === undefined
     })
 
     // boolean masks - mutate to boolean result
 
     test('or - restore dropped value', function() {
-        var r,s1 = app.any({a:Circus.or})
+        var r,s1 = app.some({a:Circus.or(function(v){r=v})})
         s1.value({a:1})
-        r = s1.value({a:0})
-        return Circus.equal(r, {a:1})
+        s1.value({a:0})
+        return r===1
     })
 
     test('or - default to mask value', function() {
         var r,mask = {
-            a:Circus.or(2)
+            a:Circus.or(2,function(v){r=v})
         }
-        app.any(mask).tap(function(v){r=v}).value({a:0})
-        return Circus.equal(r, {a:2})
+        app.some(mask).value({a:0})
+        return r===2
     })
 
     test('xor - pass new value', function() {
-        var p=0, s = app.any({a:Circus.xor}).tap(function(){p++})
+        var p=0, s = app.some({a:Circus.xor}).tap(function(){p++})
         s.value({a:1})
         s.value({a:2})
         return p==2
     })
 
     test('xor - block same value', function() {
-        var p=0, s = app.any({a:Circus.xor}).tap(function(){p++})
+        var p=0, s = app.some({a:Circus.xor}).tap(function(){p++})
         s.value({a:1})
         s.value({a:1})
         return p===1
     })
 
     test('not - pass on falsey', function() {
-        var r, p, s = app.any({a:Circus.not}).tap(function(){p=true})
+        var r, p, s = app.some({a:Circus.not}).tap(function(){p=true})
         r = s.value({a:0})
-        return p && Circus.equal(r, {a:true})
+        return p && Circus.equal(r, {a:0})
     })
 
     test('not - block on truthy', function() {
-        var p, s = app.any({a:Circus.not}).tap(function(){p=true})
+        var p, s = app.some({a:Circus.not}).tap(function(){p=true})
         s.value({a:1})
         return p !== true && Circus.equal(s.value(),{a:1})
     })
 
-    // switches (signal PM values)
+    // switch:: fn(channel value -> signal)
 
-    test('switch - pass on truthy', function(){
-        var sig=app.signal().map(inc), a = app.any({a:sig})
+    test('switch - match channel', function(){
+        var sig=app.signal().map(inc)
+        var a = app.some({a:Circus.and(1,sig)})
         a.value({a:1})
-        return sig.value()===2 && Circus.equal(a.value(),{a:2})
+        return sig.value()===2
     })
 
-    test('switch - block on falsey', function(){
-        var sig=app.signal().map(inc), a = app.any({a:sig})
+    test('switch - block channel', function(){
+        var sig=app.signal().map(inc)
+        var a = app.some({a:Circus.and(1,sig)})
         a.value({a:0})
-        return sig.value()===undefined && Circus.equal(a.value(),{a:0})
-    })
-
-    test('switch - pass all keys', function(){
-        var sigA=app.signal().map(inc),
-            sigB=app.signal().map(inc),
-            a = app.any({a:sigA,b:sigB})
-        a.value({a:1,b:2})
-        return sigA.value()===2 &&  sigB.value()===3 && Circus.equal(a.value(),{a:2,b:3})
-    })
-
-    test('switch - pass match keys only', function(){
-        var s=app.signal().map(inc), a = app.any({a:s,b:s})
-        a.value({a:1})
-        return s.value()===2 && Circus.equal(a.value(),{a:2})
+        return sig.value() === undefined
     })
 
     // joinpoint - all
@@ -308,10 +325,20 @@ runTests('match', function(mock) {
     test('join - all active', function() {
         var s1 = app.signal()
         var s2 = app.signal()
-        s2.active(false)
-        var r,j = app.join(s1,s2).all().tap(function(){r=true})
-        var j = app.join(s1,s2).all()
+        var r,j = app.join(s1,s2).every().tap(function(){r=true})
+        app.join(s1,s2).every()
         s1.value(1)
+        s2.value(2)
+        return r
+    })
+
+    test('join - not all active', function() {
+        var s1 = app.signal()
+        var s2 = app.signal()
+        var r,j = app.join(s1,s2).every().tap(function(){r=true})
+        app.join(s1,s2).every()
+        s1.value(1)
+        s2.active(false)
         s2.value(2)
         return r === undefined
     })
@@ -320,18 +347,17 @@ runTests('match', function(mock) {
         var s1 = app.signal()
         var s2 = app.signal()
         s2.value(2)
-        var r,j = app.join(s1,s2).all().tap(function(){r=true})
+        var r,j = app.join(s1,s2).every().tap(function(){r=true})
         s1.value(1)
         return r
     })
-
 
     test('sample - all', function() {
         var s1 = app.signal()
         var s2 = app.signal()
         var s3 = app.signal()
-        var all = app.signal().join(s2,s3).all()
-        var s = s1.sample(all).map(inc)
+        var allSigs = app.signal().join(s2,s3).every()
+        var s = s1.sample(allSigs).map(inc)
         s1.value(1)
         var r1 = s.value() // blocked
         s2.value(2)

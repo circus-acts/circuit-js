@@ -213,8 +213,7 @@ Binds signal values to a maybe context and generates circuit level just, nothing
 
 The MaybeBinder lets you bail out of circuit propagation at any point with an optional fail message. Each of the output channels can be extended reactively. For example, a validation circuit might be connected to a form so that valid input propagates to the next step, whereas fails are redirected back to the user.
 
-A circuit bound to the MaybeBinder will continue to propagate just signal values, but will halt propagation on nothing. The binding also accepts an optional message which when coupled to nothing
-will be placed on a fail channel.
+A circuit bound to the MaybeBinder will continue to propagate just signal values, but will halt propagation on nothing. The binding also accepts an optional message which when coupled to nothing will be placed on a fail channel.
 
 maybe(predicate, message)
   predicate:  v -> one of
@@ -223,4 +222,25 @@ maybe(predicate, message)
                 falsey - halt propagation and activate nothing channel
   message:    optional value activated on the fail channel
 
+# Pattern matching
+Circus provides simple but effective pattern matching based on the shape and state of a signal. The operator Signal.match accepts an object graph and attempts to match each of its keys to a signal channel before testing the channel value against the object key value. Here's how it works:
 
+```
+const match = signal.filter({
+  a : 1,
+  b : 2
+}).value
+
+match({a:1}) // block
+match({b:2}) // block
+match({a:1,b:2}) // match
+
+```
+
+const factorial = signal().one(
+  Circus.eq(0,() => 1),
+  v => v * factorial(v - 1)
+}).value
+
+factorial(6) // 720
+```
