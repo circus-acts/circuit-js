@@ -338,8 +338,6 @@ runTests('match', function(mock) {
         var r,j = app.join(s1,s2).every().tap(function(){r=true})
         app.join(s1,s2).every()
         s1.value(1)
-        s2.active(false)
-        s2.value(2)
         return r === undefined
     })
 

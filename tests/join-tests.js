@@ -117,17 +117,6 @@ runTests('join', function(mock) {
 		return r1 === 1 && r2 === 2
 	})
 
-	test('merge - not all active',function() {
-		var s1 = signal()
-		var s2 = signal()
-		s2.active(false)
-		var m = app.merge(s1,s2)
-		s1.value(1)
-		s2.value(2)
-		var r = m.value()
-		return r === 1
-	})
-
 	test('sample', function() {
 		var s1 = signal()
 		var s2 = signal()

@@ -45,14 +45,15 @@ function Circus() {
   // private
   var _events = [], appExtentions = [], _proto
 
-  // Circuits are in a steady state when not propagating. When
-  // a value is introduced at any point in the circuit and at
-  // any time, a propagationStarts event is raised. The circuit
-  // will propagate until all of the signals have reached a
-  // new steady state and a propagationEnds event is raised.
-  var activeCircuit=0, stableCircuit=true
+  // Circuits are either steady or active representing the collective state of
+  // signal propagation.
+  // A steady circuit changes its state to propagating when a signal value is received
+  // and remains at that state until all si
+  // A propagationStarts event is raised when a circuit changes state from steady to propagating.
+  // A propagationEnds event is raised when a circuit changes state from propagating to steady.
+  var pCount=0, steadyCircuit=true
   function propagationStarts(ctx, v){
-    if (!activeCircuit++ && stableCircuit && _events.length) {
+    if (!pCount++ && steadyCircuit && _events.length) {
       for (var i=0,el=_events.length; i < el; i++) {
         _events[i].start(ctx,v)
       }
@@ -62,15 +63,15 @@ function Circus() {
   function propagationEnds(ctx,v){
     // Circuit propagation states are re-entrant. Any 'extra'
     // circuit work performed in this state will simply prolong
-    // it until eventually there are no more value updates.
-    if (!(--activeCircuit) && _events.length) {
-      if (stableCircuit) {
-        stableCircuit = false
+    // it until there are no more value updates.
+    if (!(--pCount) && _events.length) {
+      if (steadyCircuit) {
+        steadyCircuit = false
         for (var i=0,el=_events.length; i < el; i++) {
           _events[i].stop(ctx,v)
         }
       }
-      else stableCircuit = true
+      else steadyCircuit = true
     }
   }
 
@@ -79,8 +80,7 @@ function Circus() {
 
     // private
     var _ctx = this
-    var _head, _state, _active, _pulse = Circus.FALSE
-    var _reset = []
+    var _head, _state, _pulse = Circus.FALSE
     var _astep = 0, _step = 0, _steps = [], _finallys = []
     var _pure, _after, _fail
     var _diff = function(v1, v2) {return v1!==v2}
@@ -92,11 +92,11 @@ function Circus() {
       if (v instanceof Circus.fail) {
         _fail = nv = _fail || v
       }
-      else if (_active!==false && (!_pure || _diff(v,_head,_ctx.isJoin))) {
+      else if (!_pure || _diff(v,_head,_ctx.isJoin)) {
         _head = _pure && v
         nv = v
         // steps in FIFO order
-        for (var i = ns, il = _steps.length; i < il && _active!==false; i++) {
+        for (var i = ns, il = _steps.length; i < il; i++) {
           nv = _b(_steps[i], [v])
           if (nv===undefined || nv instanceof Circus.fail) break;
           v = nv
@@ -118,7 +118,7 @@ function Circus() {
     }
 
     function _mutate(v,nv) {
-      _fail = nv instanceof Circus.fail && nv, _active = nv===undefined || _fail? undefined : true
+      _fail = nv instanceof Circus.fail && nv
       if (v && v.state===FSTATE) v = v.value
       _state=v
     }
@@ -205,16 +205,6 @@ function Circus() {
 
     // TODO - remove after refactor
     this.step = _next
-
-    // An active signal will propagate state
-    // An inactive signal will prevent state propagation
-    this.active = function(reset) {
-      if (arguments.length) {
-        if (!reset) {_reset.push(_active), _active = false }
-        else        {_active = !_reset.length || _reset.pop() }
-      }
-      return !!_active
-    }
 
     // Return to inactive pristine (or v) state after propagation
     this.pulse = function(v){

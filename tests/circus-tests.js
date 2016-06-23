@@ -181,34 +181,6 @@ runTests('circus', function(mock) {
         return e === 3
     })
 
-	test('active - initial state', function() {
-		var s = signal()
-		return s.active() === false
-	})
-
-	test('active - state', function() {
-		var s = signal()
-		s.value(1)
-		return s.active() === true
-	})
-
-	test('active - nested state', function() {
-		var s = signal()
-		s.active(true)
-		s.active(true)
-		s.active(false)
-		s.active(false)
-		return !s.active()
-	})
-
-	test('active - prevent propagation', function() {
-		var s = signal()
-		s.value(1)
-		s.active(false)
-		s.value(2)
-		return s.value() === 1
-	})
-
 	test('prime', function() {
 		return signal().map(inc).prime(1).value() === 1
 	})
