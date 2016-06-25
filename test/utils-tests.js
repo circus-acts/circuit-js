@@ -1,9 +1,11 @@
+import Circus from '../src'
+
 runTests('utils', function(mock) {
 
     var app, channels, sigBlock, valBlock
     setup(function(){
 
-        app = new Circuit()
+        app = new Circus.Circuit()
 
         sigBlock = {
             i1:app.signal(),
@@ -26,58 +28,62 @@ runTests('utils', function(mock) {
         channels = app.join(sigBlock);
     })
 
-    test('new signal', function(){
-        return Circus.isSignal(app.signal())
+    test('test - true', function() {
+        var m = app.test(function(v){return true})(1)
+        return m === 1
     })
 
-    test('new signal - ctx', function(){
-        var s = app.asSignal(app)
-        return Circus.isSignal(s)
+    test('test - value', function() {
+        var m = app.test(function(v){return v+1})(1)
+        return m === 2
     })
 
-    test('existing signal', function(){
-        var s = app.signal()
-        var n = s.asSignal()
-        return n===s
+    test('test - fail', function() {
+        var m = app.test(function(v){return !!v})(0)
+        return m instanceof Circus.fail
     })
 
-    test('extend - Circus', function(){
-        Circus.extend({a:true})
-        Circus.extend({b:true})
-        var ctx = new Circus()
-        return ctx.signal().a && ctx.signal().b
+    test('test - fail with reason', function() {
+        var m = app.test(function(v){return !!v},'xyz')(0)
+        return m.value === 'xyz'
     })
 
-    test('extend - app ctx', function(){
-        var ctx = new Circus()
-        ctx.extend({c:true})
-
-        return ctx.signal().c && !app.signal().c
+    test('test - circuit valid', function() {
+        var m = app.test(function(v){return !!v},'error!')
+        var s = app.merge({m:m}).map(inc)
+        s.channels.m.value(1)
+        return s.error() === '' && s.value() === 2
     })
 
-    test('extend - signal', function(){
-        var s1 = app.signal().extend({s:true}),
-            s2 = app.signal()
-
-        return s1.s && !s2.s
+    test('test - circuit error', function() {
+        var m = app.test(function(v){return !!v})
+        var s = app.merge({m:m}).map(inc)
+        s.channels.m.value(0)
+        return s.error() === true
     })
 
-    test('extend - signal ctx', function(){
-        var r,s = app.signal().extend(function(ctx) {
-            r=ctx
-            return {s:true}
-        })
-        return s.s && r===s
+    test('test - circuit error msg', function() {
+        var m = app.test(function(v){return !!v},'error!')
+        var s = app.merge({m:m}).map(inc)
+        s.channels.m.value(0)
+        return s.error() === 'error!'
     })
 
-    test('extend - app ctx + signal ctx', function(){
-        var r1,r2,ctx = new Circus()
-        ctx.extend(function(c1){r1=c1;return {b:true}})
-        ctx.extend(function(c2){r2=c2;return {c:true}})
-        var s = ctx.signal()
-        return r1===s && r2===s
+    test('test - first error only', function() {
+        var m1 = app.test(function(v){return !!v},1)
+        var m2 = app.test(function(v){return !!v},2)
+        var s = app.merge({m1:m1,m2:m2}).map(inc)
+        s.channels.m1.value(0)
+        s.channels.m2.value(0)
+        return s.error() === 1
     })
 
+    test('test - circuit error clear', function() {
+        var m = app.test(function(v){return !!v})
+        var s = app.merge({m:m}).map(inc)
+        s.channels.m.value(0)
+        return s.error() === true && s.error() === ''
+    })
 
     test('lens', function(){
         return Circus.lens(sigBlock, 'i1')

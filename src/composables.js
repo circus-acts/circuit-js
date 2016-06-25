@@ -1,12 +1,12 @@
-var CircusComposables = (function(Circus){
+import Circus from './circus'
+import Utils from './utils'
 
-  'use strict';
+'use strict';
 
-  var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
+var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
 
-  Circus = Circus || require('Circus')
-
-  Circus.extend({
+export default function Composables(app) {
+  app.extend({
     // A steady state signal
     always: function(v){
       return this.map(function(){
@@ -64,10 +64,9 @@ var CircusComposables = (function(Circus){
     },
 
     flatten: function(f) {
-      var s = this.step()
       return this.map(function(v,next){
         function flatten(v) {
-          if (Circus.typeOf(v) === Circus.typeOf.ARRAY) {
+          if (Circus.typeOf(v) === Circus.type.ARRAY) {
             v.forEach(flatten)
           }
           else {
@@ -89,8 +88,8 @@ var CircusComposables = (function(Circus){
     pluck: function() {
       var args = [].slice.call(arguments), a0 = args[0]
       return this.map(function(v) {
-        return args.length===1 && (v[a0] || Circus.lens(v,a0)) || args.reduce(function(r,key){
-          r[key] = Circus.lens(v,key)
+        return args.length===1 && (v[a0] || Utils.lens(v,a0)) || args.reduce(function(r,key){
+          r[key] = Utils.lens(v,key)
           return r
         },{})
       })
@@ -103,7 +102,7 @@ var CircusComposables = (function(Circus){
         var r = {}
         return args.reduce(function(r,arg){
           Object.keys(arg).forEach(function(key){
-            r[key] = Circus.lens(v,arg[key])
+            r[key] = Utils.lens(v,arg[key])
           })
           return r
         },{})
@@ -182,8 +181,4 @@ var CircusComposables = (function(Circus){
     }
 
   })
-})(Circus)
-
-if (typeof module != "undefined" && module !== null && module.exports) module.exports = CircusComposables;
-else if (typeof define == "function" && define.amd) define(function() {return CircusComposables});
-
+}

@@ -1,3 +1,5 @@
+import Circus from '../src'
+
 runTests('circus', function(mock) {
 
 	var inc = function(v){return v+1}
@@ -5,7 +7,7 @@ runTests('circus', function(mock) {
 	var mul3 = function(v){return v*3}
 	var noop = function(){}
 
-	var app = new Circus(),
+	var app = new Circus.Circuit(),
 		signal = app.signal.bind(app)
 
 	test('named signal',function() {

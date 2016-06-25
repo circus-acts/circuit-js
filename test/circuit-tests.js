@@ -1,3 +1,5 @@
+import Circus from '../src'
+
 runTests('circuit', function(mock) {
 
 	var inc = function(v){return v+1}
@@ -7,12 +9,27 @@ runTests('circuit', function(mock) {
 	var app
 
 	setup(function(){
-		app = new Circuit({a:'abc'})
+		app = new Circus.Circuit()
 	})
 
 	test('new circuit - is signal', function() {
 		return Circus.isSignal(app.join())
 	})
+
+    test('new signal', function(){
+        return Circus.isSignal(app.signal())
+    })
+
+    test('new signal - ctx', function(){
+        var s = app.asSignal(app)
+        return Circus.isSignal(s)
+    })
+
+    test('existing signal', function(){
+        var s = app.signal()
+        var n = s.asSignal()
+        return n===s
+    })
 
 	test('circuit - stop propagation', function() {
 		var s1 = app.signal()
@@ -67,7 +84,7 @@ runTests('circuit', function(mock) {
 		return a === 2
 	})
 
-	test('associativity', function(){
+	test('associativity - input / output', function(){
 		var s=[], step = function(v){return function(){s.push(v)}}
 		var b=app.signal().tap(step(2))
 		var j=app.join({
@@ -80,7 +97,7 @@ runTests('circuit', function(mock) {
 		return s.toString() === '1,2,3'
 	})
 
-	test('associativity - deep', function(){
+	test('associativity - deep join', function(){
 		var steps=[]
 		app.extend({seq:function(s){return this.tap(function(){
 			steps.push(s)
@@ -88,7 +105,7 @@ runTests('circuit', function(mock) {
 		var a=app.signal('a').seq(1)
 		var b=app.signal('b')
 		var j=app.join({
-			a,
+			a: a,
 			c: app.join(a,b.join(a).seq(2)).seq(3)
 		}).seq(4)
 		a.value(123)
@@ -105,12 +122,13 @@ runTests('circuit', function(mock) {
 	})
 
 	test('channel value - passive', function(){
-		var r,s=app.signal().prime('abc'), c = app.join({
+		var r,s=app.signal().prime(2).map(inc)
+		var c = app.join({
 			a: inc,
 			b: s.id
 		}).tap(function(v){r=v})
-		c.channels.a.value(123)
-		return r.b==='abc'
+		c.channels.a.value(1)
+		return r.b===2
 	})
 
 	test('circuit value - prime', function(){
@@ -227,7 +245,7 @@ runTests('circuit', function(mock) {
 		var a = app.signal('a')
 		var b = app.signal('b')
 		var o = {a:inc}
-		var c = app.join({b:b}).map({a}).overlay(o)
+		var c = app.join({b:b}).map({a:a}).overlay(o)
 		return c.channels.a.value(0) === 1
 	})
 
@@ -235,66 +253,24 @@ runTests('circuit', function(mock) {
 		var a = app.signal('a')
 		var b = app.signal('b')
 		var o = {a:inc}
-		var c = app.merge({b:b}).finally({a}).overlay(o)
+		var c = app.merge({b:b}).finally({a:a}).overlay(o)
 		c.value(0)
 		return c.channels.a.value() === 1
 	})
 
-	test('test - true', function() {
-		var m = app.test(function(v){return true})(1)
-		return m === 1
-	})
+    test('extend - app ctx', function(){
+        var ctx = new Circus.Circuit()
+        ctx.extend({c:true})
 
-	test('test - value', function() {
-		var m = app.test(function(v){return v+1})(1)
-		return m === 2
-	})
+        return ctx.signal().c && !app.signal().c
+    })
 
-	test('test - fail', function() {
-		var m = app.test(function(v){return !!v})(0)
-		return m instanceof Circus.fail
-	})
-
-	test('test - fail with reason', function() {
-		var m = app.test(function(v){return !!v},'xyz')(0)
-		return m.value === 'xyz'
-	})
-
-	test('test - circuit valid', function() {
-		var m = app.test(function(v){return !!v},'error!')
-		var s = app.merge({m}).map(inc)
-		s.channels.m.value(1)
-		return s.error() === '' && s.value() === 2
-	})
-
-	test('test - circuit error', function() {
-		var m = app.test(function(v){return !!v})
-		var s = app.merge({m}).map(inc)
-		s.channels.m.value(0)
-		return s.error() === true
-	})
-
-	test('test - circuit error msg', function() {
-		var m = app.test(function(v){return !!v},'error!')
-		var s = app.merge({m}).map(inc)
-		s.channels.m.value(0)
-		return s.error() === 'error!'
-	})
-
-	test('test - first error only', function() {
-		var m1 = app.test(function(v){return !!v},1)
-		var m2 = app.test(function(v){return !!v},2)
-		var s = app.merge({m1,m2}).map(inc)
-		s.channels.m1.value(0)
-		s.channels.m2.value(0)
-		return s.error() === 1
-	})
-
-	test('test - circuit error clear', function() {
-		var m = app.test(function(v){return !!v})
-		var s = app.merge({m}).map(inc)
-		s.channels.m.value(0)
-		return s.error() === true && s.error() === ''
-	})
+    test('extend - app ctx + signal ctx', function(){
+        var r1,r2,ctx = new Circus.Circuit()
+        ctx.extend(function(c1){r1=c1;return {b:true}})
+        ctx.extend(function(c2){r2=c2;return {c:true}})
+        var s = ctx.signal()
+        return r1===s && r2===s
+    })
 
 })
