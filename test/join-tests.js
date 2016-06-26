@@ -1,10 +1,13 @@
+import Circus from '../src'
+import Utils from '../src/utils'
+
 runTests('join', function(mock) {
 
 	var inc = function(v){return v+1}
 	var dbl = function(v){return v+v}
 	var mul3 = function(v){return v*3}
 
-	var app = new Circuit()
+	var app = new Circus.Circuit()
 	var signal = app.signal.bind(app)
 
 	test('join', function() {
@@ -33,7 +36,7 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
-		return Circus.deepEqual(r,{k1:1,k2:2})
+		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
 	test('join - channel block', function() {
@@ -46,7 +49,7 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
-		return Circus.deepEqual(r,{k1:1,k2:2})
+		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
 	test('join - merge channel blocks', function() {
@@ -61,7 +64,7 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
-		return Circus.deepEqual(r,{k1:1,k2:2})
+		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
 	test('join - aggregate signal block', function() {
@@ -76,7 +79,7 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
-		return Circus.deepEqual(r,{k1:1,k2:{k3:2}})
+		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
 	test('join - object into aggregate signal block', function() {
@@ -91,7 +94,7 @@ runTests('join', function(mock) {
 		s1.value(1)
 		s2.value(2)
 		var r = j.value()
-		return Circus.deepEqual(r,{k1:1,k2:{k3:2}})
+		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
 	test('join - auto name spacing', function() {
@@ -115,17 +118,6 @@ runTests('join', function(mock) {
 		s2.value(2)
 		var r2 = m.value()
 		return r1 === 1 && r2 === 2
-	})
-
-	test('merge - not all active',function() {
-		var s1 = signal()
-		var s2 = signal()
-		s2.active(false)
-		var m = app.merge(s1,s2)
-		s1.value(1)
-		s2.value(2)
-		var r = m.value()
-		return r === 1
 	})
 
 	test('sample', function() {

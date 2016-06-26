@@ -1,3 +1,5 @@
+import Circus from '../src'
+
 runTests('circus', function(mock) {
 
 	var inc = function(v){return v+1}
@@ -5,7 +7,7 @@ runTests('circus', function(mock) {
 	var mul3 = function(v){return v*3}
 	var noop = function(){}
 
-	var app = new Circus(),
+	var app = new Circus.Circuit(),
 		signal = app.signal.bind(app)
 
 	test('named signal',function() {
@@ -180,34 +182,6 @@ runTests('circus', function(mock) {
         var e = app.signal().map(inc).bind(b).bind(b).value(0)
         return e === 3
     })
-
-	test('active - initial state', function() {
-		var s = signal()
-		return s.active() === false
-	})
-
-	test('active - state', function() {
-		var s = signal()
-		s.value(1)
-		return s.active() === true
-	})
-
-	test('active - nested state', function() {
-		var s = signal()
-		s.active(true)
-		s.active(true)
-		s.active(false)
-		s.active(false)
-		return !s.active()
-	})
-
-	test('active - prevent propagation', function() {
-		var s = signal()
-		s.value(1)
-		s.active(false)
-		s.value(2)
-		return s.value() === 1
-	})
 
 	test('prime', function() {
 		return signal().map(inc).prime(1).value() === 1

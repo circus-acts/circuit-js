@@ -1,0 +1,2 @@
+require('./testrunner')
+require('./tests')
