@@ -34,38 +34,35 @@
 		})
 
 		xtest('exclude test', function(){ // exclude test
-			return true
+			return false
 		})
 	})
 
 	irunTests('include suite name'), function(){}) // include suite
 	xrunTests('exclude suite name'), function(){}) // exclude suite
 */
-
-
-//make "use strict" and nodejs happy
-var window = this
-
-//test reporting for saucelabs
-if (typeof window != "undefined") {
-	window.global_test_results = {
-		tests: [],
-		duration: 0,
-		passed: 0,
-		failed: 0
-	};
+try {
+	var _global = global
+}
+catch(e){
+	_global = window
+	_global.process = {exit: function(){}}
 }
 
 var testQueue = [], curSuite, inclusiveTests
 
-function xrunTests() {}
+_global.setup = function(fn){
+	curSuite.setup = fn
+}
 
-function irunTests(name,tests) {
+_global.xrunTests = function() {}
+
+_global.irunTests = function(name,tests) {
 	inclusiveTests = true
 	startRun(name,tests,true)
 }
 
-function runTests(name,tests){
+_global.runTests = function(name,tests){
 	startRun(name,tests,false)
 }
 
@@ -84,7 +81,7 @@ function startRun(name,registerTests, inclusive) {
 		Array.prototype.splice.apply(testQueue,this.tests)
 		testQueue.push(function(){
 			if (!inclusiveTests || suite.total > 0) {
-				print(suite, function(value) {this.console.log(value)})
+				print(suite, function(value) {console.log(value)})
 			}
 		})
 	})()
@@ -94,6 +91,7 @@ function startRun(name,registerTests, inclusive) {
 	},100)
 }
 var testRunning=0,timeout=500,tid=0,rtest
+var testsComplete=0, testsSucceeded=0
 function wait(){
 	if (!testRunning) {
 		if (testQueue.length) {
@@ -113,19 +111,19 @@ function wait(){
 	if (testQueue.length){
 		setTimeout(wait)
 	}
+	else {
+		console.log('all tests done. Total ' + testsSucceeded + ' out of ' + testsComplete)
+		_global.process.exit(testsComplete - testsSucceeded)
+	}
 }
 
-function setup(fn){
-	curSuite.setup = fn
-}
-
-function xtest() {}
-function itest(name,condition) {
+_global.xtest = function() {}
+_global.itest = function(name,condition) {
 	inclusiveTests=true
 	startTest(curSuite,name,condition,true)
 }
 
-function test(name,condition) {
+_global.test = function(name,condition) {
 	startTest(curSuite,name,condition,false)
 }
 
@@ -147,6 +145,7 @@ function startTest(suite, name, condition, inclusive) {
 
 function runTest(name, condition, async) {
 
+	testsComplete++
 	testRunning++
 	if (async) testRunning++
 
@@ -164,6 +163,7 @@ function runTest(name, condition, async) {
 			if (testRunning) {
 				testRunning--
 				if (result) {
+					testsSucceeded++
 					test.failures.pop()
 				}
 			}
@@ -171,6 +171,7 @@ function runTest(name, condition, async) {
 		if (!result) {
 			return
 		}
+		testsSucceeded++
 		test.failures.pop()
 		if (result instanceof assert && result.fail) {
 			test.failures.push(name + result.fail)
@@ -184,7 +185,7 @@ function runTest(name, condition, async) {
 	testRunning--
 }
 
-function assert(v1,v2, comp){
+_global.assert = function(v1,v2, comp){
 	if (this instanceof assert) {
 		this.fail = comp(v1,v2)? false : '\nAssert Failure '+JSON.stringify(v1)+' -> '+JSON.stringify(v2)
 	}
@@ -209,10 +210,13 @@ function print(test, print) {
 	}
 	catch (e) {
 		print(test.title + " tests: " + test.total + failures)
-
+		for (var i = 0; i < test.failures.length; i++) {
+			print(test.failures[i].toString())
+		}
 		if (test.failures.length > 0) {
 			print(test.failures.length + " tests did not pass")
 		}
 
 	}
 }
+

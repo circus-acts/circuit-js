@@ -1,0 +1,6 @@
+require('./circus-tests')
+require('./signal-tests')
+require('./circuit-tests')
+require('./match-tests')
+require('./join-tests')
+require('./composables-tests')

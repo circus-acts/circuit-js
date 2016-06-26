@@ -1,14 +1,14 @@
 {
-  "name": "reacr-circus-login",
+  "name": "react-circus-login",
   "version": "1.0.0",
-  "description": "Circuit example",
+  "description": "Circus-js / React login example",
   "scripts": {
     "start": "webpack-dev-server --content-base build/"
   },
   "dependencies": {
     "react": "0.14.7",
     "react-dom": "0.14.7",
-    "circus-js": "0.1.1"
+    "circus-js": "file:../../../../circus"
   },
   "devDependencies": {
     "html-webpack-plugin": "1.6.1",

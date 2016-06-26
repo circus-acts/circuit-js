@@ -1,9 +1,13 @@
+import Circus, { Circuit } from '../src'
+import Composables from '../src/composables'
+import Utils from '../src/utils'
+
 runTests('composables', function(mock) {
 
     function inc(v) {return v+1}
     function dbl(v) {return v+v}
 
-    var app = new Circuit()
+    var app = new Circus.Circuit(Composables)
 
     test('always',function() {
         var s = app.signal()
@@ -192,7 +196,7 @@ runTests('composables', function(mock) {
             s1.value(x)
             s2.value(b[i])
         })
-        return r.length === 3 && Circus.deepEqual(r, [[1,4],[2,5],[3,6]])
+        return r.length === 3 && Utils.deepEqual(r, [[1,4],[2,5],[3,6]])
     })
 
 })

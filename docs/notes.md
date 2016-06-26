@@ -1,5 +1,19 @@
 # Overview
 
+Functional JavaScript
+
+Circus is not a functional library for JavaScript like Lodash or Ramda. It is a library that sets up functional applications in a JavaScript way. Using syntax and constructs familiar to all JavaScript developers, it's __functional programming - the best bits__.
+
+Perhaps the most useful, and deceptively simple, idea to come out of functional programming is the list.
+
+Other ideas that have gained traction in JavaScript are immutability and the need for pure functions, high order functions, and even currying and partial application. In JavaScript, all of these ideas must be implemented and policed by the programmer.
+
+ through pure functions
+are lists, list operators, patterns and of course functions - pure functions, high order functions, recursive functions and so on. JavaScript has them all, and later variants of the language have added syntax to make them more accessible, more readable - sugar, but very refined.
+
+Circus takes the idea of a lazy list and turns it into a signal - a value that changes over time.
+
+
 A library for getting data to the right place at the right time - and in the right shape.
 
 The underlying purpose of Circus is to provide a consistently functional application architecture. Circus eschews traditional object oriented design patterns such as MVC or MVVM in favour of a more fluid, functional approach called a circuit - a declarative, compositional network of signalled values that propagate over time.
