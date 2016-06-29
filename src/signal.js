@@ -11,13 +11,11 @@ var _Signal = function(aId, sId, _name) {
     this.$id= aId + '.' + sId
   }
 }
-_Signal.prototype = {}
 
 Circus.isSignal = function(s) {
   return s && s.constructor === _Signal
 }
 
-var FSTATE = 'fs'
 var AFTER = 'after'
 var BEFORE = 'before'
 var noop = function(v) {return v}
@@ -38,8 +36,8 @@ function AppState(_event) {
     // private
     var _this = this
     var _head, _state
-    var _step = 0, _steps = [], _finallys = [], _pulse = Circus.FALSE
-    var  _after, _fail
+    var _step = 0, _steps = [], _after, _active
+    var _finallys = [], _pulse = Circus.UNDEFINED
     var _pure, _diff = diff
 
     // _runToState - next step
@@ -47,7 +45,7 @@ function AppState(_event) {
       var nv
       _event.start(_this, v)
       if (v instanceof Circus.fail) {
-        _fail = nv = _fail || v
+        nv = v
       }
       else if (!_pure || _diff(v,_head,_this.isJoin)) {
         _head = _pure && v
@@ -58,7 +56,7 @@ function AppState(_event) {
           if (nv===undefined || nv instanceof Circus.fail) break;
           v = nv
         }
-        _mutate(v,nv)
+        _mutate(v)
       }
 
       // finallys in FILO order - last value
@@ -68,15 +66,15 @@ function AppState(_event) {
         }
       }
 
-      if (_pulse!==Circus.FALSE) _mutate(_pulse)
+      if (_pulse!==Circus.UNDEFINED) _mutate(_pulse)
 
       _event.stop(_this, _state)
       return nv
     }
 
-    function _mutate(v,nv) {
-      _fail = nv instanceof Circus.fail && nv
-      if (v && v.state===FSTATE) v = v.value
+    function _mutate(v) {
+       _active = v===undefined ? undefined : true
+      if (v ===Circus.UNDEFINED) v = undefined
       _state=v
     }
 
@@ -86,13 +84,11 @@ function AppState(_event) {
 
     function _return(f) {
       if (Circus.isSignal(f)) {
-        f = f.value
+        return f.value
       }
-      else if (typeof f === 'object' && _this.channels) {
+      if (typeof f === 'object' && _this.channels) {
         for(var p in f) if (f.hasOwnProperty(p)) {
-          var s = _this.asSignal(f[p])
-          _this.channels[p]=s
-          return _return(s)
+          return _return(_this.channels[p] = _this.asSignal(f[p]))
         }
       }
       return f
@@ -134,7 +130,7 @@ function AppState(_event) {
 
     // Set signal state directly bypassing propagation steps
     this.prime = function(v) {
-      _mutate(v,v)
+      _mutate(v)
       return _this
     }
 
@@ -194,6 +190,16 @@ function AppState(_event) {
       return _this
     }
 
+    // An active signal will propagate state
+    // An inactive signal will prevent state propagation
+    this.active = function(reset) {
+      if (arguments.length) {
+        if (!reset) {_reset.push(_active), _active = false }
+        else        {_active = !_reset.length || _reset.pop() }
+      }
+      return !!_active
+    }
+
     // Bind the signal to a new context
     this.bind = function(f) {
       var __b = _bindEach
@@ -225,15 +231,6 @@ function AppState(_event) {
       return _this
     }
 
-    this.error = function() {
-      if (_fail) {
-        var v = _fail.value
-        _fail = false
-        return v || true
-      }
-      return ''
-    }
-
     // Tap the current signal state value
     // The function will be called in signal context
     this.tap = function(f) {
@@ -241,6 +238,14 @@ function AppState(_event) {
         f.apply(_this,arguments)
         return v===undefined? Circus.UNDEFINED : v
       })
+    }
+
+    // Extend a signal with custom step functions either through an
+    // object hash, or a context bound function that returns an object hash
+    // Chainable step functions need to return the context.
+    this.extend = function(ext) {
+      ext = typeof ext==='function'? ext(this) : ext
+      return Circus.extend(this,ext)
     }
 
     return _this
@@ -251,15 +256,6 @@ function AppState(_event) {
 
   return Signal
 }
-
-// shared
-Circus.TRUE =  Object.freeze({state:FSTATE, value:true})
-Circus.FALSE =  Object.freeze({state:FSTATE, value:false})
-Circus.NULL = Object.freeze({state:FSTATE, value:null})
-Circus.UNDEFINED = Object.freeze({state:FSTATE, value:undefined})
-Circus.ID = Object.freeze({state:FSTATE, value:undefined})
-
-Circus.fail = function(v) {if (!(this instanceof Circus.fail)) return new Circus.fail(v); this.value=v}
 
 // todo - consider wrapping async in HOF
 var _fnArgs = /function\s.*?\(([^)]*)\)/

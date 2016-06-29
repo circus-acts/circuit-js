@@ -1,14 +1,17 @@
 import Circus from '../src'
 
-runTests('circus', function(mock) {
+var inc = function(v){return v+1}
+var dbl = function(v){return v+v}
+var mul3 = function(v){return v*3}
+var noop = function(){}
 
-	var inc = function(v){return v+1}
-	var dbl = function(v){return v+v}
-	var mul3 = function(v){return v*3}
-	var noop = function(){}
+runTests('signal', function(mock) {
 
-	var app = new Circus.Circuit(),
+	var app, signal
+	setup(function(){
+		app = new Circus.Circuit(),
 		signal = app.signal.bind(app)
+	})
 
 	test('named signal',function() {
 		var r = signal('sig1')
@@ -193,16 +196,6 @@ runTests('circus', function(mock) {
 		return !r
 	})
 
-	test('fail', function() {
-		var f = Circus.fail()
-		return f instanceof Circus.fail
-	})
-
-	test('fail - value', function() {
-		var f = Circus.fail(1)
-		return f.value === 1
-	})
-
 	test('finally', function() {
 		var r,s = signal().finally(function(v){r=v})
 		s.value(1)
@@ -232,14 +225,9 @@ runTests('circus', function(mock) {
 	})
 
 	test('finally - aborted propagation', function() {
-		var r,s = signal().map(inc).map(function(){return Circus.fail()}).finally(function(v){r=v})
+		var r,s = signal().map(inc).map(function(){return Circus.fail()}).map(inc).finally(function(v){r=v})
 		s.value(1)
-		return r instanceof Circus.fail && s.value()===2
-	})
-
-	test('finally - aborted propagation value', function() {
-		var r,s = signal().map(inc).map(function(){return Circus.fail(123)}).finally(function(v){r=v}).value(1)
-		return r.value===123
+		return r instanceof Circus.fail
 	})
 
 	test ('channel', function(){

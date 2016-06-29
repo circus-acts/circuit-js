@@ -41,15 +41,7 @@ runTests('circuit', function(mock) {
 		return r[0] === 1 && r[1] === 2 && s1.value()===1 && s2.value()===2
 	})
 
-	test('circuit - error', function() {
-		var s1 = app.signal().map(Circus.fail)
-		var j1 = app.join(s1)
-		var f,j = app.join(j1).finally(function(v){f=v})
-		s1.value(2)
-		return j.error()===2
-	})
-
-	test('circuit - finally takes fail', function() {
+	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(Circus.fail)
 		var j1 = app.join(s1)
 		var f,j = app.join(j1).finally(function(v){f=v})

@@ -65,7 +65,7 @@ function Circuit() {
 
   function joinPoint(sampleOnly, joinOnly, args) {
     var ctx = this.asSignal().pure(sampleOnly? false : sdiff)
-    ctx.isJoin = joinOnly
+    ctx.isJoin = joinOnly || ctx.isJoin
 
     var signals = [].slice.call(args)
     if (typeof signals[0] === 'string') {
@@ -114,7 +114,7 @@ function Circuit() {
       return function(v) {
         var jv = {}
         // matches and fails bubble up
-        if ((joinOnly || sampleOnly) && !(v instanceof Circus.fail)) {
+        if (joinOnly && !(v instanceof Circus.fail)) {
           for (var c=0, l=channels.length; c<l; c++) {
             var s = channels[c]
             jv[keys[c]] = s.value()

@@ -1,8 +1,8 @@
 import Circuit from './circuit'
-import Circus, { test } from './circus'
+import Circus from './circus'
+import { Error, test } from './utils'
 
 Circus.Circuit = Circuit
-export { Circuit }
-export { test }
 
+export { Circuit, Error, test }
 export default Circus

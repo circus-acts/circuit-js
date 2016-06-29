@@ -56,14 +56,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(14), __webpack_require__(13), __webpack_require__(9), __webpack_require__(12), __webpack_require__(11), __webpack_require__(10)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(7), __webpack_require__(12), __webpack_require__(6), __webpack_require__(11), __webpack_require__(10), __webpack_require__(8), __webpack_require__(13), __webpack_require__(9)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
-	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./match-tests'), require('./join-tests'), require('./composables-tests'));
+	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./match-tests'), require('./join-tests'), require('./composables-tests'), require('./utils-tests'), require('./issues'));
 	  } else {
 	    var mod = {
 	      exports: {}
 	    };
-	    factory(global.circusTests, global.signalTests, global.circuitTests, global.matchTests, global.joinTests, global.composablesTests);
+	    factory(global.circusTests, global.signalTests, global.circuitTests, global.matchTests, global.joinTests, global.composablesTests, global.utilsTests, global.issues);
 	    global.index = mod.exports;
 	  }
 	})(this, function () {});
@@ -74,92 +74,23 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(14), __webpack_require__(3), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
-	    factory(exports);
+	    factory(exports, require('./circuit'), require('./circus'), require('./utils'));
 	  } else {
 	    var mod = {
 	      exports: {}
 	    };
-	    factory(mod.exports);
-	    global.circus = mod.exports;
-	  }
-	})(this, function (exports) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-	  var _types = {}.toString,
-	      ARRAY = 'A',
-	      OBJECT = 'O',
-	      FUNCTION = 'F',
-	      LITERAL = 'SNBDR';
-	  var _type = function (t) {
-	    return _types.call(t)[8];
-	  };
-	  var _typeOf = function (t) {
-	    t = _type(t);
-	    return ~LITERAL.indexOf(t) && LITERAL || t;
-	  };
-
-	  _type.ARRAY = ARRAY;
-	  _type.OBJECT = OBJECT;
-	  _type.FUNCTION = FUNCTION;
-	  _type.LITERAL = LITERAL;
-
-	  function test(f, m) {
-	    return function (v) {
-	      var j = f.apply(this, arguments);
-	      return j ? j === true ? v : j : Circus.fail(m);
-	    };
-	  }
-
-	  var api = {
-	    extend: function extend(proto, ext) {
-	      var args = [].slice.call(arguments, 2);
-	      if (ext) {
-	        Object.keys(ext).forEach(function (k) {
-	          proto[k] = ext[k];
-	        });
-	        args.unshift(proto);
-	        proto = extend.apply(null, args);
-	      }
-	      return proto;
-	    },
-
-	    test: test,
-	    typeOf: _typeOf,
-	    type: _type
-	  };
-
-	  exports.test = test;
-	  exports.default = api;
-	});
-
-/***/ },
-/* 2 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(4), __webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circuit'), require('./circus'));
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports, global.circuit, global.circus);
+	    factory(mod.exports, global.circuit, global.circus, global.utils);
 	    global.index = mod.exports;
 	  }
-	})(this, function (exports, _circuit, _circus) {
+	})(this, function (exports, _circuit, _circus, _utils) {
 	  'use strict';
 
 	  Object.defineProperty(exports, "__esModule", {
 	    value: true
 	  });
-	  exports.test = exports.Circuit = undefined;
+	  exports.test = exports.Error = exports.Circuit = undefined;
 
 	  var _circuit2 = _interopRequireDefault(_circuit);
 
@@ -172,18 +103,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  _circus2.default.Circuit = _circuit2.default;
+
 	  exports.Circuit = _circuit2.default;
-	  exports.test = _circus.test;
+	  exports.Error = _utils.Error;
+	  exports.test = _utils.test;
 	  exports.default = _circus2.default;
 	});
 
 /***/ },
-/* 3 */
+/* 2 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports, require('./circus'));
 	  } else {
@@ -199,6 +132,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Object.defineProperty(exports, "__esModule", {
 	    value: true
 	  });
+	  exports.Error = Error;
+	  exports.test = test;
 
 	  var _circus2 = _interopRequireDefault(_circus);
 
@@ -240,9 +175,25 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return data && data.hasOwnProperty(key) ? data[key] : _circus2.default.UNDEFINED;
 	  }
 
+	  function lens(data, name, ns, def) {
+	    if (arguments.length < 4) {
+	      def = null;
+	    }
+	    var path = ((ns ? ns + '.' : '') + name).split('.');
+	    var v = path.reduce(pathToData, data);
+
+	    if (data && v === _circus2.default.UNDEFINED && _circus2.default.typeOf(data) === _circus2.default.type.OBJECT && data.constructor === {}.constructor) {
+	      v = Object.keys(data).reduce(function (a, k) {
+	        return a !== _circus2.default.UNDEFINED && a || lens(data[k], name, '', def);
+	      }, _circus2.default.UNDEFINED);
+	    }
+	    return v !== _circus2.default.UNDEFINED ? v : def;
+	  }
+
 	  function traverse(s, fn, acc, tv) {
-	    var c = s.channels || s,
-	        seed = acc != _circus2.default.UNDEFINED;
+	    var c = s.channels || _circus2.default.isSignal(s) && { s: s } || s,
+	        seed = acc != _circus2.default.UNDEFINED,
+	        fmap = [];
 	    fn = fn || function id(s) {
 	      return s;
 	    };
@@ -257,15 +208,62 @@ return /******/ (function(modules) { // webpackBootstrap
 	          obj[n] = a[0];
 	          acc = a[1];
 	        } else {
-	          acc = obj[n] = fn.apply(null, seed ? [acc, t, v] : [t, v]);
+	          fmap.push(acc = obj[n] = fn.apply(null, seed ? [acc, t, v] : [t, v]));
 	        }
 	      });
-	      return [obj, acc];
+	      return [obj, acc, fmap];
 	    }
 	    return stamp(c, fn, tv);
 	  }
 
-	  exports.default = {
+	  function Error(ctx) {
+	    if (!this instanceof Error) return new Error(ctx);
+	    ctx.extend(function (ctx) {
+	      var _fail;
+	      ctx.finally(function (v) {
+	        if (v instanceof _circus2.default.fail) {
+	          _fail = _fail || v.value || true;
+	        }
+	      });
+
+	      // important: this functor flatmaps a circuit's channels
+	      // at the point that it is employed. Make this the last
+	      // binding if all channels are expected.
+	      var channels = api.flatmap(ctx);
+
+	      return {
+	        active: Error.active(ctx, channels),
+	        error: function (v) {
+	          if (_fail) {
+	            var v = _fail;
+	            _fail = false;
+	            return v || true;
+	          }
+	          return '';
+	        }
+	      };
+	    });
+	  }
+
+	  Error.active = function (ctx, channels) {
+	    return function (m) {
+	      return ctx.map(function (v) {
+	        for (var c of channels) {
+	          if (!c.active()) return _circus2.default.fail(m || 'required');
+	        }
+	        return v;
+	      });
+	    };
+	  };
+
+	  function test(f, m) {
+	    return function (v) {
+	      var j = f.apply(this, arguments);
+	      return j ? j === true ? v : j : _circus2.default.fail(m);
+	    };
+	  }
+
+	  const api = {
 
 	    diff: function (v1, v2) {
 	      return diff(v1, v2);
@@ -286,20 +284,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // lens
 	    // re,turn a value from a nested structure
 	    // useful for plucking values and signals from models and signal groups respectively
-	    lens: function (data, name, ns, def) {
-	      if (arguments.length < 4) {
-	        def = null;
-	      }
-	      var path = ((ns ? ns + '.' : '') + name).split('.');
-	      var v = path.reduce(pathToData, data);
-
-	      if (data && v === _circus2.default.UNDEFINED && _circus2.default.typeOf(data) === _circus2.default.type.OBJECT && data.constructor === {}.constructor) {
-	        v = Object.keys(data).reduce(function (a, k) {
-	          return a !== _circus2.default.UNDEFINED && a || _circus2.default.lens(data[k], name, '', def);
-	        }, _circus2.default.UNDEFINED);
-	      }
-	      return v !== _circus2.default.UNDEFINED ? v : def;
-	    },
+	    lens: lens,
 
 	    reduce: function (s, fn, seed, tv) {
 	      return traverse(s, fn, seed, tv)[1];
@@ -309,10 +294,88 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return traverse(s, fn, _circus2.default.UNDEFINED, tv)[0];
 	    },
 
+	    flatmap: function (s, fn, tv) {
+	      return traverse(s, fn, _circus2.default.UNDEFINED, tv)[2];
+	    },
+
 	    tap: function (s, fn, tv) {
 	      traverse(s, fn, _circus2.default.UNDEFINED, tv);
-	    }
+	    },
+
+	    test: test
 	  };
+
+	  exports.default = api;
+	});
+
+/***/ },
+/* 3 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports);
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports);
+	    global.circus = mod.exports;
+	  }
+	})(this, function (exports) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+	  var _types = {}.toString,
+	      ARRAY = 'A',
+	      OBJECT = 'O',
+	      FUNCTION = 'F',
+	      LITERAL = 'SNBDR';
+	  var _type = function (t) {
+	    return _types.call(t)[8];
+	  };
+	  var _typeOf = function (t) {
+	    t = _type(t);
+	    return ~LITERAL.indexOf(t) && LITERAL || t;
+	  };
+
+	  _type.ARRAY = ARRAY;
+	  _type.OBJECT = OBJECT;
+	  _type.FUNCTION = FUNCTION;
+	  _type.LITERAL = LITERAL;
+
+	  function extend(proto, ext) {
+	    var args = [].slice.call(arguments, 2);
+	    if (ext) {
+	      Object.keys(ext).forEach(function (k) {
+	        proto[k] = ext[k];
+	      });
+	      args.unshift(proto);
+	      proto = extend.apply(null, args);
+	    }
+	    return proto;
+	  }
+
+	  function fail(v) {
+	    if (!(this instanceof fail)) return new fail(v);
+	    this.value = v;
+	  }
+
+	  var api = {
+	    UNDEFINED: Object.freeze({ value: undefined }),
+	    extend: extend,
+	    fail: fail,
+	    typeOf: _typeOf,
+	    type: _type
+	  };
+
+	  exports.extend = extend;
+	  exports.fail = fail;
+	  exports.default = api;
 	});
 
 /***/ },
@@ -321,251 +384,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(1), __webpack_require__(6), __webpack_require__(8)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circus'), require('./events'), require('./signal'));
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports, global.circus, global.events, global.signal);
-	    global.circuit = mod.exports;
-	  }
-	})(this, function (exports, _circus, _events, _signal) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-
-	  var _circus2 = _interopRequireDefault(_circus);
-
-	  var _events2 = _interopRequireDefault(_events);
-
-	  var _signal2 = _interopRequireDefault(_signal);
-
-	  function _interopRequireDefault(obj) {
-	    return obj && obj.__esModule ? obj : {
-	      default: obj
-	    };
-	  }
-
-	  'use strict';
-
-	  function sdiff(v1, v2, isJoin) {
-	    if (!isJoin || v2 === undefined) return v1 !== v2;
-	    for (var i = 0, k = Object.keys(v1); i < k.length; i++) {
-	      if (v1[k[i]] !== v2[k[i]]) return true;
-	    }
-	    return false;
-	  }
-
-	  function toSignal(app, s) {
-	    if (s === _circus2.default.UNDEFINED) s = function (v) {
-	      return v;
-	    };
-	    if (!_circus2.default.isSignal(s)) {
-	      var v = s,
-	          fn = typeof s === 'object' ? 'join' : 'map';
-	      if (typeof s !== 'function' && fn === 'map') s = function () {
-	        return v;
-	      };
-	      s = app.signal()[fn](s);
-	    }
-	    return s;
-	  }
-
-	  // overlay circuit behaviour aligned on channel input / outputs
-	  function overlay(ctx) {
-	    return function recurse(g, c) {
-	      c = c || ctx;
-	      Object.keys(g).forEach(function (k) {
-	        var oo = typeof g[k] !== 'function' && g[k].length ? g[k] : [null, g[k]];
-	        for (var i = 0; i < 2; i++) {
-	          var o = oo[i];
-	          if (_circus2.default.isSignal(o) || typeof o === 'function') {
-	            var s = c.channels[k] || c.channels[Object.keys(c.channels).find(function (ck) {
-	              return c.channels[ck].output.name === k;
-	            })].output;
-	            s.map(i && o || _circus2.default.before(o));
-	          } else if (o) recurse(o, c.channels[k]);
-	        }
-	      });
-	      return this;
-	    };
-	  }
-
-	  function prime(ctx) {
-	    var _prime = ctx.prime.bind(ctx);
-	    return function prime(v) {
-	      var _this = this;
-	      if (typeof v === 'object' && _this.channels) {
-	        Object.keys(v).filter(function (k) {
-	          return _this.channels[k];
-	        }).forEach(function (k) {
-	          _this.channels[k].prime(v[k]);
-	        });
-	      }
-	      return _prime(v);
-	    };
-	  }
-
-	  function Circuit() {
-
-	    var extensions = [];
-	    var _this = this;
-
-	    var Signal = new _signal2.default(new _events2.default(this));
-
-	    function joinPoint(sampleOnly, joinOnly, args) {
-	      var ctx = this.asSignal().pure(sampleOnly ? false : sdiff);
-	      ctx.isJoin = joinOnly;
-
-	      var signals = [].slice.call(args);
-	      if (typeof signals[0] === 'string') {
-	        ctx.name(signals.shift());
-	      }
-
-	      // flatten joining signals into channels
-	      // - accepts and blocks out nested signals into circuit
-	      var circuit = ctx.channels || {},
-	          channels = [],
-	          cIdx = 0;
-	      var keys = [];
-	      while (signals.length) {
-	        var signal = signals.shift();
-	        if (!_circus2.default.isSignal(signal)) {
-	          Object.keys(signal).forEach(function (k, i) {
-	            var output = toSignal(_this, signal[k]),
-	                input = output;
-	            if (output.id) {
-	              output.name = output.name || k;
-	              input = output.channel(_circus2.default.before);
-	              input.name = k;
-
-	              // bind each joining signal to the context value
-	              output.bind(function (f, args) {
-	                return f.apply(output, args.concat(ctx.value()));
-	              });
-
-	              // for overlays
-	              input.output = output;
-	            } else {
-	              input = { value: output().value };
-	              keys[i] = k;
-	            }
-	            circuit[k] = input;
-	            channels.push(input);
-	          });
-	        } else {
-	          channels.push(signal);
-	          circuit[signal.name || cIdx++] = signal;
-	        }
-	      }
-
-	      var step = ctx.step();
-	      function merge(i) {
-	        var key = keys[i] = channels[i].name || i;
-	        return function (v) {
-	          var jv = {};
-	          // matches and fails bubble up
-	          if ((joinOnly || sampleOnly) && !(v instanceof _circus2.default.fail)) {
-	            for (var c = 0, l = channels.length; c < l; c++) {
-	              var s = channels[c];
-	              jv[keys[c]] = s.value();
-	            }
-	          } else jv = v;
-	          step(sampleOnly ? ctx.value() : jv);
-	        };
-	      }
-
-	      for (var i = 0, l = channels.length; i < l; i++) {
-	        // merge incoming signals or values into join point
-	        var channel = channels[i];
-	        if (channel.finally) {
-	          channel.finally(merge(i));
-	        }
-
-	        if (true) {
-	          channels[i].$jp = channels[i].$jp || [];
-	          channels[i].$jp.push(ctx);
-	        }
-	      }
-
-	      // hide the channel array but expose as circuit
-	      ctx.channels = circuit;
-
-	      return ctx.map(function (v) {
-	        return sampleOnly ? undefined : v;
-	      });
-	    }
-
-	    // public
-
-	    this.signal = Signal.create = function (name) {
-	      return extensions.reduce(function (s, ext) {
-	        ext = typeof ext === 'function' ? ext(s) : ext;
-	        return _circus2.default.extend(s, ext);
-	      }, new Signal(name));
-	    };
-
-	    this.asSignal = function () {
-	      return this.signal();
-	    };
-
-	    // Join 1 or more input signals into 1 output signal
-	    // Input signal channels will be mapped onto output signal keys
-	    // - duplicate channels will be merged
-	    this.join = function () {
-	      return joinPoint.call(this, false, true, arguments);
-	    };
-
-	    // Merge 1 or more input signals into 1 output signal
-	    // The output signal value will be the latest input signal value
-	    this.merge = function () {
-	      return joinPoint.call(this, false, false, arguments);
-	    };
-
-	    // Sample input signal(s)
-	    this.sample = function () {
-	      return joinPoint.call(this, true, false, arguments);
-	    };
-
-	    this.extend = function (ext) {
-	      extensions.push(ext);
-	      if (typeof ext !== 'function') {
-	        return _circus2.default.extend(this, ext);
-	      }
-	    };
-
-	    this.extend({
-	      join: _this.join,
-	      merge: _this.merge,
-	      sample: _this.sample
-	    });
-
-	    this.extend(function (ctx) {
-	      return {
-	        prime: prime(ctx),
-	        overlay: overlay(ctx)
-	      };
-	    });
-
-	    var args = [].slice.call(arguments).forEach(function (module) {
-	      module(_this);
-	    });
-	  }
-
-	  exports.default = Circuit;
-	});
-
-/***/ },
-/* 5 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(1), __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports, require('./circus'), require('./utils'));
 	  } else {
@@ -779,76 +598,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 6 */
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports);
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports);
-	    global.events = mod.exports;
-	  }
-	})(this, function (exports) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-	  exports.default = Events;
-	  function Events(app) {
-
-	    var events = [],
-	        pCount = 0,
-	        steadyCircuit = true,
-	        noop = function () {};
-
-	    app.stateChange = function (s, e) {
-	      //filo event order
-	      _events.unshift({
-	        start: s || noop,
-	        stop: e || noop
-	      });
-	    };
-
-	    return {
-	      // Circuits are active when they start propagation and steady when they stop
-	      start: function (ctx, v) {
-	        if (!pCount++ && steadyCircuit && events.length) {
-	          for (var i = 0, el = events.length; i < el; i++) {
-	            events[i].start(ctx, v);
-	          }
-	        }
-	      },
-
-	      // Circuit propagation is re-entrant. Any 'extra' circuit work performed in this
-	      // state will simply prolong it until there are no more propagations.
-	      stop: function (ctx, v) {
-	        if (! --pCount && events.length) {
-	          if (steadyCircuit) {
-	            steadyCircuit = false;
-	            for (var i = 0, el = events.length; i < el; i++) {
-	              events[i].stop(ctx, v);
-	            }
-	          } else steadyCircuit = true;
-	        }
-	      }
-	    };
-	  }
-	});
-
-/***/ },
-/* 7 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports, require('./circus'));
 	  } else {
@@ -1077,333 +832,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 8 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circus'));
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports, global.circus);
-	    global.signal = mod.exports;
-	  }
-	})(this, function (exports, _circus) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-
-	  var _circus2 = _interopRequireDefault(_circus);
-
-	  function _interopRequireDefault(obj) {
-	    return obj && obj.__esModule ? obj : {
-	      default: obj
-	    };
-	  }
-
-	  'use strict';
-
-	  var _Signal = function (aId, sId, _name) {
-	    this.name = _name;
-	    var _this = this;
-	    this.id = function () {
-	      return _this;
-	    };
-	    this.id.constructor = _Signal;
-	    if (true) {
-	      this.$id = aId + '.' + sId;
-	    }
-	  };
-	  _Signal.prototype = {};
-
-	  _circus2.default.isSignal = function (s) {
-	    return s && s.constructor === _Signal;
-	  };
-
-	  var FSTATE = 'fs';
-	  var AFTER = 'after';
-	  var BEFORE = 'before';
-	  var noop = function (v) {
-	    return v;
-	  };
-	  var diff = function (v1, v2) {
-	    return v1 !== v2;
-	  };
-
-	  var appId = 0;
-
-	  function AppState(_event) {
-
-	    var aId = ++appId;
-	    var sId = 0;
-
-	    // Generate a new signal
-	    function Signal(_name) {
-
-	      _Signal.call(this, aId, ++sId, _name);
-
-	      // private
-	      var _this = this;
-	      var _head, _state;
-	      var _step = 0,
-	          _steps = [],
-	          _finallys = [],
-	          _pulse = _circus2.default.FALSE;
-	      var _after, _fail;
-	      var _pure,
-	          _diff = diff;
-
-	      // _runToState - next step
-	      function _runToState(v, ns, _b) {
-	        var nv;
-	        _event.start(_this, v);
-	        if (v instanceof _circus2.default.fail) {
-	          _fail = nv = _fail || v;
-	        } else if (!_pure || _diff(v, _head, _this.isJoin)) {
-	          _head = _pure && v;
-	          nv = v;
-	          // steps in FIFO order
-	          for (var i = ns, il = _steps.length; i < il; i++) {
-	            nv = _b(_steps[i], [v]);
-	            if (nv === undefined || nv instanceof _circus2.default.fail) break;
-	            v = nv;
-	          }
-	          _mutate(v, nv);
-	        }
-
-	        // finallys in FILO order - last value
-	        if (nv !== undefined) {
-	          for (var f = 0, fl = _finallys.length; f < fl; f++) {
-	            _finallys[f].call(_this, nv);
-	          }
-	        }
-
-	        if (_pulse !== _circus2.default.FALSE) _mutate(_pulse);
-
-	        _event.stop(_this, _state);
-	        return nv;
-	      }
-
-	      function _mutate(v, nv) {
-	        _fail = nv instanceof _circus2.default.fail && nv;
-	        if (v && v.state === FSTATE) v = v.value;
-	        _state = v;
-	      }
-
-	      function _bindEach(f, args) {
-	        return f.apply(_this, args);
-	      }
-
-	      function _return(f) {
-	        if (_circus2.default.isSignal(f)) {
-	          f = f.value;
-	        } else if (typeof f === 'object' && _this.channels) {
-	          for (var p in f) if (f.hasOwnProperty(p)) {
-	            var s = _this.asSignal(f[p]);
-	            _this.channels[p] = s;
-	            return _return(s);
-	          }
-	        }
-	        return f;
-	      }
-
-	      function _functor(f) {
-	        var _f = _return(f);
-	        if (f !== _f && f.finally) f.finally(_next());
-	        if (_circus2.default.isAsync(_f)) {
-	          var done = _next();
-	          return function async(v) {
-	            _event.start(_this, v);
-	            try {
-	              var args = [].slice.call(arguments).concat(done);
-	              return _f.apply(_this, args);
-	            } finally {
-	              _event.stop(_this, v);
-	            }
-	          };
-	        }
-	        return _f;
-	      }
-
-	      // Allow values to be injected into the signal at arbitrary step points.
-	      // State propagation continues from this point
-	      function _next() {
-	        var next = (_after ? _steps.length : _step) + 1;
-	        return function (v) {
-	          _runToState(v, next, _bindEach);
-	        };
-	      }
-
-	      this.asSignal = function (v) {
-	        if (_circus2.default.isSignal(v || this)) return v || this;
-	        var s = Signal.create();
-	        return typeof v === 'function' ? s.map(v) : s;
-	      };
-
-	      // Set signal state directly bypassing propagation steps
-	      this.prime = function (v) {
-	        _mutate(v, v);
-	        return _this;
-	      };
-
-	      // Set or read the signal state value
-	      // This method produces state propagation throughout a connected circuit
-	      this.value = function (v) {
-	        if (arguments.length) {
-	          return _runToState(v, 0, _bindEach);
-	        }
-	        return _state;
-	      }, this.step = _next;
-
-	      // Return to inactive pristine (or v) state after propagation
-	      this.pulse = function (v) {
-	        _pulse = v;
-	        return _this;
-	      };
-
-	      // Map the current signal value and propagate
-	      // The function will be called in signal context
-	      // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
-	      // can cancel propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
-	      // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
-	      this.map = function (f) {
-	        var _b = f.state === BEFORE,
-	            _f = _functor(_b && f.value || f);
-	        _b ? _steps.unshift(_f) : _steps.splice(_step, 0, _f);
-	        _step++;
-	        return _this;
-	      };
-
-	      // create an I/O channel where 2 signals share state and flow in i -> o order
-	      // Optionally:
-	      // - take behaviour
-	      // todo: replace (ie wrap) public channel with before / after
-	      //       capture step in channel to support after.joins
-	      this.channel = function (io, take) {
-	        var split = _circus2.default.extend({}, _this, { constructor: _Signal });
-	        var map = function (f) {
-	          var _b = f.state === BEFORE,
-	              _f = _functor(_b && f.value || f);
-	          _b ? _steps.splice(_step, 0, _f) : _steps.push(_f);
-	          return _this;
-	        };
-	        _Signal.call(split, aId, ++sId, _name);
-	        // return split as after / before, with step ownership resolved
-	        _after = !io || io === _circus2.default.after;
-	        if (_after ? !!take : !take) _step = 0;
-	        if (_after) split.map = map;else _this.map = map;
-	        return split;
-	      };
-
-	      // convenient compose functor that maps from left to right
-	      this.flow = function () {
-	        var args = [].slice.call(arguments);
-	        for (var i = 0; i < args.length; i++) {
-	          this.map(args[i]);
-	        }
-	        return _this;
-	      };
-
-	      // Bind the signal to a new context
-	      this.bind = function (f) {
-	        var __b = _bindEach;
-	        _bindEach = function (step, args) {
-	          var bs = function () {
-	            return __b(step, arguments);
-	          };
-	          return f.call(_this, bs, args);
-	        };
-	        return _this;
-	      };
-
-	      // finally functions are executed in FILO order after all step functions regardless of state
-	      this.finally = function (f) {
-	        var fifo = f.state === BEFORE,
-	            _f = _return(fifo && f.value || f);
-	        if (_circus2.default.isSignal(_f)) {
-	          var fs = _f;
-	          _f = function (v) {
-	            fs.value(v);
-	          };
-	        }
-	        _finallys[fifo ? 'unshift' : 'push'](_f);
-	        return _this;
-	      };
-
-	      this.pure = function (diff) {
-	        _pure = diff !== false;
-	        if (typeof diff === 'function') _diff = diff;
-	        return _this;
-	      };
-
-	      this.error = function () {
-	        if (_fail) {
-	          var v = _fail.value;
-	          _fail = false;
-	          return v || true;
-	        }
-	        return '';
-	      };
-
-	      // Tap the current signal state value
-	      // The function will be called in signal context
-	      this.tap = function (f) {
-	        return this.map(function (v) {
-	          f.apply(_this, arguments);
-	          return v === undefined ? _circus2.default.UNDEFINED : v;
-	        });
-	      };
-
-	      return _this;
-	    }
-
-	    Signal.prototype = _Signal.prototype;
-	    Signal.prototype.constructor = _Signal;
-
-	    return Signal;
-	  }
-
-	  // shared
-	  _circus2.default.TRUE = Object.freeze({ state: FSTATE, value: true });
-	  _circus2.default.FALSE = Object.freeze({ state: FSTATE, value: false });
-	  _circus2.default.NULL = Object.freeze({ state: FSTATE, value: null });
-	  _circus2.default.UNDEFINED = Object.freeze({ state: FSTATE, value: undefined });
-	  _circus2.default.ID = Object.freeze({ state: FSTATE, value: undefined });
-
-	  _circus2.default.fail = function (v) {
-	    if (!(this instanceof _circus2.default.fail)) return new _circus2.default.fail(v);this.value = v;
-	  };
-
-	  // todo - consider wrapping async in HOF
-	  var _fnArgs = /function\s.*?\(([^)]*)\)/;
-	  _circus2.default.isAsync = function (f) {
-	    return f.length && f.toString().match(_fnArgs)[1].indexOf('next') > 0;
-	  };
-
-	  _circus2.default.after = function (f) {
-	    return { state: AFTER, value: f };
-	  };
-
-	  _circus2.default.before = function (f) {
-	    return { state: BEFORE, value: f };
-	  };
-
-	  exports.default = AppState;
-	});
-
-/***/ },
-/* 9 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 		if (true) {
-			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 		} else if (typeof exports !== "undefined") {
 			factory(require('../src'));
 		} else {
@@ -1471,18 +905,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return r[0] === 1 && r[1] === 2 && s1.value() === 1 && s2.value() === 2;
 			});
 
-			test('circuit - error', function () {
-				var s1 = app.signal().map(_src2.default.fail);
-				var j1 = app.join(s1);
-				var f,
-				    j = app.join(j1).finally(function (v) {
-					f = v;
-				});
-				s1.value(2);
-				return j.error() === 2;
-			});
-
-			test('circuit - finally takes fail', function () {
+			test('circuit - fail bubbling', function () {
 				var s1 = app.signal().map(_src2.default.fail);
 				var j1 = app.join(s1);
 				var f,
@@ -1729,12 +1152,90 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 10 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2), __webpack_require__(5), __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof exports !== "undefined") {
+	        factory(require('../src'));
+	    } else {
+	        var mod = {
+	            exports: {}
+	        };
+	        factory(global.src);
+	        global.circusTests = mod.exports;
+	    }
+	})(this, function (_src) {
+	    'use strict';
+
+	    var _src2 = _interopRequireDefault(_src);
+
+	    function _interopRequireDefault(obj) {
+	        return obj && obj.__esModule ? obj : {
+	            default: obj
+	        };
+	    }
+
+	    var inc = function (v) {
+	        return v + 1;
+	    };
+
+	    runTests('circus', function (mock) {
+
+	        var app;
+	        setup(function () {
+	            app = new _src2.default.Circuit();
+	        });
+
+	        (0, _src.test)('fail', function () {
+	            var f = _src2.default.fail();
+	            return f instanceof _src2.default.fail;
+	        });
+
+	        (0, _src.test)('fail - value', function () {
+	            var f = _src2.default.fail(1);
+	            return f.value === 1;
+	        });
+
+	        (0, _src.test)('typeof - Array', function () {
+	            return _src2.default.typeOf([]) === _src2.default.type.ARRAY;
+	        });
+
+	        (0, _src.test)('typeof - Object', function () {
+	            return _src2.default.typeOf({}) === _src2.default.type.OBJECT;
+	        });
+
+	        (0, _src.test)('typeof - Date', function () {
+	            return _src2.default.typeOf(new Date()) === _src2.default.type.LITERAL;
+	        });
+
+	        (0, _src.test)('typeof - String', function () {
+	            return _src2.default.typeOf('') === _src2.default.type.LITERAL;
+	        });
+
+	        (0, _src.test)('typeof - Number', function () {
+	            return _src2.default.typeOf(1) === _src2.default.type.LITERAL;
+	        });
+
+	        (0, _src.test)('typeof - Boolean', function () {
+	            return _src2.default.typeOf(true) === _src2.default.type.LITERAL;
+	        });
+
+	        (0, _src.test)('typeof - Regex', function () {
+	            return _src2.default.typeOf(/a/) === _src2.default.type.LITERAL;
+	        });
+	    });
+	});
+
+/***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	    if (true) {
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(4), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
 	        factory(require('../src'), require('../src/composables'), require('../src/utils'));
 	    } else {
@@ -1962,12 +1463,99 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 11 */
+/* 9 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	    if (true) {
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof exports !== "undefined") {
+	        factory(require('../src'), require('../src/utils'));
+	    } else {
+	        var mod = {
+	            exports: {}
+	        };
+	        factory(global.src, global.utils);
+	        global.issues = mod.exports;
+	    }
+	})(this, function (_src, _utils) {
+	    'use strict';
+
+	    var _src2 = _interopRequireDefault(_src);
+
+	    var _utils2 = _interopRequireDefault(_utils);
+
+	    function _interopRequireDefault(obj) {
+	        return obj && obj.__esModule ? obj : {
+	            default: obj
+	        };
+	    }
+
+	    runTests('React login', function () {
+
+	        const _ = _src2.default.UNDEFINED;
+
+	        // some validation
+	        const required = v => !!v;
+	        const email = v => /\S+@\S+\.\S+/i.test(v);
+
+	        let circuit, channels;
+
+	        setup(function () {
+
+	            // export a circuit
+	            circuit = new _src.Circuit().join({
+	                email: _utils2.default.test(email, `please enter a valid email`),
+	                password: _utils2.default.test(required, `please enter your password`)
+	            }).extend(_utils.Error).sample({ login: _ }).active('required!').map({ tryLogin: _ }).finally({ view: _ });
+
+	            channels = circuit.channels;
+	        });
+
+	        test('email - error', function () {
+	            channels.email.value('x');
+	            return circuit.error() === `please enter a valid email`;
+	        });
+
+	        test('password - valid', function () {
+	            channels.password.value('x');
+	            return circuit.error() === ``;
+	        });
+
+	        test('login - required', function () {
+	            channels.login.value(true);
+	            return circuit.error() === `required!`;
+	        });
+
+	        test('circuit - primed', function () {
+	            circuit.prime({ email: 'hi@home.com', password: 'ok' });
+	            channels.login.value(true);
+	            return circuit.error() === ``;
+	        });
+
+	        test('circuit - happy path', function () {
+	            channels.email.value('hi@home.com');
+	            channels.password.value('ok');
+	            channels.login.value(true);
+	            return circuit.error() === ``;
+	        });
+
+	        test('circuit - error', function () {
+	            circuit.prime({ password: 'ok' });
+	            channels.email.value('badformat');
+	            channels.login.value(true);
+	            return circuit.error() === `please enter a valid email`;
+	        });
+	    });
+	});
+
+/***/ },
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 		if (true) {
-			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2), __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 		} else if (typeof exports !== "undefined") {
 			factory(require('../src'), require('../src/utils'));
 		} else {
@@ -2134,12 +1722,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2), __webpack_require__(7), __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(5), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
 	        factory(require('../src'), require('../src/match'), require('../src/utils'));
 	    } else {
@@ -2667,12 +2255,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 13 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 		if (true) {
-			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 		} else if (typeof exports !== "undefined") {
 			factory(require('../src'));
 		} else {
@@ -2693,21 +2281,23 @@ return /******/ (function(modules) { // webpackBootstrap
 			};
 		}
 
-		runTests('circus', function (mock) {
+		var inc = function (v) {
+			return v + 1;
+		};
+		var dbl = function (v) {
+			return v + v;
+		};
+		var mul3 = function (v) {
+			return v * 3;
+		};
+		var noop = function () {};
 
-			var inc = function (v) {
-				return v + 1;
-			};
-			var dbl = function (v) {
-				return v + v;
-			};
-			var mul3 = function (v) {
-				return v * 3;
-			};
-			var noop = function () {};
+		runTests('signal', function (mock) {
 
-			var app = new _src2.default.Circuit(),
-			    signal = app.signal.bind(app);
+			var app, signal;
+			setup(function () {
+				app = new _src2.default.Circuit(), signal = app.signal.bind(app);
+			});
 
 			test('named signal', function () {
 				var r = signal('sig1');
@@ -2924,16 +2514,6 @@ return /******/ (function(modules) { // webpackBootstrap
 				return !r;
 			});
 
-			test('fail', function () {
-				var f = _src2.default.fail();
-				return f instanceof _src2.default.fail;
-			});
-
-			test('fail - value', function () {
-				var f = _src2.default.fail(1);
-				return f.value === 1;
-			});
-
 			test('finally', function () {
 				var r,
 				    s = signal().finally(function (v) {
@@ -2984,21 +2564,11 @@ return /******/ (function(modules) { // webpackBootstrap
 				var r,
 				    s = signal().map(inc).map(function () {
 					return _src2.default.fail();
-				}).finally(function (v) {
+				}).map(inc).finally(function (v) {
 					r = v;
 				});
 				s.value(1);
-				return r instanceof _src2.default.fail && s.value() === 2;
-			});
-
-			test('finally - aborted propagation value', function () {
-				var r,
-				    s = signal().map(inc).map(function () {
-					return _src2.default.fail(123);
-				}).finally(function (v) {
-					r = v;
-				}).value(1);
-				return r.value === 123;
+				return r instanceof _src2.default.fail;
 			});
 
 			test('channel', function () {
@@ -3053,25 +2623,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 14 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
-	        factory(require('../src'));
+	        factory(require('../src'), require('../src/utils'));
 	    } else {
 	        var mod = {
 	            exports: {}
 	        };
-	        factory(global.src);
-	        global.circusTests = mod.exports;
+	        factory(global.src, global.utils);
+	        global.utilsTests = mod.exports;
 	    }
-	})(this, function (_src) {
+	})(this, function (_src, _utils) {
 	    'use strict';
 
 	    var _src2 = _interopRequireDefault(_src);
+
+	    var _utils2 = _interopRequireDefault(_utils);
 
 	    function _interopRequireDefault(obj) {
 	        return obj && obj.__esModule ? obj : {
@@ -3079,12 +2651,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        };
 	    }
 
-	    runTests('circus', function (mock) {
+	    var inc = function (v) {
+	        return v + 1;
+	    };
+
+	    runTests('utils', function (mock) {
 
 	        var app, channels, sigBlock, valBlock;
 	        setup(function () {
 
-	            app = new _src2.default.Circuit();
+	            app = new _src2.default.Circuit(_utils.Error);
 
 	            sigBlock = {
 	                i1: app.signal(),
@@ -3107,99 +2683,755 @@ return /******/ (function(modules) { // webpackBootstrap
 	            channels = app.join(sigBlock);
 	        });
 
-	        (0, _src.test)('test - true', function () {
-	            var m = app.test(function (v) {
+	        test('test - true', function () {
+	            var m = _utils2.default.test(function (v) {
 	                return true;
 	            })(1);
 	            return m === 1;
 	        });
 
-	        (0, _src.test)('test - value', function () {
-	            var m = app.test(function (v) {
+	        test('test - value', function () {
+	            var m = _utils2.default.test(function (v) {
 	                return v + 1;
 	            })(1);
 	            return m === 2;
 	        });
 
-	        (0, _src.test)('test - fail', function () {
-	            var m = app.test(function (v) {
+	        test('test - fail', function () {
+	            var m = _utils2.default.test(function (v) {
 	                return !!v;
 	            })(0);
 	            return m instanceof _src2.default.fail;
 	        });
 
-	        (0, _src.test)('test - fail with reason', function () {
-	            var m = app.test(function (v) {
+	        test('test - fail with reason', function () {
+	            var m = _utils2.default.test(function (v) {
 	                return !!v;
 	            }, 'xyz')(0);
 	            return m.value === 'xyz';
 	        });
 
-	        // test('test - circuit valid', function() {
-	        //     var m = app.test(function(v){return !!v},'error!')
-	        //     var s = app.merge({m:m}).map(inc)
-	        //     s.channels.m.value(1)
-	        //     return s.error() === '' && s.value() === 2
-	        // })
-
-	        // test('test - circuit error', function() {
-	        //     var m = app.test(function(v){return !!v})
-	        //     var s = app.merge({m:m}).map(inc)
-	        //     s.channels.m.value(0)
-	        //     return s.error() === true
-	        // })
-
-	        // test('test - circuit error msg', function() {
-	        //     var m = app.test(function(v){return !!v},'error!')
-	        //     var s = app.merge({m:m}).map(inc)
-	        //     s.channels.m.value(0)
-	        //     return s.error() === 'error!'
-	        // })
-
-	        // test('test - first error only', function() {
-	        //     var m1 = app.test(function(v){return !!v},1)
-	        //     var m2 = app.test(function(v){return !!v},2)
-	        //     var s = app.merge({m1:m1,m2:m2}).map(inc)
-	        //     s.channels.m1.value(0)
-	        //     s.channels.m2.value(0)
-	        //     return s.error() === 1
-	        // })
-
-	        // test('test - circuit error clear', function() {
-	        //     var m = app.test(function(v){return !!v})
-	        //     var s = app.merge({m:m}).map(inc)
-	        //     s.channels.m.value(0)
-	        //     return s.error() === true && s.error() === ''
-	        // })
-
-	        (0, _src.test)('typeof - Array', function () {
-	            return _src2.default.typeOf([]) === _src2.default.type.ARRAY;
+	        test('error - circuit valid', function () {
+	            var m = _utils2.default.test(function (v) {
+	                return !!v;
+	            }, 'error!');
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(1);
+	            return s.error() === '' && s.value() === 2;
 	        });
 
-	        (0, _src.test)('typeof - Object', function () {
-	            return _src2.default.typeOf({}) === _src2.default.type.OBJECT;
+	        test('error - circuit error', function () {
+	            var m = _utils2.default.test(function (v) {
+	                return !!v;
+	            });
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === true;
 	        });
 
-	        (0, _src.test)('typeof - Date', function () {
-	            return _src2.default.typeOf(new Date()) === _src2.default.type.LITERAL;
+	        test('error - circuit error msg', function () {
+	            var m = _utils2.default.test(function (v) {
+	                return !!v;
+	            }, 'error!');
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === 'error!';
 	        });
 
-	        (0, _src.test)('typeof - String', function () {
-	            return _src2.default.typeOf('') === _src2.default.type.LITERAL;
+	        test('error - first error only', function () {
+	            var m1 = _utils2.default.test(function (v) {
+	                return !!v;
+	            }, 1);
+	            var m2 = _utils2.default.test(function (v) {
+	                return !!v;
+	            }, 2);
+	            var s = app.merge({ m1: m1, m2: m2 }).map(inc);
+	            s.channels.m1.value(0);
+	            s.channels.m2.value(0);
+	            return s.error() === 1 && s.value() === undefined;
 	        });
 
-	        (0, _src.test)('typeof - Number', function () {
-	            return _src2.default.typeOf(1) === _src2.default.type.LITERAL;
+	        test('error - circuit error clear', function () {
+	            var m = _utils2.default.test(function (v) {
+	                return !!v;
+	            });
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === true && s.error() === '';
 	        });
 
-	        (0, _src.test)('typeof - Boolean', function () {
-	            return _src2.default.typeOf(true) === _src2.default.type.LITERAL;
+	        test('lens', function () {
+	            return _utils2.default.lens(sigBlock, 'i1');
 	        });
 
-	        (0, _src.test)('typeof - Regex', function () {
-	            return _src2.default.typeOf(/a/) === _src2.default.type.LITERAL;
+	        test('lens - namespace', function () {
+	            return _utils2.default.lens(sigBlock, 'i4', 'i3');
+	        });
+
+	        test('lens - traverse', function () {
+	            return _utils2.default.lens(sigBlock, 'i5');
+	        });
+
+	        test('map', function () {
+	            function id(s) {
+	                return s.name;
+	            }
+	            return _utils2.default.deepEqual(_utils2.default.map(channels, id), {
+	                i1: 'i1',
+	                i2: 'i2',
+	                i3: {
+	                    i4: 'i4',
+	                    i5: 'i5'
+	                }
+	            });
+	        });
+
+	        test('map - copy', function () {
+	            return _utils2.default.deepEqual(_utils2.default.map(valBlock), valBlock);
+	        });
+
+	        test('map - prime', function () {
+	            function prime(s, v) {
+	                return v;
+	            }
+	            return _utils2.default.deepEqual(_utils2.default.map(channels, prime, valBlock), valBlock);
+	        });
+
+	        test('reduce', function () {
+	            function error(err, s) {
+	                return err || s.name === 'i4';
+	            }
+	            return _utils2.default.reduce(channels, error) === true;
 	        });
 	    });
+	});
+
+/***/ },
+/* 14 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(15), __webpack_require__(16)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports, require('./circus'), require('./events'), require('./signal'));
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports, global.circus, global.events, global.signal);
+	    global.circuit = mod.exports;
+	  }
+	})(this, function (exports, _circus, _events, _signal) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+
+	  var _circus2 = _interopRequireDefault(_circus);
+
+	  var _events2 = _interopRequireDefault(_events);
+
+	  var _signal2 = _interopRequireDefault(_signal);
+
+	  function _interopRequireDefault(obj) {
+	    return obj && obj.__esModule ? obj : {
+	      default: obj
+	    };
+	  }
+
+	  'use strict';
+
+	  function sdiff(v1, v2, isJoin) {
+	    if (!isJoin || v2 === undefined) return v1 !== v2;
+	    for (var i = 0, k = Object.keys(v1); i < k.length; i++) {
+	      if (v1[k[i]] !== v2[k[i]]) return true;
+	    }
+	    return false;
+	  }
+
+	  function toSignal(app, s) {
+	    if (s === _circus2.default.UNDEFINED) s = function (v) {
+	      return v;
+	    };
+	    if (!_circus2.default.isSignal(s)) {
+	      var v = s,
+	          fn = typeof s === 'object' ? 'join' : 'map';
+	      if (typeof s !== 'function' && fn === 'map') s = function () {
+	        return v;
+	      };
+	      s = app.signal()[fn](s);
+	    }
+	    return s;
+	  }
+
+	  // overlay circuit behaviour aligned on channel input / outputs
+	  function overlay(ctx) {
+	    return function recurse(g, c) {
+	      c = c || ctx;
+	      Object.keys(g).forEach(function (k) {
+	        var oo = typeof g[k] !== 'function' && g[k].length ? g[k] : [null, g[k]];
+	        for (var i = 0; i < 2; i++) {
+	          var o = oo[i];
+	          if (_circus2.default.isSignal(o) || typeof o === 'function') {
+	            var s = c.channels[k] || c.channels[Object.keys(c.channels).find(function (ck) {
+	              return c.channels[ck].output.name === k;
+	            })].output;
+	            s.map(i && o || _circus2.default.before(o));
+	          } else if (o) recurse(o, c.channels[k]);
+	        }
+	      });
+	      return this;
+	    };
+	  }
+
+	  function prime(ctx) {
+	    var _prime = ctx.prime.bind(ctx);
+	    return function prime(v) {
+	      var _this = this;
+	      if (typeof v === 'object' && _this.channels) {
+	        Object.keys(v).filter(function (k) {
+	          return _this.channels[k];
+	        }).forEach(function (k) {
+	          _this.channels[k].prime(v[k]);
+	        });
+	      }
+	      return _prime(v);
+	    };
+	  }
+
+	  function Circuit() {
+
+	    var extensions = [];
+	    var _this = this;
+
+	    var Signal = new _signal2.default(new _events2.default(this));
+
+	    function joinPoint(sampleOnly, joinOnly, args) {
+	      var ctx = this.asSignal().pure(sampleOnly ? false : sdiff);
+	      ctx.isJoin = joinOnly || ctx.isJoin;
+
+	      var signals = [].slice.call(args);
+	      if (typeof signals[0] === 'string') {
+	        ctx.name(signals.shift());
+	      }
+
+	      // flatten joining signals into channels
+	      // - accepts and blocks out nested signals into circuit
+	      var circuit = ctx.channels || {},
+	          channels = [],
+	          cIdx = 0;
+	      var keys = [];
+	      while (signals.length) {
+	        var signal = signals.shift();
+	        if (!_circus2.default.isSignal(signal)) {
+	          Object.keys(signal).forEach(function (k, i) {
+	            var output = toSignal(_this, signal[k]),
+	                input = output;
+	            if (output.id) {
+	              output.name = output.name || k;
+	              input = output.channel(_circus2.default.before);
+	              input.name = k;
+
+	              // bind each joining signal to the context value
+	              output.bind(function (f, args) {
+	                return f.apply(output, args.concat(ctx.value()));
+	              });
+
+	              // for overlays
+	              input.output = output;
+	            } else {
+	              input = { value: output().value };
+	              keys[i] = k;
+	            }
+	            circuit[k] = input;
+	            channels.push(input);
+	          });
+	        } else {
+	          channels.push(signal);
+	          circuit[signal.name || cIdx++] = signal;
+	        }
+	      }
+
+	      var step = ctx.step();
+	      function merge(i) {
+	        var key = keys[i] = channels[i].name || i;
+	        return function (v) {
+	          var jv = {};
+	          // matches and fails bubble up
+	          if (joinOnly && !(v instanceof _circus2.default.fail)) {
+	            for (var c = 0, l = channels.length; c < l; c++) {
+	              var s = channels[c];
+	              jv[keys[c]] = s.value();
+	            }
+	          } else jv = v;
+	          step(sampleOnly ? ctx.value() : jv);
+	        };
+	      }
+
+	      for (var i = 0, l = channels.length; i < l; i++) {
+	        // merge incoming signals or values into join point
+	        var channel = channels[i];
+	        if (channel.finally) {
+	          channel.finally(merge(i));
+	        }
+
+	        if (true) {
+	          channels[i].$jp = channels[i].$jp || [];
+	          channels[i].$jp.push(ctx);
+	        }
+	      }
+
+	      // hide the channel array but expose as circuit
+	      ctx.channels = circuit;
+
+	      return ctx.map(function (v) {
+	        return sampleOnly ? undefined : v;
+	      });
+	    }
+
+	    // public
+
+	    this.signal = Signal.create = function (name) {
+	      return extensions.reduce(function (s, ext) {
+	        ext = typeof ext === 'function' ? ext(s) : ext;
+	        return _circus2.default.extend(s, ext);
+	      }, new Signal(name));
+	    };
+
+	    this.asSignal = function () {
+	      return this.signal();
+	    };
+
+	    // Join 1 or more input signals into 1 output signal
+	    // Input signal channels will be mapped onto output signal keys
+	    // - duplicate channels will be merged
+	    this.join = function () {
+	      return joinPoint.call(this, false, true, arguments);
+	    };
+
+	    // Merge 1 or more input signals into 1 output signal
+	    // The output signal value will be the latest input signal value
+	    this.merge = function () {
+	      return joinPoint.call(this, false, false, arguments);
+	    };
+
+	    // Sample input signal(s)
+	    this.sample = function () {
+	      return joinPoint.call(this, true, false, arguments);
+	    };
+
+	    this.extend = function (ext) {
+	      extensions.push(ext);
+	      if (typeof ext !== 'function') {
+	        return _circus2.default.extend(this, ext);
+	      }
+	    };
+
+	    this.extend({
+	      join: _this.join,
+	      merge: _this.merge,
+	      sample: _this.sample
+	    });
+
+	    this.extend(function (ctx) {
+	      return {
+	        prime: prime(ctx),
+	        overlay: overlay(ctx)
+	      };
+	    });
+
+	    var args = [].slice.call(arguments).forEach(function (module) {
+	      module(_this);
+	    });
+	  }
+
+	  exports.default = Circuit;
+	});
+
+/***/ },
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports);
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports);
+	    global.events = mod.exports;
+	  }
+	})(this, function (exports) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+	  exports.default = Events;
+	  function Events(app) {
+
+	    var events = [],
+	        pCount = 0,
+	        steadyCircuit = true,
+	        noop = function () {};
+
+	    app.stateChange = function (s, e) {
+	      //filo event order
+	      _events.unshift({
+	        start: s || noop,
+	        stop: e || noop
+	      });
+	    };
+
+	    return {
+	      // Circuits are active when they start propagation and steady when they stop
+	      start: function (ctx, v) {
+	        if (!pCount++ && steadyCircuit && events.length) {
+	          for (var i = 0, el = events.length; i < el; i++) {
+	            events[i].start(ctx, v);
+	          }
+	        }
+	      },
+
+	      // Circuit propagation is re-entrant. Any 'extra' circuit work performed in this
+	      // state will simply prolong it until there are no more propagations.
+	      stop: function (ctx, v) {
+	        if (! --pCount && events.length) {
+	          if (steadyCircuit) {
+	            steadyCircuit = false;
+	            for (var i = 0, el = events.length; i < el; i++) {
+	              events[i].stop(ctx, v);
+	            }
+	          } else steadyCircuit = true;
+	        }
+	      }
+	    };
+	  }
+	});
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports, require('./circus'));
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports, global.circus);
+	    global.signal = mod.exports;
+	  }
+	})(this, function (exports, _circus) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+
+	  var _circus2 = _interopRequireDefault(_circus);
+
+	  function _interopRequireDefault(obj) {
+	    return obj && obj.__esModule ? obj : {
+	      default: obj
+	    };
+	  }
+
+	  'use strict';
+
+	  var _Signal = function (aId, sId, _name) {
+	    this.name = _name;
+	    var _this = this;
+	    this.id = function () {
+	      return _this;
+	    };
+	    this.id.constructor = _Signal;
+	    if (true) {
+	      this.$id = aId + '.' + sId;
+	    }
+	  };
+
+	  _circus2.default.isSignal = function (s) {
+	    return s && s.constructor === _Signal;
+	  };
+
+	  var AFTER = 'after';
+	  var BEFORE = 'before';
+	  var noop = function (v) {
+	    return v;
+	  };
+	  var diff = function (v1, v2) {
+	    return v1 !== v2;
+	  };
+
+	  var appId = 0;
+
+	  function AppState(_event) {
+
+	    var aId = ++appId;
+	    var sId = 0;
+
+	    // Generate a new signal
+	    function Signal(_name) {
+
+	      _Signal.call(this, aId, ++sId, _name);
+
+	      // private
+	      var _this = this;
+	      var _head, _state;
+	      var _step = 0,
+	          _steps = [],
+	          _after,
+	          _active;
+	      var _finallys = [],
+	          _pulse = _circus2.default.UNDEFINED;
+	      var _pure,
+	          _diff = diff;
+
+	      // _runToState - next step
+	      function _runToState(v, ns, _b) {
+	        var nv;
+	        _event.start(_this, v);
+	        if (v instanceof _circus2.default.fail) {
+	          nv = v;
+	        } else if (!_pure || _diff(v, _head, _this.isJoin)) {
+	          _head = _pure && v;
+	          nv = v;
+	          // steps in FIFO order
+	          for (var i = ns, il = _steps.length; i < il; i++) {
+	            nv = _b(_steps[i], [v]);
+	            if (nv === undefined || nv instanceof _circus2.default.fail) break;
+	            v = nv;
+	          }
+	          _mutate(v);
+	        }
+
+	        // finallys in FILO order - last value
+	        if (nv !== undefined) {
+	          for (var f = 0, fl = _finallys.length; f < fl; f++) {
+	            _finallys[f].call(_this, nv);
+	          }
+	        }
+
+	        if (_pulse !== _circus2.default.UNDEFINED) _mutate(_pulse);
+
+	        _event.stop(_this, _state);
+	        return nv;
+	      }
+
+	      function _mutate(v) {
+	        _active = v === undefined ? undefined : true;
+	        if (v === _circus2.default.UNDEFINED) v = undefined;
+	        _state = v;
+	      }
+
+	      function _bindEach(f, args) {
+	        return f.apply(_this, args);
+	      }
+
+	      function _return(f) {
+	        if (_circus2.default.isSignal(f)) {
+	          return f.value;
+	        }
+	        if (typeof f === 'object' && _this.channels) {
+	          for (var p in f) if (f.hasOwnProperty(p)) {
+	            return _return(_this.channels[p] = _this.asSignal(f[p]));
+	          }
+	        }
+	        return f;
+	      }
+
+	      function _functor(f) {
+	        var _f = _return(f);
+	        if (f !== _f && f.finally) f.finally(_next());
+	        if (_circus2.default.isAsync(_f)) {
+	          var done = _next();
+	          return function async(v) {
+	            _event.start(_this, v);
+	            try {
+	              var args = [].slice.call(arguments).concat(done);
+	              return _f.apply(_this, args);
+	            } finally {
+	              _event.stop(_this, v);
+	            }
+	          };
+	        }
+	        return _f;
+	      }
+
+	      // Allow values to be injected into the signal at arbitrary step points.
+	      // State propagation continues from this point
+	      function _next() {
+	        var next = (_after ? _steps.length : _step) + 1;
+	        return function (v) {
+	          _runToState(v, next, _bindEach);
+	        };
+	      }
+
+	      this.asSignal = function (v) {
+	        if (_circus2.default.isSignal(v || this)) return v || this;
+	        var s = Signal.create();
+	        return typeof v === 'function' ? s.map(v) : s;
+	      };
+
+	      // Set signal state directly bypassing propagation steps
+	      this.prime = function (v) {
+	        _mutate(v);
+	        return _this;
+	      };
+
+	      // Set or read the signal state value
+	      // This method produces state propagation throughout a connected circuit
+	      this.value = function (v) {
+	        if (arguments.length) {
+	          return _runToState(v, 0, _bindEach);
+	        }
+	        return _state;
+	      }, this.step = _next;
+
+	      // Return to inactive pristine (or v) state after propagation
+	      this.pulse = function (v) {
+	        _pulse = v;
+	        return _this;
+	      };
+
+	      // Map the current signal value and propagate
+	      // The function will be called in signal context
+	      // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
+	      // can cancel propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
+	      // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
+	      this.map = function (f) {
+	        var _b = f.state === BEFORE,
+	            _f = _functor(_b && f.value || f);
+	        _b ? _steps.unshift(_f) : _steps.splice(_step, 0, _f);
+	        _step++;
+	        return _this;
+	      };
+
+	      // create an I/O channel where 2 signals share state and flow in i -> o order
+	      // Optionally:
+	      // - take behaviour
+	      // todo: replace (ie wrap) public channel with before / after
+	      //       capture step in channel to support after.joins
+	      this.channel = function (io, take) {
+	        var split = _circus2.default.extend({}, _this, { constructor: _Signal });
+	        var map = function (f) {
+	          var _b = f.state === BEFORE,
+	              _f = _functor(_b && f.value || f);
+	          _b ? _steps.splice(_step, 0, _f) : _steps.push(_f);
+	          return _this;
+	        };
+	        _Signal.call(split, aId, ++sId, _name);
+	        // return split as after / before, with step ownership resolved
+	        _after = !io || io === _circus2.default.after;
+	        if (_after ? !!take : !take) _step = 0;
+	        if (_after) split.map = map;else _this.map = map;
+	        return split;
+	      };
+
+	      // convenient compose functor that maps from left to right
+	      this.flow = function () {
+	        var args = [].slice.call(arguments);
+	        for (var i = 0; i < args.length; i++) {
+	          this.map(args[i]);
+	        }
+	        return _this;
+	      };
+
+	      // An active signal will propagate state
+	      // An inactive signal will prevent state propagation
+	      this.active = function (reset) {
+	        if (arguments.length) {
+	          if (!reset) {
+	            _reset.push(_active), _active = false;
+	          } else {
+	            _active = !_reset.length || _reset.pop();
+	          }
+	        }
+	        return !!_active;
+	      };
+
+	      // Bind the signal to a new context
+	      this.bind = function (f) {
+	        var __b = _bindEach;
+	        _bindEach = function (step, args) {
+	          var bs = function () {
+	            return __b(step, arguments);
+	          };
+	          return f.call(_this, bs, args);
+	        };
+	        return _this;
+	      };
+
+	      // finally functions are executed in FILO order after all step functions regardless of state
+	      this.finally = function (f) {
+	        var fifo = f.state === BEFORE,
+	            _f = _return(fifo && f.value || f);
+	        if (_circus2.default.isSignal(_f)) {
+	          var fs = _f;
+	          _f = function (v) {
+	            fs.value(v);
+	          };
+	        }
+	        _finallys[fifo ? 'unshift' : 'push'](_f);
+	        return _this;
+	      };
+
+	      this.pure = function (diff) {
+	        _pure = diff !== false;
+	        if (typeof diff === 'function') _diff = diff;
+	        return _this;
+	      };
+
+	      // Tap the current signal state value
+	      // The function will be called in signal context
+	      this.tap = function (f) {
+	        return this.map(function (v) {
+	          f.apply(_this, arguments);
+	          return v === undefined ? _circus2.default.UNDEFINED : v;
+	        });
+	      };
+
+	      // Extend a signal with custom step functions either through an
+	      // object hash, or a context bound function that returns an object hash
+	      // Chainable step functions need to return the context.
+	      this.extend = function (ext) {
+	        ext = typeof ext === 'function' ? ext(this) : ext;
+	        return _circus2.default.extend(this, ext);
+	      };
+
+	      return _this;
+	    }
+
+	    Signal.prototype = _Signal.prototype;
+	    Signal.prototype.constructor = _Signal;
+
+	    return Signal;
+	  }
+
+	  // todo - consider wrapping async in HOF
+	  var _fnArgs = /function\s.*?\(([^)]*)\)/;
+	  _circus2.default.isAsync = function (f) {
+	    return f.length && f.toString().match(_fnArgs)[1].indexOf('next') > 0;
+	  };
+
+	  _circus2.default.after = function (f) {
+	    return { state: AFTER, value: f };
+	  };
+
+	  _circus2.default.before = function (f) {
+	    return { state: BEFORE, value: f };
+	  };
+
+	  exports.default = AppState;
 	});
 
 /***/ }
