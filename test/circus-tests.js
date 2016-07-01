@@ -1,4 +1,4 @@
-import Circus, {test} from '../src'
+import Circus from '../src'
 
 var inc = function(v){return v+1}
 

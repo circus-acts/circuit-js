@@ -13,6 +13,20 @@ runTests('signal', function(mock) {
 		signal = app.signal.bind(app)
 	})
 
+    test('new signal', function(){
+        return Circus.isSignal(signal())
+    })
+
+    test('as signal - from this', function(){
+        var s = signal().asSignal()
+        return Circus.isSignal(s)
+    })
+
+    test('as signal - from this', function(){
+        var s = signal().asSignal()
+        return Circus.isSignal(s)
+    })
+
 	test('named signal',function() {
 		var r = signal('sig1')
 		return r.name === 'sig1'
@@ -120,7 +134,6 @@ runTests('signal', function(mock) {
 		return b.value(1) === 2 && s.value()===6
 	})
 
-
 	test('map - async',function(done) {
 		var r = 0
 		function async(v,next) {
@@ -142,6 +155,18 @@ runTests('signal', function(mock) {
 			done(v===2)
 		})
 		s.value(1)
+	})
+
+	test('map - async fail',function(done) {
+		var r = 0
+		function async(v,next) {
+			setTimeout(function(){
+				next(Circus.fail())
+			})
+		}
+		signal().map(async).finally(function(v){
+			done(v instanceof Circus.fail)
+		}).value(1)
 	})
 
     test('flow',function() {
@@ -225,9 +250,9 @@ runTests('signal', function(mock) {
 	})
 
 	test('finally - aborted propagation', function() {
-		var r,s = signal().map(inc).map(function(){return Circus.fail()}).map(inc).finally(function(v){r=v})
+		var r1,r2,s = signal().map(inc).map(function(){return Circus.fail()}).map(inc).finally(function(v,f){r1=v, r2=f})
 		s.value(1)
-		return r instanceof Circus.fail
+		return r1 === 2 && r2 instanceof Circus.fail
 	})
 
 	test ('channel', function(){

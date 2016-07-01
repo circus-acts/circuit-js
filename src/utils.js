@@ -74,19 +74,26 @@ export function Error(ctx) {
   if (!this instanceof Error) return new Error(ctx)
   ctx.extend(function(ctx){
     var _fail
-    ctx.finally(function(v) {
-      if (v instanceof Circus.fail) {
-        _fail = _fail || v.value || true
+    ctx.finally(function(v,f) {
+      if (f) {
+        _fail = _fail || f.value || true
       }
     })
 
     // important: this functor flatmaps a circuit's channels
     // at the point that it is employed. Make this the last
-    // binding if all channels are expected.
+    // binding if all channels are required.
     var channels = api.flatmap(ctx)
 
     return {
-      active: Error.active(ctx,channels),
+      active: function(m) {
+        return ctx.map(function(v) {
+          for(var c=0; c<channels.length; c++) {
+            if (!channels[c].active()) return Circus.fail(m || 'required')
+          }
+          return v
+        })
+      },
       error: function(v) {
         if (_fail) {
           var v = _fail
@@ -99,20 +106,15 @@ export function Error(ctx) {
   })
 }
 
-Error.active = function(ctx,channels) {
-  return function(m) {
-    return ctx.map(function(v) {
-      for(var c of channels) {
-        if (!c.active()) return Circus.fail(m || 'required')
-      }
-      return v
+export function test(f, m) {
+  return Circus.isAsync(f)
+  ? function(v, next) {
+    return f.call(this,v,function(j){
+      return next(j? (j===true? v : j) : Circus.fail(m))
     })
   }
-}
-
-export function test(f, m) {
-  return function(v) {
-    var j = f.apply(this,arguments)
+  : function(v) {
+    var j = f.call(this,v)
     return j? (j===true? v : j) : Circus.fail(m)
   }
 }
