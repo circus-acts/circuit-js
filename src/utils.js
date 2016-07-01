@@ -32,8 +32,23 @@ function pathToData(data, key) {
   return data && data.hasOwnProperty(key)? data[key] : Circus.UNDEFINED
 }
 
+function lens(data,name,ns,def) {
+  if (arguments.length<4) {
+    def=null
+  }
+  var path = ((ns? ns + '.' :'') + name).split('.')
+  var v = path.reduce(pathToData,data)
+
+  if (data && v===Circus.UNDEFINED && Circus.typeOf(data) === Circus.type.OBJECT && data.constructor==={}.constructor) {
+    v = Object.keys(data).reduce(function(a,k){
+      return a!==Circus.UNDEFINED && a || lens(data[k],name,'',def)
+    },Circus.UNDEFINED)
+  }
+  return v!==Circus.UNDEFINED? v : def
+}
+
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || s, seed = acc!=Circus.UNDEFINED
+  var c = s.channels || Circus.isSignal(s) && {s:s} || s, seed = acc!=Circus.UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
@@ -47,15 +62,64 @@ function traverse(s, fn, acc, tv) {
         acc = a[1]
       }
       else {
-        acc = obj[n] = fn.apply(null, seed? [acc,t,v]:[t,v])
+        fmap.push(acc = obj[n] = fn.apply(null, seed? [acc,t,v]:[t,v]))
       }
     })
-    return [obj,acc]
+    return [obj, acc, fmap]
   }
-  return stamp(c,fn, tv)
+  return stamp(c, fn, tv)
 }
 
-export default {
+export function Error(ctx) {
+  if (!this instanceof Error) return new Error(ctx)
+  ctx.extend(function(ctx){
+    var _fail
+    ctx.finally(function(v,f) {
+      if (f) {
+        _fail = _fail || f.value || true
+      }
+    })
+
+    // important: this functor flatmaps a circuit's channels
+    // at the point that it is employed. Make this the last
+    // binding if all channels are required.
+    var channels = api.flatmap(ctx)
+
+    return {
+      active: function(m) {
+        return ctx.map(function(v) {
+          for(var c=0; c<channels.length; c++) {
+            if (!channels[c].active()) return Circus.fail(m || 'required')
+          }
+          return v
+        })
+      },
+      error: function(v) {
+        if (_fail) {
+          var v = _fail
+          _fail = false
+          return v || true
+        }
+        return ''
+      }
+    }
+  })
+}
+
+export function test(f, m) {
+  return Circus.isAsync(f)
+  ? function(v, next) {
+    return f.call(this,v,function(j){
+      return next(j? (j===true? v : j) : Circus.fail(m))
+    })
+  }
+  : function(v) {
+    var j = f.call(this,v)
+    return j? (j===true? v : j) : Circus.fail(m)
+  }
+}
+
+const api = {
 
   diff: function(v1,v2) {
     return diff(v1,v2)
@@ -76,20 +140,7 @@ export default {
   // lens
   // re,turn a value from a nested structure
   // useful for plucking values and signals from models and signal groups respectively
-  lens: function(data,name,ns,def) {
-    if (arguments.length<4) {
-      def=null
-    }
-    var path = ((ns? ns + '.' :'') + name).split('.')
-    var v = path.reduce(pathToData,data)
-
-    if (data && v===Circus.UNDEFINED && Circus.typeOf(data) === Circus.type.OBJECT && data.constructor==={}.constructor) {
-      v = Object.keys(data).reduce(function(a,k){
-        return a!==Circus.UNDEFINED && a || Circus.lens(data[k],name,'',def)
-      },Circus.UNDEFINED)
-    }
-    return v!==Circus.UNDEFINED? v : def
-  },
+  lens: lens,
 
   reduce: function(s, fn, seed, tv) {
     return traverse(s, fn, seed, tv)[1]
@@ -99,7 +150,15 @@ export default {
     return traverse(s, fn, Circus.UNDEFINED,tv)[0]
   },
 
+  flatmap: function(s, fn, tv) {
+    return traverse(s, fn, Circus.UNDEFINED,tv)[2]
+  },
+
   tap: function(s, fn, tv) {
     traverse(s, fn, Circus.UNDEFINED, tv)
-  }
+  },
+
+  test: test
 }
+
+export default api

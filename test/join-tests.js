@@ -39,7 +39,7 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('join - channel block', function() {
+	test('join - channels', function() {
 		var s1 = signal()
 		var s2 = signal()
 		var j = app.join({
@@ -52,7 +52,7 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('join - merge channel blocks', function() {
+	test('join - merge channels', function() {
 		var s1 = signal()
 		var s2 = signal()
 		var j = app.join({
@@ -67,7 +67,7 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('join - aggregate signal block', function() {
+	test('join - nested channels', function() {
 		var s1 = signal()
 		var s2 = signal()
 		var j = app.join({
@@ -82,7 +82,7 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
-	test('join - object into aggregate signal block', function() {
+	test('join - pure object hash', function() {
 		var s1 = signal()
 		var s2 = signal()
 		var j = app.join({

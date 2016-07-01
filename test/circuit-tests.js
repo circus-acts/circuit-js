@@ -12,23 +12,9 @@ runTests('circuit', function(mock) {
 		app = new Circus.Circuit()
 	})
 
-	test('new circuit - is signal', function() {
-		return Circus.isSignal(app.join())
-	})
-
-    test('new signal', function(){
-        return Circus.isSignal(app.signal())
-    })
-
-    test('new signal - ctx', function(){
+    test('as signal - from app', function(){
         var s = app.asSignal(app)
         return Circus.isSignal(s)
-    })
-
-    test('existing signal', function(){
-        var s = app.signal()
-        var n = s.asSignal()
-        return n===s
     })
 
 	test('circuit - stop propagation', function() {
@@ -41,20 +27,12 @@ runTests('circuit', function(mock) {
 		return r[0] === 1 && r[1] === 2 && s1.value()===1 && s2.value()===2
 	})
 
-	test('circuit - error', function() {
+	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(Circus.fail)
 		var j1 = app.join(s1)
-		var f,j = app.join(j1).finally(function(v){f=v})
+		var r,j = app.join(j1).finally(function(v,f){r=f})
 		s1.value(2)
-		return j.error()===2
-	})
-
-	test('circuit - finally takes fail', function() {
-		var s1 = app.signal().map(Circus.fail)
-		var j1 = app.join(s1)
-		var f,j = app.join(j1).finally(function(v){f=v})
-		s1.value(2)
-		return f instanceof Circus.fail
+		return r instanceof Circus.fail
 	})
 
 	test('channel - input', function() {
@@ -141,7 +119,7 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('channel value - prime deep', function(){
+	test('circuit value - prime deep', function(){
 		var a=app.signal()
 		var r = app.join({
 			b: {
@@ -233,7 +211,7 @@ runTests('circuit', function(mock) {
 		return c.channels.a.channels.a.channels.a.value(1) === 2
 	})
 
-	test('circuit - overlay aggregate', function(){
+	test('circuit - overlay sample', function(){
 		var a = app.signal('a')
 		var b = app.signal('b')
 		var o = {a:inc,b:inc}
@@ -241,7 +219,7 @@ runTests('circuit', function(mock) {
 		return c.channels.a.value(1) === 2 && c.channels.b.value(1) === 2
 	})
 
-	test('circuit - overlay aggregate map fn', function(){
+	test('circuit - overlay map', function(){
 		var a = app.signal('a')
 		var b = app.signal('b')
 		var o = {a:inc}
@@ -249,7 +227,15 @@ runTests('circuit', function(mock) {
 		return c.channels.a.value(0) === 1
 	})
 
-	test('circuit - overlay aggregate finally fn', function(){
+	test('circuit - overlay finally', function(){
+		var a = app.signal('a')
+		var o = {a:inc}
+		var c = app.signal().finally({a:a})
+		c.overlay(o).value(0)
+		return c.channels.a.value() === 1
+	})
+
+	test('circuit - overlay finally fn', function(){
 		var a = app.signal('a')
 		var b = app.signal('b')
 		var o = {a:inc}
@@ -259,10 +245,10 @@ runTests('circuit', function(mock) {
 	})
 
     test('extend - app ctx', function(){
-        var ctx = new Circus.Circuit()
-        ctx.extend({c:true})
+        var app1 = new Circus.Circuit().extend({c:true})
+        var app2 = new Circus.Circuit()
 
-        return ctx.signal().c && !app.signal().c
+        return app1.signal().c && !app2.signal().c
     })
 
     test('extend - app ctx + signal ctx', function(){

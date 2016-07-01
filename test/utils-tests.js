@@ -1,11 +1,14 @@
 import Circus from '../src'
+import Utils, {Error} from '../src/utils'
+
+var inc = function(v){return v+1}
 
 runTests('utils', function(mock) {
 
     var app, channels, sigBlock, valBlock
     setup(function(){
 
-        app = new Circus.Circuit()
+        app = new Circus.Circuit(Error)
 
         sigBlock = {
             i1:app.signal(),
@@ -29,78 +32,78 @@ runTests('utils', function(mock) {
     })
 
     test('test - true', function() {
-        var m = app.test(function(v){return true})(1)
+        var m = Utils.test(function(v){return true})(1)
         return m === 1
     })
 
     test('test - value', function() {
-        var m = app.test(function(v){return v+1})(1)
+        var m = Utils.test(function(v){return v+1})(1)
         return m === 2
     })
 
     test('test - fail', function() {
-        var m = app.test(function(v){return !!v})(0)
+        var m = Utils.test(function(v){return !!v})(0)
         return m instanceof Circus.fail
     })
 
     test('test - fail with reason', function() {
-        var m = app.test(function(v){return !!v},'xyz')(0)
+        var m = Utils.test(function(v){return !!v},'xyz')(0)
         return m.value === 'xyz'
     })
 
-    test('test - circuit valid', function() {
-        var m = app.test(function(v){return !!v},'error!')
+    test('error - circuit valid', function() {
+        var m = Utils.test(function(v){return !!v},'error!')
         var s = app.merge({m:m}).map(inc)
         s.channels.m.value(1)
         return s.error() === '' && s.value() === 2
     })
 
-    test('test - circuit error', function() {
-        var m = app.test(function(v){return !!v})
+    test('error - circuit error', function() {
+        var m = Utils.test(function(v){return !!v})
         var s = app.merge({m:m}).map(inc)
         s.channels.m.value(0)
         return s.error() === true
     })
 
-    test('test - circuit error msg', function() {
-        var m = app.test(function(v){return !!v},'error!')
+    test('error - circuit error msg', function() {
+        var m = Utils.test(function(v){return !!v},'error!')
         var s = app.merge({m:m}).map(inc)
         s.channels.m.value(0)
         return s.error() === 'error!'
     })
 
-    test('test - first error only', function() {
-        var m1 = app.test(function(v){return !!v},1)
-        var m2 = app.test(function(v){return !!v},2)
+    test('error - first error only', function() {
+        var m1 = Utils.test(function(v){return !!v},1)
+        var m2 = Utils.test(function(v){return !!v},2)
         var s = app.merge({m1:m1,m2:m2}).map(inc)
         s.channels.m1.value(0)
         s.channels.m2.value(0)
-        return s.error() === 1
+        return s.error() === 1 && s.value() === undefined
     })
 
-    test('test - circuit error clear', function() {
-        var m = app.test(function(v){return !!v})
+    test('error - circuit error clear', function() {
+        var m = Utils.test(function(v){return !!v})
         var s = app.merge({m:m}).map(inc)
         s.channels.m.value(0)
         return s.error() === true && s.error() === ''
     })
 
     test('lens', function(){
-        return Circus.lens(sigBlock, 'i1')
+        return Utils.lens(sigBlock, 'i1')
     })
 
     test('lens - namespace', function(){
-        return Circus.lens(sigBlock, 'i4', 'i3')
+        return Utils.lens(sigBlock, 'i4', 'i3')
     })
 
     test('lens - traverse', function(){
-        return Circus.lens(sigBlock, 'i5')
+        return Utils.lens(sigBlock, 'i5')
     })
 
     test('map', function(){
         function id(s){
             return s.name}
-        return Circus.deepEqual(Circus.map(channels, id),{
+        return Utils.deepEqual(Utils.map(channels, id),{
                                                     i1:'i1',
                                                     i2: 'i2',
                                                     i3: {
@@ -111,46 +114,17 @@ runTests('utils', function(mock) {
     })
 
     test('map - copy', function(){
-        return Circus.deepEqual(Circus.map(valBlock),valBlock)
+        return Utils.deepEqual(Utils.map(valBlock),valBlock)
     })
 
     test('map - prime', function(){
         function prime(s,v){return v}
-        return Circus.deepEqual(Circus.map(channels,prime,valBlock),valBlock)
+        return Utils.deepEqual(Utils.map(channels,prime,valBlock),valBlock)
     })
 
     test('reduce', function(){
         function error(err,s){
             return err || s.name==='i4'}
-        return Circus.reduce(channels, error) === true
+        return Utils.reduce(channels, error) === true
     })
-
-    test('typeof - Array', function(){
-        return Circus.typeOf([]) === Circus.typeOf.ARRAY
-    })
-
-    test('typeof - Object', function(){
-        return Circus.typeOf({}) === Circus.typeOf.OBJECT
-    })
-
-    test('typeof - Date', function(){
-        return Circus.typeOf(new Date()) === Circus.typeOf.LITERAL
-    })
-
-    test('typeof - String', function(){
-        return Circus.typeOf('') === Circus.typeOf.LITERAL
-    })
-
-    test('typeof - Number', function(){
-        return Circus.typeOf(1) === Circus.typeOf.LITERAL
-    })
-
-    test('typeof - Boolean', function(){
-        return Circus.typeOf(true) === Circus.typeOf.LITERAL
-    })
-
-    test('typeof - Regex', function(){
-        return Circus.typeOf(/a/) === Circus.typeOf.LITERAL
-    })
-
 })

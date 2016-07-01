@@ -181,8 +181,10 @@ function runTest(name, condition, async) {
 		console.error(e)
 		console.log(name, e.stack)
 	}
+	finally {
+		testRunning--
+	}
 
-	testRunning--
 }
 
 _global.assert = function(v1,v2, comp){

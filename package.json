@@ -27,7 +27,8 @@
     "build": "npm run build:test && npm test && npm run build:prod",
     "build:watch": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack --watch src/index.js lib/circus.js",
     "test": "node test/nodetest.js",
-    "watch": "npm run build:test -- --watch"
+    "watch": "npm run build:test -- --watch",
+    "watch:dev": "npm run build:dev -- --watch"
   },
   "repository": {
     "type": "git",
