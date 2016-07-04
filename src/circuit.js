@@ -1,6 +1,6 @@
 import Circus from './circus'
 import Events from './events'
-import AppState from './signal'
+import Signal from './signal'
 
 'use strict'
 
@@ -44,28 +44,25 @@ function overlay(ctx) {
 function prime(ctx) {
   var _prime = ctx.prime.bind(ctx)
   return function prime(v) {
-    var _this = this
-    if (typeof v === 'object' && _this.channels) {
-      Object.keys(v).filter(function(k) {
-        return _this.channels[k]
-      }).forEach(function(k) {
-        _this.channels[k].prime(v[k])
-      })
+    var pv = {}
+    for (var i=0, keys=Object.keys(this.channels||{}); i < keys.length; i++) {
+      var key = keys[i]
+      var cv = v!==undefined && v.hasOwnProperty(key)? v[key] : undefined
+      this.channels[key].prime(cv)
+      pv[key] = this.channels[key].value()
     }
-    return _prime(v)
+    return _prime(this.channels? pv : v)
   }
 }
 
 function Circuit() {
 
-  var extensions = []
   var _this = this
-
-  var Signal = new AppState(new Events(this))
+  var signal = new Signal(new Events(this))
 
   function joinPoint(sampleOnly, joinOnly, args) {
-    var ctx = this.asSignal().pure(sampleOnly? false : sdiff)
-    ctx.isJoin = joinOnly || ctx.isJoin
+    var ctx = this.asSignal().pure(sampleOnly? false : joinOnly? sdiff : true)
+    ctx.isJoin = joinOnly
 
     var signals = [].slice.call(args)
     if (typeof signals[0] === 'string') {
@@ -74,8 +71,7 @@ function Circuit() {
 
     // flatten joining signals into channels
     // - accepts and blocks out nested signals into circuit
-    var circuit=ctx.channels || {}, channels = [], cIdx=0
-    var keys=[]
+    var circuit=ctx.channels || {}, channels = [], keys=[], cIdx=0
     while (signals.length) {
       var signal = signals.shift()
       if (!Circus.isSignal(signal)) {
@@ -141,16 +137,17 @@ function Circuit() {
     // hide the channel array but expose as circuit
     ctx.channels = circuit
 
+    // pass through for all joins but samples
     return ctx.map(function(v){return sampleOnly? undefined : v})
   }
 
   // public
 
-  this.signal = Signal.create = function(name) {
+  this.signal = signal.create = function(name) {
     return extensions.reduce(function(s,ext){
       ext = typeof ext==='function'? ext(s) : ext
       return Circus.extend(s,ext)
-    }, new Signal(name))
+    }, new signal(name))
   }
 
   this.asSignal = function() {
@@ -175,6 +172,25 @@ function Circuit() {
     return joinPoint.call(this,true,false,arguments)
   }
 
+  // latch output signal(s) to a boolean value or
+  // the boolean value of a latch signal
+  //
+  this.latch = function(l) {
+    var _this = this,
+        step = this.step(),
+        ls = Circus.isSignal(l) && l.finally(function(v){
+          lv = !!v
+          if (lv) step(_this.value())
+        }),
+        lv = !ls && !!l
+
+    if (lv) step(_this.value())
+    return this.map(function(v){
+      return lv? v : undefined
+    })
+  }
+
+  var extensions = []
   this.extend = function(ext){
     extensions.push(ext)
     if (typeof ext!=='function') {
@@ -182,14 +198,12 @@ function Circuit() {
     }
   }
 
-  this.extend({
-      join: _this.join,
-      merge: _this.merge,
-      sample: _this.sample
-  })
-
   this.extend(function(ctx){
     return {
+      join: _this.join,
+      merge: _this.merge,
+      sample: _this.sample,
+      latch: _this.latch,
       prime: prime(ctx),
       overlay: overlay(ctx)
     }

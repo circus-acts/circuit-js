@@ -133,4 +133,41 @@ runTests('join', function(mock) {
 		var r3 = s.value()
 		return r1 === 1 && r2 === 2 && r3 === 3
 	})
+
+	test('latch - value true', function(){
+		var r,s = signal().prime(1).finally(function(v){r=v}).latch(true)
+		return r === 1
+	})
+
+	test('latch - hold value true', function(){
+		return signal().prime(1).map(inc).latch(true).value(2) === 3
+	})
+
+	test('latch - value false', function(){
+		var r,s = signal().prime(1).finally(function(v){r=v}).latch(false)
+		return r === undefined
+	})
+
+	test('latch - hold value false', function(){
+		var s = signal().prime(1).latch(false).map(inc)
+		s.value(1)
+		return s.value()=== 1
+	})
+
+	test ('latch - signal off', function(){
+		var ls = signal()
+		return signal().prime(1).latch(ls).map(inc).value() === 1
+	})
+
+	test ('latch - signal on', function(){
+		var ls = signal(), s = signal().prime(1).latch(ls).map(inc)
+		ls.value(true)
+		return s.value() === 2
+	})
+
+	test ('latch - hold signal on', function(){
+		var ls = signal(), s = signal().prime(1).latch(ls).map(inc)
+		ls.value(true)
+		return s.value(2) === 3
+	})
 })

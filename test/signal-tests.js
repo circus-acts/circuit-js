@@ -17,14 +17,15 @@ runTests('signal', function(mock) {
         return Circus.isSignal(signal())
     })
 
-    test('as signal - from this', function(){
+    test('as signal', function(){
         var s = signal().asSignal()
         return Circus.isSignal(s)
     })
 
     test('as signal - from this', function(){
-        var s = signal().asSignal()
-        return Circus.isSignal(s)
+        var s1 = signal()
+        var s2 = s1.asSignal(s1)
+        return s1 === s2
     })
 
 	test('named signal',function() {
