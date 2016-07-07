@@ -109,34 +109,11 @@ runTests('circuit', function(mock) {
 		return r.b===2
 	})
 
-	test('circuit value - prime keys', function(){
-		var a=app.signal()
-		var r = app.join({
-			a: a
-		})
-		r.prime()
-
-		return r.value().a===undefined
-	})
-
-	test('circuit value - prime keys deep', function(){
-		var a=app.signal()
-		var r = app.join({
-			b: {
-				a: a
-			}
-		})
-		r.prime()
-
-		return r.value().b.a===undefined
-	})
-
 	test('circuit value - prime values', function(){
 		var a=app.signal()
 		var r = app.join({
 			a: a
-		})
-		r.prime({a:123})
+		}).prime({a:123})
 
 		return a.value()===123
 	})
@@ -147,8 +124,7 @@ runTests('circuit', function(mock) {
 			b: {
 				a: a
 			}
-		})
-		r.prime({b:{a:123}})
+		}).prime({b:{a:123}})
 
 		return a.value()===123
 	})

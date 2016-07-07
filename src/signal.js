@@ -42,38 +42,39 @@ function AppState(_propagation) {
 
     // _runToState - next step
     function _runToState(v,ns) {
-      var nv, fv
+      var nv, fv, hv, fail = v instanceof Circus.fail
       _propagation.start(_this, v)
-      if (v instanceof Circus.fail) {
+      if (fail) {
         nv = v
       }
       else if (!_pure || _diff(v,_head,_this.isJoin)) {
-        _head = v
-        nv = v
+        hv = nv = v
         // steps in FIFO order
         for (var i = ns, il = _steps.length; i < il; i++) {
           nv = _bindEach(_steps[i], [v])
-          if (nv===undefined || nv instanceof Circus.fail) break;
+          fail = nv instanceof Circus.fail
+          if (nv===undefined || fail) break;
           v = nv
         }
-        _mutate(v)
+        _mutate(v,fail)
       }
 
       // finallys in FILO order - last value
       if (nv!==undefined) {
         for (var f = 0, fl = _finallys.length; f < fl; f++) {
-          _finallys[f].call(_this, v, nv instanceof Circus.fail? nv : undefined)
+          _finallys[f].call(_this, v, fail? nv : undefined)
         }
       }
 
       if (_pulse!==Circus.UNDEFINED) _mutate(_pulse)
+      if (!fail) _head = hv
 
       _propagation.stop(_this, _state)
       return nv
     }
 
-    function _mutate(v) {
-       _active = v===undefined ? undefined : true
+    function _mutate(v, fail) {
+       _active = v===undefined || fail? undefined : true
       if (v ===Circus.UNDEFINED) v = undefined
       _state=v
     }
@@ -189,6 +190,12 @@ function AppState(_propagation) {
     // convenient compose functor that maps from left to right
     this.flow = function(){
       var args = [].slice.call(arguments)
+      if (args.length===1 && typeof args[0]==='object') {
+        args = Object.keys(args[0]).map(function(k) {
+          var arg = {}; arg[k]=args[0][k]
+          return arg
+        })
+      }
       for (var i=0; i<args.length; i++) {
         this.map(args[i])
       }

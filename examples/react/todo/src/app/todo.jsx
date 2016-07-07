@@ -1,11 +1,11 @@
-import React from 'react';
-import { render } from 'react-dom';
-import { bind } from './intents'
+import React from 'react'
+import { render } from 'react-dom'
+import { bind } from './intent'
 
-const Todo = todo => {
-  const { todo : {id, description, completed, editing}, intents } = bind(todo)
-}
-  editing ?
+const Todo = ({editing, todo}) => {
+  const { id, description, completed, intents } = bind(todo)
+
+  return editing ?
   <input
       className="edit"
       defaultValue={description}
@@ -30,5 +30,6 @@ const Todo = todo => {
         onClick={intents.deleteTodo} />
     </div>
   </li>
+}
 
 export default Todo

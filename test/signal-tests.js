@@ -179,6 +179,12 @@ runTests('signal', function(mock) {
         return e === 4
     })
 
+	test('flow - signals',function() {
+		var s1 = signal().map(inc)
+		var s2 = signal().map(inc)
+		return signal().flow({s1:s1,s2:s2}).value(1) === 3
+	})
+
     test('bind - pre',function() {
         var e,s = app.signal().map(inc).tap(function(v){
             e = v

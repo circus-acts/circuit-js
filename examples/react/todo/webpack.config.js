@@ -4,7 +4,7 @@ var HtmlWebpackPlugin = require('html-webpack-plugin');
 
 var loaders = [
   {
-    "test": /\.js?$/,
+    "test": /(\.js|\.jsx)/,
     "exclude": /node_modules/,
     "loader": "babel",
     "query": {

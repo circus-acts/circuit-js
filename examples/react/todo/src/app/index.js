@@ -1,5 +1,5 @@
 import circuit from './circuit'
-import view from './todo-list'
+import view from './todo-list.jsx'
 import { filter } from './intent'
 
 const testData = {
@@ -7,13 +7,15 @@ const testData = {
     { id: 1, description: '1st todo', completed: false },
     { id: 2, description: '2nd todo', completed: true }
   ],
-  filter:'all'
+  filters:'all'
 }
 
-// Add a new layer of behaviour to the Todo circuit. The model,
-// already bound to the circuit, will feed to the view through
-// a filter (this by simple channel name matching). The initial
-//value kicks it all off.
+// Add a new layer of behaviour to the Todo circuit. In this example, the model
+// is already bound to the circuit, so overlay the filter and view will feed into
+// the view through a filter.
 circuit
-    .overlay(filter, view)
-    .value(testData)
+    .overlay({filter, view})
+    .prime(testData)
+
+// Pushing the testData directly to the view kicks it all off.
+view(testData)

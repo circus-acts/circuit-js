@@ -1,40 +1,59 @@
-import {editing, inputs, filters} from './circuit'
+// Intentions are a good place to extend and customise circuit logic. An application
+// might typically extend input signals through validation and animation steps. Here
+// though, we are simply separating the concerns of circuit binding from the view to
+// provide a cleaner interface.
 
-export const filter = ({ filter, todos }) => ({
-  todos: todos.filter(t => filter==='all' || t.completed===filter),
+import circuit, {editing, inputs, filters} from './circuit'
+
+// The first signal extension we need is a filter to refine the displayed list into all,
+// completed or active todos.
+//
+// Notice that this mapping function receives both the immediate signal value and its
+// binding context value, a list of todos. If you look to the circuit you will see that
+// this list is the product of a merge of input signals
+export const filter = ({ filters, todos }) => ({
+  todos: todos.filter(t => filters==='all' || t.completed===filters),
   empty: todos.length === 0
 })
 
-// a helper function filtering on keyboard behaviour and binding type
-export const take = (e, bindType) => {
-  const value = e.target[bindType]
+// A helper function bound to event type that returns a signal to extract and propagate
+// the event value
+const take = bindType => circuit.asSignal(e => {
+  const value = e.target[bindType || 'value']
   if ((e.keyCode===13 || bindType==='blur')) {
-    if (bindType==='reset') e.target.value=''
+    if (bindType==='value') e.target.value=''
+    return value
   }
-  return value
-}
+  return bindType==='checked'? v : undefined
+})
+
+// Export prepared bindings and item props. Note that the signals are pure which implies
+// that identity must be maintained at value level. The binding strategy selected here
+// is not the most performant (a new closure is created for each todo in the list) but
+// takes into account the likely number of todos - a good compromise for clean view syntax.
 
 export const todos  = {
-  newTodo:  e => inputs.addTodo.value(take(e,'reset')),
-  toggleComplete:  inputs.toggleComplete.value,
+  newTodo:        take('value').map(inputs.addTodo.value).value,
+  toggleComplete: inputs.toggleComplete.value,
   clearComplete:  inputs.clearComplete.value,
 
   editing: id => editing.value() === id,
 
   all:  filters.all.value,
   active:  filters.active.value,
-  complete:  filters.compete.value
+  completed:  filters.completed.value
 }
 
-// prepare bindings and item props. Note that signal bindings are
-// all re-entrant which means that identity must be maintained at
-// value level.
 export const bind = todo => ({
-  toggleEdit:     _ => editing.value(todo.id),
-  deleteTodo:     _ => inputs.deleteTodo.value(todo.id),
-  completeTodo:   e => inputs.completeTodo.value({...todo, completed: take('checked')}),
-  editTodoOnCR:   e => inputs.editTodo.value({...todo, description: take(e)}),
-  editTodoOnBlur: e => inputs.editTodo.value({...todo, description: take(e,'blur')}),
+  intents: {
+    toggleEdit:     _ => editing.value(todo.id),
+    deleteTodo:     _ => inputs.deleteTodo.value(todo.id),
+    completeTodo:   take('checked').map(v => inputs.editTodo.value({...todo, completed: v})).value,
+    editTodoOnCR:   take().map(v => inputs.editTodo.value({...todo, description: v})).value,
+    editTodoOnBlur: take('blur').map(v => inputs.editTodo.value({...todo, description: v})).value
+  },
+
+  // spread the data props - again, just for cleaner syntax
   ...todo
 })
 

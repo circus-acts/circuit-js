@@ -12,8 +12,8 @@ export default {
 
   purgeList: (_, todos) => todos.filter(t => !t.completed),
 
-  toggleList: completed => (_, todos) => {
+  toggleList: (completed => (_, todos) => {
     completed = !completed;
     return todos.map(t => ({...t, completed}))
-  }()
+  })()
 }

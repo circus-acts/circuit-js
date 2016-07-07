@@ -17,7 +17,5 @@ const circuit = new Circuit().join({
 .map({tryLogin: _ })
 .finally({view: _ })
 
-const channels = circuit.channels
-
-export { channels }
+export const channels = circuit.channels
 export default circuit

@@ -1,10 +1,12 @@
-import { Circuit } from 'circus-js'
+import Circus, { Circuit } from 'circus-js'
 import model from './model'
 
-const circuit = new Circuit();
+const _ = Circus.UNDEFINED
 
-export circuit.join({
-  todos: circuit.merge({
+const app = new Circuit()
+
+const circuit = app.join({
+  todos: app.merge({
     addTodo: model.addToList,
     editTodo: model.replaceInList,
     completeTodo: model.replaceInList,
@@ -12,16 +14,18 @@ export circuit.join({
     clearComplete: model.purgeList,
     toggleComplete: model.toggleList
   }),
-  filters: circuit.merge({
+  filters: app.merge({
     all: 'all',
     completed: true,
     active: false
   }),
-  editing: circuit.pulse
-).flow({
+  editing: app.signal().pulse()
+}).flow({
   filter: _,
   view: _
 })
 
+export default circuit
 export const inputs = circuit.channels.todos.channels
 export const filters = circuit.channels.filters.channels
+export const editing = circuit.channels.editing

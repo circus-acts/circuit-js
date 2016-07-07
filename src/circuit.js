@@ -44,14 +44,14 @@ function overlay(ctx) {
 function prime(ctx) {
   var _prime = ctx.prime.bind(ctx)
   return function prime(v) {
-    var pv = {}
-    for (var i=0, keys=Object.keys(this.channels||{}); i < keys.length; i++) {
-      var key = keys[i]
-      var cv = v!==undefined && v.hasOwnProperty(key)? v[key] : undefined
-      this.channels[key].prime(cv)
-      pv[key] = this.channels[key].value()
+    if (typeof v === 'object' && ctx.channels) {
+      Object.keys(v).filter(function(k) {
+        return ctx.channels[k]
+      }).forEach(function(k) {
+        ctx.channels[k].prime(v[k])
+      })
     }
-    return _prime(this.channels? pv : v)
+    return _prime(v)
   }
 }
 
@@ -84,7 +84,8 @@ function Circuit() {
 
             // bind each joining signal to the context value
             output.bind(function(f,args) {
-              return f.apply(output,args.concat(ctx.value()))
+              args.push(ctx.value())
+              return f.apply(output,args)
             })
 
             // for overlays

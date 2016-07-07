@@ -1,8 +1,11 @@
-import React from 'react';
-import { render } from 'react-dom';
-import { todos : intents } from './intents'
-import Todo from './todo'
+import React from 'react'
+import { render } from 'react-dom'
+import { todos as intents } from './intent'
+import Todo from './todo.jsx'
 
+// The view will receive its props directly from the circuit.
+// A more sophisticated app will probably map circuit outputs
+// onto React state.
 const TodoList = ({todos}) => render (
   <div className="todoapp">
     <div className="header">
@@ -17,11 +20,12 @@ const TodoList = ({todos}) => render (
         className="toggle-all"
         onClick={intents.toggleComplete} />
       <ul className="todo-list">
-        {todos.map(todo => <Todo
-          key={todo.id}
-          editing={intents.editing(todo.id)}
-          {...todo}
-        />)}
+        {todos.map(todo =>
+          <Todo
+            key={todo.id}
+            editing={intents.editing(todo.id)}
+            todo={todo} />
+        )}
       </ul>
     </section>
     {!todos.length ? null :

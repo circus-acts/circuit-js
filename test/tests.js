@@ -56,7 +56,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(10), __webpack_require__(14), __webpack_require__(9), __webpack_require__(13), __webpack_require__(17), __webpack_require__(11), __webpack_require__(16), __webpack_require__(12), __webpack_require__(15)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(10), __webpack_require__(15), __webpack_require__(9), __webpack_require__(14), __webpack_require__(13), __webpack_require__(11), __webpack_require__(17), __webpack_require__(12), __webpack_require__(16)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./match-tests'), require('./join-tests'), require('./composables-tests'), require('./utils-tests'), require('./issues'), require('./spikes/validation'));
 	  } else {
@@ -458,17 +458,39 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	  }
 
+	  // function prime(ctx) {
+	  //   var _prime = ctx.prime.bind(ctx)
+	  //   return function prime(v) {
+	  //     var pv = {}
+	  //     for (var i=0, keys=Object.keys(this.channels||{}); i < keys.length; i++) {
+	  //       var key = keys[i]
+	  //       var cv = v!==undefined && v.hasOwnProperty(key)? v[key] : undefined
+	  //       this.channels[key].prime(cv)
+	  //       pv[key] = this.channels[key].value()
+	  //     }
+	  //     return _prime(this.channels? pv : v)
+	  //   }
+	  // }
+
 	  function prime(ctx) {
 	    var _prime = ctx.prime.bind(ctx);
 	    return function prime(v) {
-	      var pv = {};
-	      for (var i = 0, keys = Object.keys(this.channels || {}); i < keys.length; i++) {
-	        var key = keys[i];
-	        var cv = v !== undefined && v.hasOwnProperty(key) ? v[key] : undefined;
-	        this.channels[key].prime(cv);
-	        pv[key] = this.channels[key].value();
+	      if (typeof v === 'object' && ctx.channels) {
+	        Object.keys(v).filter(function (k) {
+	          return ctx.channels[k];
+	        }).forEach(function (k) {
+	          ctx.channels[k].prime(v[k]);
+	        });
 	      }
-	      return _prime(this.channels ? pv : v);
+	      return _prime(v);
+	    };
+	  }
+
+	  function value(ctx) {
+	    var _value = ctx.value;
+	    return function value(v) {
+	      if (arguments.length) ctx.prime(v);
+	      return _value.apply(ctx, arguments);
 	    };
 	  }
 
@@ -505,7 +527,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	              // bind each joining signal to the context value
 	              output.bind(function (f, args) {
-	                return f.apply(output, args.concat(ctx.value()));
+	                args.push(ctx.value());
+	                return f.apply(output, args);
 	              });
 
 	              // for overlays
@@ -625,6 +648,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        sample: _this.sample,
 	        latch: _this.latch,
 	        prime: prime(ctx),
+	        value: value(ctx),
 	        overlay: overlay(ctx)
 	      };
 	    });
@@ -1383,6 +1407,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // convenient compose functor that maps from left to right
 	      this.flow = function () {
 	        var args = [].slice.call(arguments);
+	        if (args.length === 1 && typeof args[0] === 'object') {
+	          args = Object.keys(args[0]).map(function (k) {
+	            var arg = {};arg[k] = args[0][k];
+	            return arg;
+	          });
+	        }
 	        for (var i = 0; i < args.length; i++) {
 	          this.map(args[i]);
 	        }
@@ -1636,34 +1666,11 @@ return /******/ (function(modules) { // webpackBootstrap
 				return r.b === 2;
 			});
 
-			test('circuit value - prime keys', function () {
-				var a = app.signal();
-				var r = app.join({
-					a: a
-				});
-				r.prime();
-
-				return r.value().a === undefined;
-			});
-
-			test('circuit value - prime keys deep', function () {
-				var a = app.signal();
-				var r = app.join({
-					b: {
-						a: a
-					}
-				});
-				r.prime();
-
-				return r.value().b.a === undefined;
-			});
-
 			test('circuit value - prime values', function () {
 				var a = app.signal();
 				var r = app.join({
 					a: a
-				});
-				r.prime({ a: 123 });
+				}).prime({ a: 123 });
 
 				return a.value() === 123;
 			});
@@ -1674,8 +1681,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					b: {
 						a: a
 					}
-				});
-				r.prime({ b: { a: 123 } });
+				}).prime({ b: { a: 123 } });
 
 				return a.value() === 123;
 			});
@@ -2166,6 +2172,223 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+		if (true) {
+			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+		} else if (typeof exports !== "undefined") {
+			factory(require('../src'), require('../src/utils'));
+		} else {
+			var mod = {
+				exports: {}
+			};
+			factory(global.src, global.utils);
+			global.joinTests = mod.exports;
+		}
+	})(this, function (_src, _utils) {
+		'use strict';
+
+		var _src2 = _interopRequireDefault(_src);
+
+		var _utils2 = _interopRequireDefault(_utils);
+
+		function _interopRequireDefault(obj) {
+			return obj && obj.__esModule ? obj : {
+				default: obj
+			};
+		}
+
+		runTests('join', function (mock) {
+
+			var inc = function (v) {
+				return v + 1;
+			};
+			var dbl = function (v) {
+				return v + v;
+			};
+			var mul3 = function (v) {
+				return v * 3;
+			};
+
+			var app = new _src2.default.Circuit();
+			var signal = app.signal.bind(app);
+
+			test('join', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var j = app.join(s1, s2);
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return typeof r === 'object' && r[0] === 1 && r[1] === 2;
+			});
+
+			test('join - compose', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var r,
+				    j = app.join(s1, s2).tap(function (v) {
+					r = v;
+				});
+				s1.value(1);
+				s2.value(2);
+				return typeof r === 'object' && r[0] === 1 && r[1] === 2;
+			});
+
+			test('join - named key', function () {
+				var s1 = signal('k1');
+				var s2 = signal('k2');
+				var j = app.join(s1, s2);
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
+			});
+
+			test('join - channels', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var j = app.join({
+					k1: s1,
+					k2: s2
+				});
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
+			});
+
+			test('join - merge channels', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var j = app.join({
+					k1: s1
+				}, {
+					k2: s2
+				});
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
+			});
+
+			test('join - nested channels', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var j = app.join({
+					k1: s1,
+					k2: app.join({
+						k3: s2
+					})
+				});
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return _utils2.default.deepEqual(r, { k1: 1, k2: { k3: 2 } });
+			});
+
+			test('join - pure object hash', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var j = app.join({
+					k1: s1,
+					k2: {
+						k3: s2
+					}
+				});
+				s1.value(1);
+				s2.value(2);
+				var r = j.value();
+				return _utils2.default.deepEqual(r, { k1: 1, k2: { k3: 2 } });
+			});
+
+			test('join - auto name spacing', function () {
+				var j = {
+					a: {
+						b: {
+							c: signal()
+						}
+					}
+				};
+				var s = app.join(j);
+				return j.a.b.c.name === 'c';
+			});
+
+			test('merge', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var m = app.merge(s1, s2);
+				s1.value(1);
+				var r1 = m.value();
+				s2.value(2);
+				var r2 = m.value();
+				return r1 === 1 && r2 === 2;
+			});
+
+			test('sample', function () {
+				var s1 = signal();
+				var s2 = signal();
+				var s3 = signal();
+				var s = s1.sample(s2, s3).map(inc);
+				s1.value(1);
+				var r1 = s.value();
+				s2.value(2);
+				var r2 = s.value();
+				s3.value(3);
+				var r3 = s.value();
+				return r1 === 1 && r2 === 2 && r3 === 3;
+			});
+
+			test('latch - value true', function () {
+				var r,
+				    s = signal().prime(1).finally(function (v) {
+					r = v;
+				}).latch(true);
+				return r === 1;
+			});
+
+			test('latch - hold value true', function () {
+				return signal().prime(1).map(inc).latch(true).value(2) === 3;
+			});
+
+			test('latch - value false', function () {
+				var r,
+				    s = signal().prime(1).finally(function (v) {
+					r = v;
+				}).latch(false);
+				return r === undefined;
+			});
+
+			test('latch - hold value false', function () {
+				var s = signal().prime(1).latch(false).map(inc);
+				s.value(1);
+				return s.value() === 1;
+			});
+
+			test('latch - signal off', function () {
+				var ls = signal();
+				return signal().prime(1).latch(ls).map(inc).value() === 1;
+			});
+
+			test('latch - signal on', function () {
+				var ls = signal(),
+				    s = signal().prime(1).latch(ls).map(inc);
+				ls.value(true);
+				return s.value() === 2;
+			});
+
+			test('latch - hold signal on', function () {
+				var ls = signal(),
+				    s = signal().prime(1).latch(ls).map(inc);
+				ls.value(true);
+				return s.value(2) === 3;
+			});
+		});
+	});
+
+/***/ },
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2698,7 +2921,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2924,6 +3147,12 @@ return /******/ (function(modules) { // webpackBootstrap
 				return e === 4;
 			});
 
+			test('flow - signals', function () {
+				var s1 = signal().map(inc);
+				var s2 = signal().map(inc);
+				return signal().flow({ s1: s1, s2: s2 }).value(1) === 3;
+			});
+
 			test('bind - pre', function () {
 				var e,
 				    s = app.signal().map(inc).tap(function (v) {
@@ -3094,7 +3323,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -3209,7 +3438,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -3390,223 +3619,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return _utils2.default.reduce(channels, error) === true;
 	        });
 	    });
-	});
-
-/***/ },
-/* 17 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-		if (true) {
-			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-		} else if (typeof exports !== "undefined") {
-			factory(require('../src'), require('../src/utils'));
-		} else {
-			var mod = {
-				exports: {}
-			};
-			factory(global.src, global.utils);
-			global.joinTests = mod.exports;
-		}
-	})(this, function (_src, _utils) {
-		'use strict';
-
-		var _src2 = _interopRequireDefault(_src);
-
-		var _utils2 = _interopRequireDefault(_utils);
-
-		function _interopRequireDefault(obj) {
-			return obj && obj.__esModule ? obj : {
-				default: obj
-			};
-		}
-
-		runTests('join', function (mock) {
-
-			var inc = function (v) {
-				return v + 1;
-			};
-			var dbl = function (v) {
-				return v + v;
-			};
-			var mul3 = function (v) {
-				return v * 3;
-			};
-
-			var app = new _src2.default.Circuit();
-			var signal = app.signal.bind(app);
-
-			test('join', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var j = app.join(s1, s2);
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return typeof r === 'object' && r[0] === 1 && r[1] === 2;
-			});
-
-			test('join - compose', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var r,
-				    j = app.join(s1, s2).tap(function (v) {
-					r = v;
-				});
-				s1.value(1);
-				s2.value(2);
-				return typeof r === 'object' && r[0] === 1 && r[1] === 2;
-			});
-
-			test('join - named key', function () {
-				var s1 = signal('k1');
-				var s2 = signal('k2');
-				var j = app.join(s1, s2);
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
-			});
-
-			test('join - channels', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var j = app.join({
-					k1: s1,
-					k2: s2
-				});
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
-			});
-
-			test('join - merge channels', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var j = app.join({
-					k1: s1
-				}, {
-					k2: s2
-				});
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return _utils2.default.deepEqual(r, { k1: 1, k2: 2 });
-			});
-
-			test('join - nested channels', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var j = app.join({
-					k1: s1,
-					k2: app.join({
-						k3: s2
-					})
-				});
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return _utils2.default.deepEqual(r, { k1: 1, k2: { k3: 2 } });
-			});
-
-			test('join - pure object hash', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var j = app.join({
-					k1: s1,
-					k2: {
-						k3: s2
-					}
-				});
-				s1.value(1);
-				s2.value(2);
-				var r = j.value();
-				return _utils2.default.deepEqual(r, { k1: 1, k2: { k3: 2 } });
-			});
-
-			test('join - auto name spacing', function () {
-				var j = {
-					a: {
-						b: {
-							c: signal()
-						}
-					}
-				};
-				var s = app.join(j);
-				return j.a.b.c.name === 'c';
-			});
-
-			test('merge', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var m = app.merge(s1, s2);
-				s1.value(1);
-				var r1 = m.value();
-				s2.value(2);
-				var r2 = m.value();
-				return r1 === 1 && r2 === 2;
-			});
-
-			test('sample', function () {
-				var s1 = signal();
-				var s2 = signal();
-				var s3 = signal();
-				var s = s1.sample(s2, s3).map(inc);
-				s1.value(1);
-				var r1 = s.value();
-				s2.value(2);
-				var r2 = s.value();
-				s3.value(3);
-				var r3 = s.value();
-				return r1 === 1 && r2 === 2 && r3 === 3;
-			});
-
-			test('latch - value true', function () {
-				var r,
-				    s = signal().prime(1).finally(function (v) {
-					r = v;
-				}).latch(true);
-				return r === 1;
-			});
-
-			test('latch - hold value true', function () {
-				return signal().prime(1).map(inc).latch(true).value(2) === 3;
-			});
-
-			test('latch - value false', function () {
-				var r,
-				    s = signal().prime(1).finally(function (v) {
-					r = v;
-				}).latch(false);
-				return r === undefined;
-			});
-
-			test('latch - hold value false', function () {
-				var s = signal().prime(1).latch(false).map(inc);
-				s.value(1);
-				return s.value() === 1;
-			});
-
-			test('latch - signal off', function () {
-				var ls = signal();
-				return signal().prime(1).latch(ls).map(inc).value() === 1;
-			});
-
-			test('latch - signal on', function () {
-				var ls = signal(),
-				    s = signal().prime(1).latch(ls).map(inc);
-				ls.value(true);
-				return s.value() === 2;
-			});
-
-			test('latch - hold signal on', function () {
-				var ls = signal(),
-				    s = signal().prime(1).latch(ls).map(inc);
-				ls.value(true);
-				return s.value(2) === 3;
-			});
-		});
 	});
 
 /***/ }
