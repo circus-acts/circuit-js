@@ -9,5 +9,5 @@ const init = {email:''}
 circuit.overlay({tryLogin, view}).prime(init)
 
 // Since this circuit contains a sampled signal (login), it
-// won't fire off a new view on its own.
+// won't auto push to the view so bypass it here.
 view(init)

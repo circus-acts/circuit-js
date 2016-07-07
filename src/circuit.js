@@ -1,6 +1,6 @@
 import Circus from './circus'
 import Events from './events'
-import Signal from './signal'
+import SignalContext from './signal'
 
 'use strict'
 
@@ -13,7 +13,8 @@ function sdiff(v1,v2,isJoin) {
 }
 
 function toSignal(app,s) {
-  if (s===Circus.UNDEFINED) s = function(v) {return v}
+  if (s===Circus.ID) s = function(v) {return v}
+  if (s===Circus.UNDEFINED) s = function() {return Circus.UNDEFINED}
   if (!Circus.isSignal(s)) {
     var v = s, fn = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fn==='map') s = function() {return v}
@@ -44,21 +45,21 @@ function overlay(ctx) {
 function prime(ctx) {
   var _prime = ctx.prime.bind(ctx)
   return function prime(v) {
-    var pv = {}
-    for (var i=0, keys=Object.keys(this.channels||{}); i < keys.length; i++) {
-      var key = keys[i]
-      var cv = v!==undefined && v.hasOwnProperty(key)? v[key] : undefined
-      this.channels[key].prime(cv)
-      pv[key] = this.channels[key].value()
+    if (typeof v === 'object' && ctx.channels) {
+      Object.keys(v).filter(function(k) {
+        return ctx.channels[k]
+      }).forEach(function(k) {
+        ctx.channels[k].prime(v[k])
+      })
     }
-    return _prime(this.channels? pv : v)
+    return _prime(v)
   }
 }
 
 function Circuit() {
 
   var _this = this
-  var signal = new Signal(new Events(this))
+  var Signal = new SignalContext(new Events(this))
 
   function joinPoint(sampleOnly, joinOnly, args) {
     var ctx = this.asSignal().pure(sampleOnly? false : joinOnly? sdiff : true)
@@ -84,7 +85,8 @@ function Circuit() {
 
             // bind each joining signal to the context value
             output.bind(function(f,args) {
-              return f.apply(output,args.concat(ctx.value()))
+              args.push(ctx.value())
+              return f.apply(output,args)
             })
 
             // for overlays
@@ -110,13 +112,15 @@ function Circuit() {
       return function(v,f) {
         var jv = {}
         // matches and fails bubble up
-        if (joinOnly && !(f)) {
+        if (joinOnly && !f) {
           for (var c=0, l=channels.length; c<l; c++) {
             var s = channels[c]
             jv[keys[c]] = s.value()
           }
         }
-        else jv = v
+        else {
+          jv = v===undefined? Circus.UNDEFINED : v
+        }
         step(f || (sampleOnly? ctx.value() : jv))
       }
     }
@@ -143,11 +147,11 @@ function Circuit() {
 
   // public
 
-  this.signal = signal.create = function(name) {
+  this.signal = Signal.create = function(name) {
     return extensions.reduce(function(s,ext){
       ext = typeof ext==='function'? ext(s) : ext
       return Circus.extend(s,ext)
-    }, new signal(name))
+    }, new Signal(name))
   }
 
   this.asSignal = function() {
@@ -172,9 +176,12 @@ function Circuit() {
     return joinPoint.call(this,true,false,arguments)
   }
 
-  // latch output signal(s) to a boolean value or
-  // the boolean value of a latch signal
-  //
+  // Latch output signal(s) to a boolean value or the boolean value
+  // of a latching input signal. The channel will remain at the latched
+  // state.
+  // - Signal latching acts like an on / off switch.
+  // - Value latches are useful for disabling a channel permanently
+  //   or controlling its activation though an external state change.
   this.latch = function(l) {
     var _this = this,
         step = this.step(),
@@ -215,4 +222,4 @@ function Circuit() {
 
 }
 
-export default Circuit
+export default Circus.extend(Circuit,Circus)

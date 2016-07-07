@@ -6,7 +6,7 @@ runTests('circus', function(mock) {
 
     var app
     setup(function(){
-        app = new Circus.Circuit()
+        app = new Circus()
     })
 
     test('fail', function() {
@@ -16,7 +16,7 @@ runTests('circus', function(mock) {
 
     test('fail - value', function() {
         var f = Circus.fail(1)
-        return f.value === 1
+        return f.error === 1
     })
 
     test('typeof - Array', function(){

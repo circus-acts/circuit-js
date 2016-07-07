@@ -9,7 +9,7 @@ runTests('circuit', function(mock) {
 	var app
 
 	setup(function(){
-		app = new Circus.Circuit()
+		app = new Circus()
 	})
 
     test('as signal - from app', function(){
@@ -55,11 +55,39 @@ runTests('circuit', function(mock) {
 	})
 
 	test('channel - implied map', function(){
-		var r,a = app.join({
+		var r,a = app.merge({
 			a: inc
-		}).channels.a.value(1)
+		})
+		a.channels.a.value(1)
 
-		return a === 2
+		return a.value() === 2
+	})
+
+	test('channel - identity map', function(){
+		var r,a = app.merge({
+			a: Circus.ID
+		})
+		a.channels.a.value(1)
+
+		return a.value() === 1
+	})
+
+	test('channel - value (always) map', function(){
+		var r,a = app.merge({
+			a: 123
+		})
+		a.channels.a.value(1)
+
+		return a.value() === 123
+	})
+
+	test('channel - value (always undefined) map', function(){
+		var r,a = app.merge({
+			a: Circus.UNDEFINED
+		})
+		a.channels.a.value(1)
+
+		return a.value() === undefined
 	})
 
 	test('associativity - input / output', function(){
@@ -109,34 +137,11 @@ runTests('circuit', function(mock) {
 		return r.b===2
 	})
 
-	test('circuit value - prime keys', function(){
-		var a=app.signal()
-		var r = app.join({
-			a: a
-		})
-		r.prime()
-
-		return r.value().a===undefined
-	})
-
-	test('circuit value - prime keys deep', function(){
-		var a=app.signal()
-		var r = app.join({
-			b: {
-				a: a
-			}
-		})
-		r.prime()
-
-		return r.value().b.a===undefined
-	})
-
 	test('circuit value - prime values', function(){
 		var a=app.signal()
 		var r = app.join({
 			a: a
-		})
-		r.prime({a:123})
+		}).prime({a:123})
 
 		return a.value()===123
 	})
@@ -147,8 +152,7 @@ runTests('circuit', function(mock) {
 			b: {
 				a: a
 			}
-		})
-		r.prime({b:{a:123}})
+		}).prime({b:{a:123}})
 
 		return a.value()===123
 	})
@@ -181,13 +185,13 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - placeholder', function(){
-		var c = app.join({a:Circus.UNDEFINED})
+		var c = app.join({a:Circus.ID})
 		return c.channels.a.value(1) === 1
 	})
 
 	test('circuit - overlay placeholder', function(){
 		var o = {a:inc}
-		var c = app.join({a:Circus.UNDEFINED}).overlay(o)
+		var c = app.join({a:Circus.ID}).overlay(o)
 		return c.channels.a.value(0) === 1
 	})
 
@@ -267,14 +271,14 @@ runTests('circuit', function(mock) {
 	})
 
     test('extend - app ctx', function(){
-        var app1 = new Circus.Circuit().extend({c:true})
-        var app2 = new Circus.Circuit()
+        var app1 = new Circus().extend({c:true})
+        var app2 = new Circus()
 
         return app1.signal().c && !app2.signal().c
     })
 
     test('extend - app ctx + signal ctx', function(){
-        var r1,r2,ctx = new Circus.Circuit()
+        var r1,r2,ctx = new Circus()
         ctx.extend(function(c1){r1=c1;return {b:true}})
         ctx.extend(function(c2){r2=c2;return {c:true}})
         var s = ctx.signal()

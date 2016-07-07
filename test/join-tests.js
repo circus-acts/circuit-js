@@ -7,7 +7,7 @@ runTests('join', function(mock) {
 	var dbl = function(v){return v+v}
 	var mul3 = function(v){return v*3}
 
-	var app = new Circus.Circuit()
+	var app = new Circus()
 	var signal = app.signal.bind(app)
 
 	test('join', function() {

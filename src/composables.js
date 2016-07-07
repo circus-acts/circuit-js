@@ -1,4 +1,4 @@
-import Circus from './circus'
+import Circus from './'
 import Utils from './utils'
 
 'use strict';

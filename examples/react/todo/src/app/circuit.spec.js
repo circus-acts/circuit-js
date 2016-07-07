@@ -1,5 +1,4 @@
-const { runTest, test } = require('test')
-const todo, { inputs, outputs } = require('./todo')
+const todo, { inputs } = require('./circuit')
 
 runTest('todo circuit', function(){
 
