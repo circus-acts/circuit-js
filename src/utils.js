@@ -76,7 +76,7 @@ export function Error(ctx) {
     var _fail
     ctx.finally(function(v,f) {
       if (f) {
-        _fail = _fail || f.value || true
+        _fail = _fail || f.error || true
       }
     })
 

@@ -1,4 +1,4 @@
-import Circus, { Circuit } from '../src'
+import Circus from '../src'
 import Composables from '../src/composables'
 import Utils from '../src/utils'
 
@@ -7,7 +7,7 @@ runTests('composables', function(mock) {
     function inc(v) {return v+1}
     function dbl(v) {return v+v}
 
-    var app = new Circus.Circuit(Composables)
+    var app = new Circus(Composables)
 
     test('always',function() {
         var s = app.signal()

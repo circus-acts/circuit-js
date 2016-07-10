@@ -1,9 +1,11 @@
 require('./circus-tests')
 require('./signal-tests')
 require('./circuit-tests')
-require('./match-tests')
 require('./join-tests')
-require('./composables-tests')
 require('./utils-tests')
-require('./issues')
+
+require('./match-tests')
+require('./composables-tests')
+
 require('./spikes/validation')
+require('./issues')

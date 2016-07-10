@@ -8,7 +8,7 @@ runTests('utils', function(mock) {
     var app, channels, sigBlock, valBlock
     setup(function(){
 
-        app = new Circus.Circuit(Error)
+        app = new Circus(Error)
 
         sigBlock = {
             i1:app.signal(),
@@ -48,7 +48,7 @@ runTests('utils', function(mock) {
 
     test('test - fail with reason', function() {
         var m = Utils.test(function(v){return !!v},'xyz')(0)
-        return m.value === 'xyz'
+        return m.error === 'xyz'
     })
 
     test('error - circuit valid', function() {

@@ -28,10 +28,11 @@ function extend(proto, ext) {
 
 function fail(v) {
   if (!(this instanceof fail)) return new fail(v);
-  this.value = v
+  this.error = v
 }
 
 var api = {
+  ID: Object.freeze({value:true}),
   UNDEFINED: Object.freeze({value:undefined}),
   extend: extend,
   fail: fail,

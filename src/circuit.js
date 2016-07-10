@@ -1,6 +1,6 @@
 import Circus from './circus'
 import Events from './events'
-import AppState from './signal'
+import SignalContext from './signal'
 
 'use strict'
 
@@ -13,7 +13,8 @@ function sdiff(v1,v2,isJoin) {
 }
 
 function toSignal(app,s) {
-  if (s===Circus.UNDEFINED) s = function(v) {return v}
+  if (s===Circus.ID) s = function(v) {return v}
+  if (s===Circus.UNDEFINED) s = function() {return Circus.UNDEFINED}
   if (!Circus.isSignal(s)) {
     var v = s, fn = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fn==='map') s = function() {return v}
@@ -44,12 +45,11 @@ function overlay(ctx) {
 function prime(ctx) {
   var _prime = ctx.prime.bind(ctx)
   return function prime(v) {
-    var _this = this
-    if (typeof v === 'object' && _this.channels) {
+    if (typeof v === 'object' && ctx.channels) {
       Object.keys(v).filter(function(k) {
-        return _this.channels[k]
+        return ctx.channels[k]
       }).forEach(function(k) {
-        _this.channels[k].prime(v[k])
+        ctx.channels[k].prime(v[k])
       })
     }
     return _prime(v)
@@ -58,14 +58,12 @@ function prime(ctx) {
 
 function Circuit() {
 
-  var extensions = []
   var _this = this
-
-  var Signal = new AppState(new Events(this))
+  var Signal = new SignalContext(new Events(this))
 
   function joinPoint(sampleOnly, joinOnly, args) {
-    var ctx = this.asSignal().pure(sampleOnly? false : sdiff)
-    ctx.isJoin = joinOnly || ctx.isJoin
+    var ctx = this.asSignal().pure(sampleOnly? false : joinOnly? sdiff : true)
+    ctx.isJoin = joinOnly
 
     var signals = [].slice.call(args)
     if (typeof signals[0] === 'string') {
@@ -74,8 +72,7 @@ function Circuit() {
 
     // flatten joining signals into channels
     // - accepts and blocks out nested signals into circuit
-    var circuit=ctx.channels || {}, channels = [], cIdx=0
-    var keys=[]
+    var circuit=ctx.channels || {}, channels = [], keys=[], cIdx=0
     while (signals.length) {
       var signal = signals.shift()
       if (!Circus.isSignal(signal)) {
@@ -88,7 +85,8 @@ function Circuit() {
 
             // bind each joining signal to the context value
             output.bind(function(f,args) {
-              return f.apply(output,args.concat(ctx.value()))
+              args.push(ctx.value())
+              return f.apply(output,args)
             })
 
             // for overlays
@@ -114,13 +112,15 @@ function Circuit() {
       return function(v,f) {
         var jv = {}
         // matches and fails bubble up
-        if (joinOnly && !(f)) {
+        if (joinOnly && !f) {
           for (var c=0, l=channels.length; c<l; c++) {
             var s = channels[c]
             jv[keys[c]] = s.value()
           }
         }
-        else jv = v
+        else {
+          jv = v===undefined? Circus.UNDEFINED : v
+        }
         step(f || (sampleOnly? ctx.value() : jv))
       }
     }
@@ -141,6 +141,7 @@ function Circuit() {
     // hide the channel array but expose as circuit
     ctx.channels = circuit
 
+    // pass through for all joins but samples
     return ctx.map(function(v){return sampleOnly? undefined : v})
   }
 
@@ -175,6 +176,28 @@ function Circuit() {
     return joinPoint.call(this,true,false,arguments)
   }
 
+  // Latch output signal(s) to a boolean value or the boolean value
+  // of a latching input signal. The channel will remain at the latched
+  // state.
+  // - Signal latching acts like an on / off switch.
+  // - Value latches are useful for disabling a channel permanently
+  //   or controlling its activation though an external state change.
+  this.latch = function(l) {
+    var _this = this,
+        step = this.step(),
+        ls = Circus.isSignal(l) && l.finally(function(v){
+          lv = !!v
+          if (lv) step(_this.value())
+        }),
+        lv = !ls && !!l
+
+    if (lv) step(_this.value())
+    return this.map(function(v){
+      return lv? v : undefined
+    })
+  }
+
+  var extensions = []
   this.extend = function(ext){
     extensions.push(ext)
     if (typeof ext!=='function') {
@@ -182,14 +205,12 @@ function Circuit() {
     }
   }
 
-  this.extend({
-      join: _this.join,
-      merge: _this.merge,
-      sample: _this.sample
-  })
-
   this.extend(function(ctx){
     return {
+      join: _this.join,
+      merge: _this.merge,
+      sample: _this.sample,
+      latch: _this.latch,
       prime: prime(ctx),
       overlay: overlay(ctx)
     }
@@ -201,4 +222,4 @@ function Circuit() {
 
 }
 
-export default Circuit
+export default Circus.extend(Circuit,Circus)

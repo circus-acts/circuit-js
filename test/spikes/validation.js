@@ -1,4 +1,4 @@
-import Circus, { Circuit } from '../../src'
+import Circus from '../../src'
 import Utils, {Error} from '../../src/utils'
 
 runTests('validation', function() {
@@ -14,7 +14,7 @@ runTests('validation', function() {
     setup(function(){
 
         // export a circuit
-        circuit = new Circuit().join({
+        circuit = new Circus().join({
             email: Utils.test( email, `please enter a valid email` ),
             password: Utils.test( required, `please enter your password` )
         })

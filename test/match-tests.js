@@ -1,11 +1,11 @@
-import Circus, { Circuit } from '../src'
+import Circus from '../src'
 import Match from '../src/match'
 import Utils from '../src/utils'
 
 runTests('match', function(mock) {
 
     var inc = function(v){return v+1}
-    var app = new Circuit(Match)
+    var app = new Circus(Match)
 
     test('match - pass truthy literal', function() {
         var r, v=1
