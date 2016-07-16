@@ -56,14 +56,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(10), __webpack_require__(15), __webpack_require__(9), __webpack_require__(13), __webpack_require__(17), __webpack_require__(14), __webpack_require__(11), __webpack_require__(16), __webpack_require__(12)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(11), __webpack_require__(16), __webpack_require__(10), __webpack_require__(14), __webpack_require__(19), __webpack_require__(18), __webpack_require__(15), __webpack_require__(12), __webpack_require__(17), __webpack_require__(20), __webpack_require__(13)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
-	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./join-tests'), require('./utils-tests'), require('./match-tests'), require('./composables-tests'), require('./spikes/validation'), require('./issues'));
+	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./join-tests'), require('./error-tests'), require('./utils-tests'), require('./match-tests'), require('./composables-tests'), require('./spikes/validation'), require('./spikes/maybe'), require('./issues'));
 	  } else {
 	    var mod = {
 	      exports: {}
 	    };
-	    factory(global.circusTests, global.signalTests, global.circuitTests, global.joinTests, global.utilsTests, global.matchTests, global.composablesTests, global.validation, global.issues);
+	    factory(global.circusTests, global.signalTests, global.circuitTests, global.joinTests, global.errorTests, global.utilsTests, global.matchTests, global.composablesTests, global.validation, global.maybe, global.issues);
 	    global.index = mod.exports;
 	  }
 	})(this, function () {});
@@ -74,17 +74,17 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(4), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(4), __webpack_require__(6)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circuit'), require('./utils'));
+	    factory(exports, require('./circuit'), require('./error'));
 	  } else {
 	    var mod = {
 	      exports: {}
 	    };
-	    factory(mod.exports, global.circuit, global.utils);
+	    factory(mod.exports, global.circuit, global.error);
 	    global.index = mod.exports;
 	  }
-	})(this, function (exports, _circuit, _utils) {
+	})(this, function (exports, _circuit, _error) {
 	  'use strict';
 
 	  Object.defineProperty(exports, "__esModule", {
@@ -100,8 +100,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 	  }
 
-	  exports.Error = _utils.Error;
-	  exports.test = _utils.test;
+	  exports.Error = _error.Error;
+	  exports.test = _error.test;
 	  exports.default = _circuit2.default;
 	});
 
@@ -127,7 +127,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Object.defineProperty(exports, "__esModule", {
 	    value: true
 	  });
-	  exports.Error = Error;
 	  exports.test = test;
 
 	  var _circus2 = _interopRequireDefault(_circus);
@@ -170,6 +169,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return data && data.hasOwnProperty(key) ? data[key] : _circus2.default.UNDEFINED;
 	  }
 
+	  // return a value from a nested structure
+	  // useful for plucking values from models and signals from signal groups
 	  function lens(data, name, ns, def) {
 	    if (arguments.length < 4) {
 	      def = null;
@@ -211,42 +212,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return stamp(c, fn, tv);
 	  }
 
-	  function Error(ctx) {
-	    if (!this instanceof Error) return new Error(ctx);
-	    ctx.extend(function (ctx) {
-	      var _fail;
-	      ctx.finally(function (v, f) {
-	        if (f) {
-	          _fail = _fail || f.error || true;
-	        }
-	      });
-
-	      // important: this functor flatmaps a circuit's channels
-	      // at the point that it is employed. Make this the last
-	      // binding if all channels are required.
-	      var channels = api.flatmap(ctx);
-
-	      return {
-	        active: function (m) {
-	          return ctx.map(function (v) {
-	            for (var c = 0; c < channels.length; c++) {
-	              if (!channels[c].active()) return _circus2.default.fail(m || 'required');
-	            }
-	            return v;
-	          });
-	        },
-	        error: function (v) {
-	          if (_fail) {
-	            var v = _fail;
-	            _fail = false;
-	            return v || true;
-	          }
-	          return '';
-	        }
-	      };
-	    });
-	  }
-
 	  function test(f, m) {
 	    return _circus2.default.isAsync(f) ? function (v, next) {
 	      return f.call(this, v, function (j) {
@@ -276,9 +241,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	      return !diff(v1, v2, true);
 	    },
 
-	    // lens
-	    // re,turn a value from a nested structure
-	    // useful for plucking values and signals from models and signal groups respectively
 	    lens: lens,
 
 	    reduce: function (s, fn, seed, tv) {
@@ -295,9 +257,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    tap: function (s, fn, tv) {
 	      traverse(s, fn, _circus2.default.UNDEFINED, tv);
-	    },
-
-	    test: test
+	    }
 	  };
 
 	  exports.default = api;
@@ -380,7 +340,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(6), __webpack_require__(8)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(7), __webpack_require__(9)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports, require('./circus'), require('./events'), require('./signal'));
 	  } else {
@@ -753,25 +713,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 	      },
 
-	      maybe: function (f, n) {
+	      maybe: function (f) {
 	        return this.map(function (v) {
-	          return f(v) ? { just: v } : { nothing: n || true };
+	          return f(v) ? { just: v } : { nothing: true };
 	        });
 	      },
 
-	      // streamlined map
+	      // map object key values
 	      pluck: function () {
 	        var args = [].slice.call(arguments),
 	            a0 = args[0];
 	        return this.map(function (v) {
-	          return args.length === 1 && (v[a0] || _utils2.default.lens(v, a0)) || args.reduce(function (r, key) {
-	            r[key] = _utils2.default.lens(v, key);
-	            return r;
-	          }, {});
+	          return args.length === 1 && (v[a0] || _utils2.default.lens(v, a0)) || args.map(function (key) {
+	            return _utils2.default.lens(v, key);
+	          });
 	        });
 	      },
 
-	      // named (projected) pluck
+	      // named (projected) map
 	      project: function () {
 	        var args = [].slice.call(arguments);
 	        return this.map(function (v) {
@@ -867,6 +826,103 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports, require('./circus'), require('./utils'));
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports, global.circus, global.utils);
+	    global.error = mod.exports;
+	  }
+	})(this, function (exports, _circus, _utils) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+	  exports.Maybe = Maybe;
+	  exports.Error = Error;
+	  exports.test = test;
+
+	  var _circus2 = _interopRequireDefault(_circus);
+
+	  var _utils2 = _interopRequireDefault(_utils);
+
+	  function _interopRequireDefault(obj) {
+	    return obj && obj.__esModule ? obj : {
+	      default: obj
+	    };
+	  }
+
+	  'use strict';
+
+	  function Maybe(ctx) {
+	    ctx.extend(function (ctx) {
+	      return {
+	        maybe: function (m) {
+	          return ctx.finally(function (v, f) {
+	            return f ? m.nothing() : m.just(v);
+	          });
+	        }
+	      };
+	    });
+	  }
+
+	  function Error(ctx) {
+	    ctx.extend(function (ctx) {
+	      var _fail;
+	      ctx.finally(function (v, f) {
+	        if (f) {
+	          _fail = _fail || f.error || true;
+	        }
+	      });
+
+	      // important: this functor flatmaps a circuit's channels
+	      // at the point that it is employed. Make this the last
+	      // binding if all channels are required.
+	      var channels = _utils2.default.flatmap(ctx);
+
+	      return {
+	        active: function (m) {
+	          return ctx.map(function (v) {
+	            for (var c = 0; c < channels.length; c++) {
+	              if (!channels[c].active()) return _circus2.default.fail(m || 'required');
+	            }
+	            return v;
+	          });
+	        },
+	        error: function (v) {
+	          if (_fail) {
+	            var v = _fail;
+	            _fail = false;
+	            return v || true;
+	          }
+	          return '';
+	        }
+	      };
+	    });
+	  }
+
+	  function test(f, m) {
+	    return _circus2.default.isAsync(f) ? function (v, next) {
+	      return f.call(this, v, function (j) {
+	        return next(j ? j === true ? v : j : _circus2.default.fail(m));
+	      });
+	    } : function (v) {
+	      var j = f.call(this, v);
+	      return j ? j === true ? v : j : _circus2.default.fail(m);
+	    };
+	  }
+	});
+
+/***/ },
+/* 7 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
 	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports);
@@ -926,7 +982,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 7 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1002,7 +1058,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  //    - the signal is blocked if all channels are blocked
 	  //    - the match function is provided by Circus.and
 	  //
-	  function match(f) {
+	  function match() {
 
 	    var ctx = this.asSignal();
 	    var args = [].slice.call(arguments);
@@ -1160,7 +1216,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 8 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1250,6 +1306,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        _propagation.start(_this, v);
 	        if (fail) {
 	          nv = v;
+	          v = _head;
 	        } else if (!_pure || _diff(v, _head, _this.isJoin)) {
 	          hv = nv = v;
 	          // steps in FIFO order
@@ -1491,7 +1548,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 9 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1834,7 +1891,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1912,7 +1969,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1966,7 +2023,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            });
 	            var r = [];
 	            for (var i = 0; i < 4; i++) s.value(i);
-	            return r.length === 2 && r[0].toString() === '0,1' && r[1].toString() === '2,3';
+	            return _utils2.default.deepEqual(r, [[0, 1], [2, 3]]);
 	        });
 
 	        test('compose', function () {
@@ -1979,10 +2036,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 
 	        test('feed', function () {
-	            var s1 = app.signal();
+	            var s1 = app.signal().map(inc);
 	            var s2 = app.signal().feed(s1).map(inc);
 	            s2.value(2);
-	            return s1.value() === 2 & s2.value() === 2;
+	            return s1.value() === 3 & s2.value() === 2;
 	        });
 
 	        test('feed - fanout', function () {
@@ -2006,7 +2063,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            s.value([1, 2]);
 	            s.value([3, [4, 5]]);
 	            s.value(6);
-	            return s.toArray().toString() === '1,2,3,4,5,6';
+	            return _utils2.default.deepEqual(s.toArray(), [1, 2, 3, 4, 5, 6]);
 	        });
 
 	        test('flatten - flatmap', function () {
@@ -2015,39 +2072,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }).keep();
 	            s.value([1, 2]);
 	            s.value(3);
-	            return s.toArray().toString() === '2,3,4';
+	            return _utils2.default.deepEqual(s.toArray(), [2, 3, 4]);
 	        });
 
 	        test('maybe', function () {
 	            var value = app.signal().maybe(function (v) {
 	                return true;
-	            }, 'nothing').value(123);
+	            }).value(123);
 	            return value.just === 123;
 	        });
 
 	        test('maybe - nothing', function () {
 	            var value = app.signal().maybe(function (v) {
 	                return false;
-	            }, 'nothing').value(123);
-	            return value.nothing === 'nothing';
+	            }).value(123);
+	            return value.nothing;
 	        });
 
-	        test('pluck', function () {
+	        test('pluck - 1 key', function () {
+	            var s = app.signal().pluck('b');
+	            return s.value({ a: 1, b: 2, c: 3 }) === 2;
+	        });
+
+	        test('pluck - more than one key', function () {
 	            var s = app.signal().pluck('a', 'b');
-	            s.value({ a: 1, b: 2, c: 3 });
-	            return Object.keys(s.value()).toString() === 'a,b' && s.value().a === 1 && s.value().b === 2;
+	            return _utils2.default.deepEqual(s.value({ a: 1, b: 2, c: 3 }), [1, 2]);
 	        });
 
 	        test('pluck - deep', function () {
 	            var s = app.signal().pluck('a.a1', 'b.b1[1]');
-	            s.value({ a: { a1: 1 }, b: { b1: [2, 3] } });
-	            return Object.keys(s.value()).toString() === 'a.a1,b.b1[1]' && s.value()['a.a1'] === 1 && s.value()['b.b1[1]'] === 3;
+	            return _utils2.default.deepEqual(s.value({ a: { a1: 1 }, b: { b1: [2, 3] } }), [1, 3]);
 	        });
 
 	        test('project', function () {
 	            var s = app.signal().project({ a: 'a.a1', b: 'b.b1[1]' });
 	            s.value({ a: { a1: 1 }, b: { b1: [2, 3] } });
-	            return Object.keys(s.value()).toString() === 'a,b' && s.value().a === 1 && s.value().b === 3;
+	            return _utils2.default.deepEqual(s.value(), { a: 1, b: 3 });
 	        });
 
 	        test('fold', function () {
@@ -2082,16 +2142,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            s.value(2);
 	            s.value(3);
 	            var v = s.toArray();
-	            return v.toString() === '2,3';
-	        });
-
-	        test('keep - history', function () {
-	            var s = app.signal().keep(2);
-	            s.value(1);
-	            s.value(2);
-	            s.value(3);
-	            var v = s.toArray();
-	            return v.length === 2 && v[0] === 2;
+	            return _utils2.default.deepEqual(v, [2, 3]);
 	        });
 
 	        test('history - keep', function () {
@@ -2099,7 +2150,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            s.value(1);
 	            s.value(2);
 	            s.value(3);
-	            return s.toArray()[0] === 1 && s.toArray().length === 3;
+	            return _utils2.default.deepEqual(s.toArray(), [1, 2, 3]);
 	        });
 
 	        test('skip', function () {
@@ -2123,29 +2174,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	        test('window', function () {
 	            var s = app.signal().window(2);
 	            for (var i = 0; i < 4; i++) s.value(i);
-	            return s.value().toString() === '2,3';
+	            return _utils2.default.deepEqual(s.value(), [2, 3]);
 	        });
 
 	        test('zip - arrays', function () {
 	            var s1 = app.signal();
 	            var s2 = app.signal();
-	            app.join(s1, s2, true).zip().tap(function (v) {
+	            app.join(s1, s2).zip().tap(function (v) {
 	                r.push(v);
 	            });
 	            var a = [1, 2, 3],
 	                b = [4, 5, 6],
 	                r = [];
-	            a.map(function (x, i) {
-	                s1.value(x);
+	            a.map(function (_, i) {
+	                s1.value(a[i]);
 	                s2.value(b[i]);
 	            });
-	            return r.length === 3 && _utils2.default.deepEqual(r, [[1, 4], [2, 5], [3, 6]]);
+	            return _utils2.default.deepEqual(r, [[1, 4], [2, 5], [3, 6]]);
 	        });
 	    });
 	});
 
 /***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2181,7 +2232,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2398,12 +2449,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(7), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(8), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
 	        factory(require('../src'), require('../src/match'), require('../src/utils'));
 	    } else {
@@ -2931,7 +2982,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -3162,8 +3213,8 @@ return /******/ (function(modules) { // webpackBootstrap
 						next(_src2.default.fail());
 					});
 				}
-				signal().map(async).finally(function (v) {
-					done(v instanceof _src2.default.fail);
+				signal().map(async).finally(function (v, f) {
+					done(f instanceof _src2.default.fail);
 				}).value(1);
 			});
 
@@ -3352,27 +3403,46 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(2), __webpack_require__(6)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
-	        factory(require('../../src'), require('../../src/utils'));
+	        factory(require('../../src'), require('../../src/utils'), require('../../src/error'));
 	    } else {
 	        var mod = {
 	            exports: {}
 	        };
-	        factory(global.src, global.utils);
+	        factory(global.src, global.utils, global.error);
 	        global.validation = mod.exports;
 	    }
-	})(this, function (_src, _utils) {
+	})(this, function (_src, _utils, _error) {
 	    'use strict';
 
 	    var _src2 = _interopRequireDefault(_src);
 
 	    var _utils2 = _interopRequireDefault(_utils);
+
+	    var error = _interopRequireWildcard(_error);
+
+	    function _interopRequireWildcard(obj) {
+	        if (obj && obj.__esModule) {
+	            return obj;
+	        } else {
+	            var newObj = {};
+
+	            if (obj != null) {
+	                for (var key in obj) {
+	                    if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+	                }
+	            }
+
+	            newObj.default = obj;
+	            return newObj;
+	        }
+	    }
 
 	    function _interopRequireDefault(obj) {
 	        return obj && obj.__esModule ? obj : {
@@ -3394,9 +3464,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            // export a circuit
 	            circuit = new _src2.default().join({
-	                email: _utils2.default.test(email, `please enter a valid email`),
-	                password: _utils2.default.test(required, `please enter your password`)
-	            }).extend(_utils.Error).sample({ login: _ }).active('required!').map({ tryLogin: _ }).finally({ view: _ });
+	                email: error.test(email, `please enter a valid email`),
+	                password: error.test(required, `please enter your password`)
+	            }).extend(error.Error).sample({ login: _ }).active('required!').map({ tryLogin: _ }).finally({ view: _ });
 
 	            channels = circuit.channels;
 	        });
@@ -3467,7 +3537,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -3504,7 +3574,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var app, channels, sigBlock, valBlock;
 	        setup(function () {
 
-	            app = new _src2.default(_utils.Error);
+	            app = new _src2.default();
 
 	            sigBlock = {
 	                i1: app.signal(),
@@ -3525,83 +3595,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	            };
 
 	            channels = app.join(sigBlock);
-	        });
-
-	        test('test - true', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return true;
-	            })(1);
-	            return m === 1;
-	        });
-
-	        test('test - value', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return v + 1;
-	            })(1);
-	            return m === 2;
-	        });
-
-	        test('test - fail', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            })(0);
-	            return m instanceof _src2.default.fail;
-	        });
-
-	        test('test - fail with reason', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            }, 'xyz')(0);
-	            return m.error === 'xyz';
-	        });
-
-	        test('error - circuit valid', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            }, 'error!');
-	            var s = app.merge({ m: m }).map(inc);
-	            s.channels.m.value(1);
-	            return s.error() === '' && s.value() === 2;
-	        });
-
-	        test('error - circuit error', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            });
-	            var s = app.merge({ m: m }).map(inc);
-	            s.channels.m.value(0);
-	            return s.error() === true;
-	        });
-
-	        test('error - circuit error msg', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            }, 'error!');
-	            var s = app.merge({ m: m }).map(inc);
-	            s.channels.m.value(0);
-	            return s.error() === 'error!';
-	        });
-
-	        test('error - first error only', function () {
-	            var m1 = _utils2.default.test(function (v) {
-	                return !!v;
-	            }, 1);
-	            var m2 = _utils2.default.test(function (v) {
-	                return !!v;
-	            }, 2);
-	            var s = app.merge({ m1: m1, m2: m2 }).map(inc);
-	            s.channels.m1.value(0);
-	            s.channels.m2.value(0);
-	            return s.error() === 1 && s.value() === undefined;
-	        });
-
-	        test('error - circuit error clear', function () {
-	            var m = _utils2.default.test(function (v) {
-	                return !!v;
-	            });
-	            var s = app.merge({ m: m }).map(inc);
-	            s.channels.m.value(0);
-	            return s.error() === true && s.error() === '';
 	        });
 
 	        test('lens', function () {
@@ -3646,6 +3639,203 @@ return /******/ (function(modules) { // webpackBootstrap
 	                return err || s.name === 'i4';
 	            }
 	            return _utils2.default.reduce(channels, error) === true;
+	        });
+	    });
+	});
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	    if (true) {
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(6)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof exports !== "undefined") {
+	        factory(require('../src'), require('../src/error'));
+	    } else {
+	        var mod = {
+	            exports: {}
+	        };
+	        factory(global.src, global.error);
+	        global.errorTests = mod.exports;
+	    }
+	})(this, function (_src, _error) {
+	    'use strict';
+
+	    var _src2 = _interopRequireDefault(_src);
+
+	    var error = _interopRequireWildcard(_error);
+
+	    function _interopRequireWildcard(obj) {
+	        if (obj && obj.__esModule) {
+	            return obj;
+	        } else {
+	            var newObj = {};
+
+	            if (obj != null) {
+	                for (var key in obj) {
+	                    if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+	                }
+	            }
+
+	            newObj.default = obj;
+	            return newObj;
+	        }
+	    }
+
+	    function _interopRequireDefault(obj) {
+	        return obj && obj.__esModule ? obj : {
+	            default: obj
+	        };
+	    }
+
+	    var inc = function (v) {
+	        return v + 1;
+	    };
+
+	    runTests('error', function (mock) {
+
+	        var app;
+	        setup(function () {
+	            app = new _src2.default(error.Error);
+	        });
+
+	        test('test - true', function () {
+	            var m = error.test(function (v) {
+	                return true;
+	            })(1);
+	            return m === 1;
+	        });
+
+	        test('test - value', function () {
+	            var m = error.test(function (v) {
+	                return v + 1;
+	            })(1);
+	            return m === 2;
+	        });
+
+	        test('test - fail', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            })(0);
+	            return m instanceof _src2.default.fail;
+	        });
+
+	        test('test - fail with reason', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            }, 'xyz')(0);
+	            return m.error === 'xyz';
+	        });
+
+	        test('error - circuit valid', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            }, 'error!');
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(1);
+	            return s.error() === '' && s.value() === 2;
+	        });
+
+	        test('error - circuit error', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            });
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === true;
+	        });
+
+	        test('error - circuit error msg', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            }, 'error!');
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === 'error!';
+	        });
+
+	        test('error - first error only', function () {
+	            var m1 = error.test(function (v) {
+	                return !!v;
+	            }, 1);
+	            var m2 = error.test(function (v) {
+	                return !!v;
+	            }, 2);
+	            var s = app.merge({ m1: m1, m2: m2 }).map(inc);
+	            s.channels.m1.value(0);
+	            s.channels.m2.value(0);
+	            return s.error() === 1 && s.value() === undefined;
+	        });
+
+	        test('error - circuit error clear', function () {
+	            var m = error.test(function (v) {
+	                return !!v;
+	            });
+	            var s = app.merge({ m: m }).map(inc);
+	            s.channels.m.value(0);
+	            return s.error() === true && s.error() === '';
+	        });
+	    });
+	});
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	    if (true) {
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(6)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof exports !== "undefined") {
+	        factory(require('../../src'), require('../../src/error'));
+	    } else {
+	        var mod = {
+	            exports: {}
+	        };
+	        factory(global.src, global.error);
+	        global.maybe = mod.exports;
+	    }
+	})(this, function (_src, _error) {
+	    'use strict';
+
+	    var _src2 = _interopRequireDefault(_src);
+
+	    function _interopRequireDefault(obj) {
+	        return obj && obj.__esModule ? obj : {
+	            default: obj
+	        };
+	    }
+
+	    runTests('maybe', function () {
+
+	        // some validation
+	        const password = v => !!v ? v : _src2.default.fail();
+	        const email = v => /\S+@\S+\.\S+/i.test(v) ? v : _src2.default.fail();
+
+	        let circuit, channels, result;
+
+	        setup(function () {
+
+	            circuit = new _src2.default(_error.Maybe).join({
+	                email,
+	                password
+	            }).maybe({
+	                nothing: () => result = false,
+	                just: v => result = v
+	            });
+
+	            result = undefined;
+	            channels = circuit.channels;
+	        });
+
+	        test('email - maybe nothing', function () {
+	            channels.email.value('x');
+	            return result === false;
+	        });
+
+	        test('email - maybe just value', function () {
+	            channels.password.value('x');
+	            return result.password === 'x';
 	        });
 	    });
 	});

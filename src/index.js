@@ -1,5 +1,5 @@
 import Circuit from './circuit'
-import { Error, test } from './utils'
+import { Error, test } from './error'
 
 export { Error, test }
 export default Circuit

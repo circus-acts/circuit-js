@@ -1,5 +1,6 @@
 import Circus from '../../src'
-import Utils, {Error} from '../../src/utils'
+import Utils from '../../src/utils'
+import * as error from '../../src/error'
 
 runTests('validation', function() {
 
@@ -15,10 +16,10 @@ runTests('validation', function() {
 
         // export a circuit
         circuit = new Circus().join({
-            email: Utils.test( email, `please enter a valid email` ),
-            password: Utils.test( required, `please enter your password` )
+            email: error.test( email, `please enter a valid email` ),
+            password: error.test( required, `please enter your password` )
         })
-        .extend(Error)
+        .extend(error.Error)
         .sample({login: _ })
         .active('required!')
         .map({tryLogin: _ })

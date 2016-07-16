@@ -181,8 +181,8 @@ runTests('signal', function(mock) {
 				next(Circus.fail())
 			})
 		}
-		signal().map(async).finally(function(v){
-			done(v instanceof Circus.fail)
+		signal().map(async).finally(function(v, f){
+			done(f instanceof Circus.fail)
 		}).value(1)
 	})
 

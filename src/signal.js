@@ -46,6 +46,7 @@ function SignalContext(_propagation) {
       _propagation.start(_this, v)
       if (fail) {
         nv = v
+        v = _head
       }
       else if (!_pure || _diff(v,_head,_this.isJoin)) {
         hv = nv = v
