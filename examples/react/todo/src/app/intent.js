@@ -3,7 +3,7 @@
 // though, we are simply separating the concerns of circuit binding from the view to
 // provide a cleaner interface.
 
-import circuit, {editing, inputs, filter} from './circuit'
+import circuit, {editing, inputs, filter, filters} from './circuit'
 
 // The first signal extension we need is a filter to refine the displayed list into all,
 // completed or active todos.
@@ -12,7 +12,13 @@ import circuit, {editing, inputs, filter} from './circuit'
 // binding context value, a list of todos. If you look to the circuit you will see that
 // this list is the product of a merge of input signals
 export const filterTodos = ({ filter, todos, editing }) => ({
-  todos: todos.filter(t => filter===undefined || t.completed===filter),
+  todos: todos.filter(t => {
+    switch (filter) {
+      case filters.COMPLETED(): return t.completed
+      case filters.ACTIVE(): return !t.completed
+      default: return true
+    }
+  }),
   editing
 })
 
@@ -37,9 +43,9 @@ export const todos  = {
   toggleComplete: take('checked').map(inputs.toggleComplete.value).value,
   clearComplete:  inputs.clearComplete.value,
 
-  all:  filter.all.value,
-  active:  filter.active.value,
-  completed:  filter.completed.value
+  all:  filter.ALL.value,
+  active:  filter.ACTIVE.value,
+  completed:  filter.COMPLETED.value
 }
 
 export const bind = todo => ({

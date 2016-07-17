@@ -32,6 +32,8 @@ function pathToData(data, key) {
   return data && data.hasOwnProperty(key)? data[key] : Circus.UNDEFINED
 }
 
+// return a value from a nested structure
+// useful for plucking values from models and signals from signal groups
 function lens(data,name,ns,def) {
   if (arguments.length<4) {
     def=null
@@ -70,55 +72,6 @@ function traverse(s, fn, acc, tv) {
   return stamp(c, fn, tv)
 }
 
-export function Error(ctx) {
-  if (!this instanceof Error) return new Error(ctx)
-  ctx.extend(function(ctx){
-    var _fail
-    ctx.finally(function(v,f) {
-      if (f) {
-        _fail = _fail || f.error || true
-      }
-    })
-
-    // important: this functor flatmaps a circuit's channels
-    // at the point that it is employed. Make this the last
-    // binding if all channels are required.
-    var channels = api.flatmap(ctx)
-
-    return {
-      active: function(m) {
-        return ctx.map(function(v) {
-          for(var c=0; c<channels.length; c++) {
-            if (!channels[c].active()) return Circus.fail(m || 'required')
-          }
-          return v
-        })
-      },
-      error: function(v) {
-        if (_fail) {
-          var v = _fail
-          _fail = false
-          return v || true
-        }
-        return ''
-      }
-    }
-  })
-}
-
-export function test(f, m) {
-  return Circus.isAsync(f)
-  ? function(v, next) {
-    return f.call(this,v,function(j){
-      return next(j? (j===true? v : j) : Circus.fail(m))
-    })
-  }
-  : function(v) {
-    var j = f.call(this,v)
-    return j? (j===true? v : j) : Circus.fail(m)
-  }
-}
-
 const api = {
 
   diff: function(v1,v2) {
@@ -137,9 +90,6 @@ const api = {
     return !diff(v1,v2,true)
   },
 
-  // lens
-  // re,turn a value from a nested structure
-  // useful for plucking values and signals from models and signal groups respectively
   lens: lens,
 
   reduce: function(s, fn, seed, tv) {
@@ -156,9 +106,7 @@ const api = {
 
   tap: function(s, fn, tv) {
     traverse(s, fn, Circus.UNDEFINED, tv)
-  },
-
-  test: test
+  }
 }
 
 export default api

@@ -64,7 +64,7 @@ export default function Composables(app) {
     },
 
     flatten: function(f) {
-      return this.map(function(v,next){
+      return this.map(Circus.async(function(v,next){
         function flatten(v) {
           if (Circus.typeOf(v) === Circus.type.ARRAY) {
             v.forEach(flatten)
@@ -75,27 +75,26 @@ export default function Composables(app) {
           return undefined
         }
         return flatten(v)
-      })
+      }))
     },
 
-    maybe: function(f,n) {
+    maybe: function(f) {
       return this.map(function(v){
-        return f(v)? {just:v} : {nothing:n || true}
+        return f(v)? {just:v} : {nothing:true}
       })
     },
 
-    // streamlined map
+    // map object key values
     pluck: function() {
       var args = [].slice.call(arguments), a0 = args[0]
       return this.map(function(v) {
-        return args.length===1 && (v[a0] || Utils.lens(v,a0)) || args.reduce(function(r,key){
-          r[key] = Utils.lens(v,key)
-          return r
-        },{})
+        return args.length===1 && (v[a0] || Utils.lens(v,a0)) || args.map(function(key){
+          return Utils.lens(v,key)
+        })
       })
     },
 
-    // named (projected) pluck
+    // named (projected) map
     project: function() {
       var args = [].slice.call(arguments)
       return this.map(function(v) {

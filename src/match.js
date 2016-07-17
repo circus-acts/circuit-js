@@ -44,7 +44,7 @@ var vMatch={}, litKey = new Date().getTime()
 //    - the signal is blocked if all channels are blocked
 //    - the match function is provided by Circus.and
 //
-function match(f){
+function match(){
 
   var ctx = this.asSignal()
   var args = [].slice.call(arguments)

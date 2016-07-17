@@ -1,5 +1,5 @@
 import Circus from '../src'
-import Utils, {Error} from '../src/utils'
+import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
 
@@ -8,7 +8,7 @@ runTests('utils', function(mock) {
     var app, channels, sigBlock, valBlock
     setup(function(){
 
-        app = new Circus(Error)
+        app = new Circus()
 
         sigBlock = {
             i1:app.signal(),
@@ -29,63 +29,6 @@ runTests('utils', function(mock) {
         }
 
         channels = app.join(sigBlock);
-    })
-
-    test('test - true', function() {
-        var m = Utils.test(function(v){return true})(1)
-        return m === 1
-    })
-
-    test('test - value', function() {
-        var m = Utils.test(function(v){return v+1})(1)
-        return m === 2
-    })
-
-    test('test - fail', function() {
-        var m = Utils.test(function(v){return !!v})(0)
-        return m instanceof Circus.fail
-    })
-
-    test('test - fail with reason', function() {
-        var m = Utils.test(function(v){return !!v},'xyz')(0)
-        return m.error === 'xyz'
-    })
-
-    test('error - circuit valid', function() {
-        var m = Utils.test(function(v){return !!v},'error!')
-        var s = app.merge({m:m}).map(inc)
-        s.channels.m.value(1)
-        return s.error() === '' && s.value() === 2
-    })
-
-    test('error - circuit error', function() {
-        var m = Utils.test(function(v){return !!v})
-        var s = app.merge({m:m}).map(inc)
-        s.channels.m.value(0)
-        return s.error() === true
-    })
-
-    test('error - circuit error msg', function() {
-        var m = Utils.test(function(v){return !!v},'error!')
-        var s = app.merge({m:m}).map(inc)
-        s.channels.m.value(0)
-        return s.error() === 'error!'
-    })
-
-    test('error - first error only', function() {
-        var m1 = Utils.test(function(v){return !!v},1)
-        var m2 = Utils.test(function(v){return !!v},2)
-        var s = app.merge({m1:m1,m2:m2}).map(inc)
-        s.channels.m1.value(0)
-        s.channels.m2.value(0)
-        return s.error() === 1 && s.value() === undefined
-    })
-
-    test('error - circuit error clear', function() {
-        var m = Utils.test(function(v){return !!v})
-        var s = app.merge({m:m}).map(inc)
-        s.channels.m.value(0)
-        return s.error() === true && s.error() === ''
     })
 
     test('lens', function(){
