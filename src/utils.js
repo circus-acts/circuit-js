@@ -72,19 +72,6 @@ function traverse(s, fn, acc, tv) {
   return stamp(c, fn, tv)
 }
 
-export function test(f, m) {
-  return Circus.isAsync(f)
-  ? function(v, next) {
-    return f.call(this,v,function(j){
-      return next(j? (j===true? v : j) : Circus.fail(m))
-    })
-  }
-  : function(v) {
-    var j = f.call(this,v)
-    return j? (j===true? v : j) : Circus.fail(m)
-  }
-}
-
 const api = {
 
   diff: function(v1,v2) {

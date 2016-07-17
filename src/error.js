@@ -51,9 +51,9 @@ export function Error(ctx) {
 }
 
 export function test(f, m) {
-  return Circus.isAsync(f)
-  ? function(v, next) {
-    return f.call(this,v,function(j){
+  var af = Circus.isAsync(f)
+  return af ? function(v, next) {
+    return af.call(this,v,function(j){
       return next(j? (j===true? v : j) : Circus.fail(m))
     })
   }

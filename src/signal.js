@@ -16,8 +16,11 @@ Circus.isSignal = function(s) {
   return s && s.constructor === _Signal
 }
 
+var ASYNC = 'async'
 var AFTER = 'after'
 var BEFORE = 'before'
+var SIGNAL = 'signal'
+
 var noop = function(v) {return v}
 var diff = function(v1, v2) {return v1!==v2}
 
@@ -84,29 +87,36 @@ function SignalContext(_propagation) {
       return f.apply(_this, args)
     }
 
-    function _return(f) {
+    function _return(f,meta) {
+      meta = meta || {}
       if (Circus.isSignal(f)) {
-        return f.value
+        meta.value=f.value
+        meta[SIGNAL]=f
       }
-      if (typeof f === 'object') {
+      else if (typeof f === 'object') {
+        if (f.state) {
+          meta[f.state]=true
+          return _return(f.value,meta)
+        }
         for(var p in f) if (f.hasOwnProperty(p)) {
           _this.channels = _this.channels || {}
-          return _return(_this.channels[p] = _this.asSignal(f[p]))
+          return _return(_this.channels[p] = _this.asSignal(f[p]),meta)
         }
       }
-      return f
+      else meta.value=f
+      return meta
     }
 
     function _functor(f) {
       var _f = _return(f)
-      if (f!==_f && f.finally) f.finally(_next())
-      if ( Circus.isAsync(_f) ) {
-        var done = _next()
-        return function async(v) {
+      if (_f.signal) _f.signal.finally(_next())
+      if ( _f.async ) {
+        var done = _next(), _v = _f.value
+        _f.value = function async(v) {
           _propagation.start(_this,v)
           try {
             var args = [].slice.call(arguments).concat(done)
-            return _f.apply(_this, args)
+            return _v.apply(_this, args)
           }
           finally {
             _propagation.stop(_this,v)
@@ -127,10 +137,8 @@ function SignalContext(_propagation) {
 
     this.asSignal = function(v) {
       if (Circus.isSignal(v || this)) return v || this
-      if (Signal.create) {
-        var s = Signal.create()
-        return (typeof v === 'function'? s.map(v) : s)
-      }
+      var s = Signal.create && Signal.create() || new Signal()
+      return (typeof v === 'function'? s.map(v) : s)
     }
 
     // Set signal state directly bypassing propagation steps
@@ -162,8 +170,8 @@ function SignalContext(_propagation) {
     // can cancel propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
     // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
     this.map = function(f) {
-      var _b = f.state===BEFORE, _f = _functor(_b && f.value || f)
-      _b? _steps.unshift(_f) : _steps.splice(_step,0,_f)
+      var _f = _functor(f),v=_f.value
+      _f.before? _steps.unshift(v) : _steps.splice(_step,0,v)
       _step++
       return _this
     }
@@ -176,8 +184,8 @@ function SignalContext(_propagation) {
     this.channel = function(io,take) {
       var split = Circus.extend({}, _this, {constructor: _Signal})
       var map = function(f) {
-        var _b = f.state===BEFORE, _f = _functor(_b && f.value || f)
-        _b? _steps.splice(_step,0,_f) : _steps.push(_f)
+        var _f = _functor(f),v=_f.value
+        _f.before? _steps.splice(_step,0,v) : _steps.push(v)
         return _this
       }
       _Signal.call(split, aId,++sId,_name)
@@ -209,10 +217,10 @@ function SignalContext(_propagation) {
 
     // Bind the signal to a new context
     this.bind = function(f) {
-      var __b = _bindEach
+      var _b = _bindEach
       _bindEach = function(step,args) {
         var bs = function() {
-          return __b(step, arguments)
+          return _b(step, arguments)
         }
         return f.call(_this, bs, args)
       }
@@ -221,14 +229,14 @@ function SignalContext(_propagation) {
 
     // finally functions are executed in FILO order after all step functions regardless of state
     this.finally = function(f) {
-      var fifo = f.state===BEFORE, _f = _return(fifo && f.value || f)
-      if (Circus.isSignal(_f)) {
-        var fs=_f
-        _f = function(v) {
+      var _f = _return(f)
+      if (_f.SIGNAL) {
+        var fs=_f.value
+        _f.value = function(v) {
           fs.value(v)
         }
       }
-      _finallys[fifo? 'unshift' : 'push'](_f)
+      _finallys[_f.before? 'unshift' : 'push'](_f.value)
       if (process.env.NODE_ENV==='development') {
         _this.$finallys = _finallys
       }
@@ -267,11 +275,8 @@ function SignalContext(_propagation) {
   return Signal
 }
 
-// todo - consider wrapping async in HOF
-var _fnArgs = /\((.+)\)\s*==>|function\s*.*?\(([^)]*)\)/
 Circus.isAsync = function(f){
-  var m = f.toString().match(_fnArgs)
-  return m && (m[1]||m[2]).indexOf('next')>0
+  if (f.state===ASYNC) return f.value
 }
 
 Circus.after = function(f) {
@@ -282,4 +287,10 @@ Circus.before = function(f) {
   return {state:BEFORE, value:f}
 }
 
+Circus.async = function(f) {
+  return {state:ASYNC, value:f}
+}
+
+var Signal = new SignalContext({start:noop, stop:noop})
 export default SignalContext
+export { Signal }

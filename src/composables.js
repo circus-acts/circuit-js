@@ -64,7 +64,7 @@ export default function Composables(app) {
     },
 
     flatten: function(f) {
-      return this.map(function(v,next){
+      return this.map(Circus.async(function(v,next){
         function flatten(v) {
           if (Circus.typeOf(v) === Circus.type.ARRAY) {
             v.forEach(flatten)
@@ -75,7 +75,7 @@ export default function Composables(app) {
           return undefined
         }
         return flatten(v)
-      })
+      }))
     },
 
     maybe: function(f) {
