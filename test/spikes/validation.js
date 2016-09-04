@@ -4,7 +4,7 @@ import * as error from '../../src/error'
 
 runTests('validation', function() {
 
-    const _ = Circus.UNDEFINED
+    const _ = Circus.id
 
     // some validation
     const required = v => !!v
@@ -22,64 +22,42 @@ runTests('validation', function() {
         .extend(error.Error)
         .sample({login: _ })
         .active('required!')
-        .map({tryLogin: _ })
-        .finally({view: _ })
 
         channels = circuit.channels
     })
 
     test('email - error', function() {
-        channels.email.value('x')
+        channels.email.input('x')
         return circuit.error() === `please enter a valid email`
     })
 
     test('password - valid', function() {
-        channels.password.value('x')
+        channels.password.input('x')
         return circuit.error() === ``
     })
 
     test('login - required', function() {
-        channels.login.value(true)
+        channels.login.input(true)
         return circuit.error() === `required!`
     })
 
     test('circuit - primed', function() {
         circuit.prime({email:'hi@home.com', password:'ok'})
-        channels.login.value(true)
+        channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - happy path', function() {
-        channels.email.value('hi@home.com')
-        channels.password.value('ok')
-        channels.login.value(true)
+        channels.email.input('hi@home.com')
+        channels.password.input('ok')
+        channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - error', function() {
         circuit.prime({password:'ok'})
-        channels.email.value('badformat')
-        channels.login.value(true)
+        channels.email.input('badformat')
+        channels.login.input(true)
         return circuit.error() === `please enter a valid email`
-    })
-
-    test('overlay - finally', function() {
-        var r
-        circuit.prime({email:'hi@home.com', password:'ok'}).overlay({
-            tryLogin: function(v){return 'ok'},
-            view: function(v){r=v}
-        })
-        channels.login.value(true)
-        return r==='ok'
-    })
-
-    test('overlay - finally error', function() {
-        var r
-        circuit.prime({email:'hi@home.com', password:'ok'}).overlay({
-            tryLogin: function(v){return Circus.fail('ha')},
-            view: function(v){r=circuit.error()}
-        })
-        channels.login.value(true)
-        return r
     })
 })

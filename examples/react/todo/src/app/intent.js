@@ -1,37 +1,30 @@
 // Intentions are a good place to extend and customise circuit logic. An application
 // might typically extend input signals through validation and animation steps. Here
-// though, we are simply separating the concerns of circuit binding from the view to
-// provide a cleaner interface.
+// though, we are simply abstracting the concerns of circuit binding out of the view.
 
-import circuit, {editing, inputs, filter, filters} from './circuit'
+import circuit, {editing, inputs, filter, filterType} from './circuit'
 
-// The first signal extension we need is a filter to refine the displayed list into all,
-// completed or active todos.
-//
-// Notice that this mapping function receives both the immediate signal value and its
-// binding context value, a list of todos. If you look to the circuit you will see that
-// this list is the product of a merge of input signals
-export const filterTodos = ({ filter, todos, editing }) => ({
+// Notice that the signature for this function matches the primary circuit channels
+export const filterTodos = ({ todos, filter, editing }) => ({
   todos: todos.filter(t => {
     switch (filter) {
-      case filters.COMPLETED(): return t.completed
-      case filters.ACTIVE(): return !t.completed
+      case filterType.COMPLETED: return t.completed
+      case filterType.ACTIVE: return !t.completed
       default: return true
     }
   }),
   editing
 })
 
-// A helper function bound to event type that returns a signal to extract and propagate
-// the event value
-const take = bindType => circuit.asSignal(e => {
-  const value = e.target[bindType==='checked' && 'checked' || 'value']
-  if ((e.keyCode===13 || bindType==='blur')) {
-    if (bindType==='value') e.target.value=''
+// A helper function that extracts the event value by type
+const take = type => e => {
+  const value = e.target[type==='checked' && 'checked' || 'value']
+  if ((e.keyCode===13 || type==='blur')) {
+    if (type==='value') e.target.value=''
     return value
   }
-  return bindType==='checked'? !!value : undefined
-})
+  return type==='checked'? !!value : undefined
+}
 
 // Export prepared bindings and item props. Note that the signals are pure which implies
 // that identity must be maintained at value level. The binding strategy selected here
@@ -55,9 +48,6 @@ export const bind = todo => ({
     completeTodo:   take('checked').map(v => inputs.editTodo.value({...todo, completed: v})).value,
     editTodoOnCR:   take().map(v => inputs.editTodo.value({...todo, description: v})).value,
     editTodoOnBlur: take('blur').map(v => inputs.editTodo.value({...todo, description: v})).value
-  },
-
-  // spread the data props - again, just for cleaner syntax
-  ...todo
+  }
 })
 

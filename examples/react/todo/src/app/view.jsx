@@ -1,12 +1,41 @@
 import React from 'react'
 import { render } from 'react-dom'
-import { todos as intents } from './intent'
+import { bind, todos as intents } from './intent'
 import Todo from './todo.jsx'
 
-// The view will receive its props directly from the circuit.
-// A more sophisticated app will probably map circuit outputs
-// onto React state.
-const view = ({todos, editing}) => render (
+const Todo = ({editing, todo}) => {
+  const { description, completed } = todo
+  const intents = bind(todo)
+
+  return editing ?
+  <input
+      className="edit"
+      defaultValue={description}
+      onKeyUp={intents.editTodoOnKeyUp}
+      onBlur={intents.editTodoOnBlur}
+      autoFocus={true} />
+  :
+  <li className={completed? 'completed':''}>
+    <div className="view">
+
+      <input
+        className="toggle"
+        type="checkbox"
+        checked={completed}
+        onChange={intents.completeTodo} />
+
+      <label onDoubleClick={intents.toggleEdit}>{description}</label>
+
+      <button
+        className="destroy"
+        type="checkbox"
+        onClick={intents.deleteTodo} />
+    </div>
+  </li>
+}
+
+// The main view will receive its props directly from the circuit.
+export default ({todos, editing}) => render (
   <div className="todoapp">
     <div className="header">
       <h1>TODO</h1>
@@ -25,21 +54,20 @@ const view = ({todos, editing}) => render (
           <Todo
             key={todo.id}
             editing={todo.id===editing}
-            todo={todo} />
+            todo={todo}
+          />
         )}
       </ul>
     </section>
-    {!todos.length ? null :
     <footer className="footer">
-      <ul className="filters">
+      {todos.length && <ul className="filters">
         <li><button onClick={intents.all}>all</button></li>
         <li><button onClick={intents.active}>active</button></li>
         <li><button onClick={intents.completed}>completed</button></li>
-      </ul>
+      </ul>}
       <button className="clear-completed" onClick={intents.clearComplete}>Clear completed</button>
+    }
     </footer>}
   </div>,
   document.querySelector('#todo')
 )
-
-export default view

@@ -5,7 +5,11 @@ runTests('circuit', function(mock) {
 	var inc = function(v){return v+1}
 	var dbl = function(v){return v+v}
 	var sqr = function(v){return v*v}
-
+	var seq = function(s){
+		return function(steps){
+			return [].concat(steps,s)
+		}
+	}
 	var app
 
 	setup(function(){
@@ -17,124 +21,92 @@ runTests('circuit', function(mock) {
         return Circus.isSignal(s)
     })
 
-	test('circuit - stop propagation', function() {
+	test('circuit - propagation', function() {
 		var s1 = app.signal()
 		var s2 = app.signal()
-		var j = app.join(s1,s2).map(Circus.fail)
-		s1.value(1)
-		s2.value(2)
+		var j = app.join({s1,s2})
+		s1.input(1)
+		s2.input(2)
 		var r = j.value()
-		return r[0] === 1 && r[1] === 2 && s1.value()===1 && s2.value()===2
+		return r.s1 === 1 && r.s2 === 2
 	})
 
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(Circus.fail)
-		var j1 = app.join(s1)
-		var r,j = app.join(j1).finally(function(v,f){r=f})
-		s1.value(2)
+		var j1 = app.join({s1})
+		var r,j = app.join({j1}).fail(function(f){r=f})
+		s1.input(2)
 		return r instanceof Circus.fail
 	})
 
-	test('channel - input', function() {
-		var a = app.signal()
-		var c = app.join({a:a})
-		return Circus.isSignal(c.channels.a) && a !== c.channels.a
-	})
-
-	test('channel - input -> output', function() {
-		var a = app.signal().map(inc)
-		var c = app.join({a:a})
-		c.channels.a.value(1)
-		return a.value() === 2
-	})
-
-	test('channel - input -> output names', function() {
-		var output = app.signal('output')
-		var c = app.join({input:output})
-		return c.channels.input.name==='input' && c.channels.input.output.name === 'output'
-	})
-
 	test('channel - implied map', function(){
-		var r,a = app.merge({
+		var s = app.merge({
 			a: inc
 		})
-		a.channels.a.value(1)
+		s.channels.a.input(1)
 
-		return a.value() === 2
+		return s.value() === 2
 	})
 
 	test('channel - identity map', function(){
-		var r,a = app.merge({
-			a: Circus.ID
+		var s = app.merge({
+			a: Circus.id
 		})
-		a.channels.a.value(1)
+		s.channels.a.input(1)
 
-		return a.value() === 1
+		return s.value() === 1
 	})
 
 	test('channel - value (always) map', function(){
-		var r,a = app.merge({
+		var s = app.merge({
 			a: 123
 		})
-		a.channels.a.value(1)
+		s.channels.a.input(1)
 
-		return a.value() === 123
+		return s.value() === 123
 	})
 
 	test('channel - value (always undefined) map', function(){
-		var r,a = app.merge({
+		var s = app.merge({
 			a: Circus.UNDEFINED
 		})
-		a.channels.a.value(1)
+		s.channels.a.input(1)
 
-		return a.value() === undefined
+		return s.value() === undefined
 	})
 
-	test('associativity - input / output', function(){
-		var s=[], step = function(v){return function(){s.push(v)}}
-		var b=app.signal().tap(step(2))
-		var j=app.join({
-			a: b
-		}).tap(step(3))
-		var a = j.channels.a.tap(step(1))
-		a.value(123)
+	test('propagation order', function(){
+		var a=app.signal().map(seq(1))
+		var b=app.signal().map(seq(2))
+		var c=app.signal().map(seq(3))
+		var s1=app.signal().map(a).map(b).map(c).input([])
+		var s2=app.merge({
+			c:app.signal().merge({
+				b:app.signal().merge({a}).map(b)
+			}).map(c)
+		})
+		s2.channels.c.channels.b.channels.a.input([])
 
-
-		return s.toString() === '1,2,3'
-	})
-
-	test('associativity - deep join', function(){
-		var steps=[]
-		app.extend({seq:function(s){return this.tap(function(){
-			steps.push(s)
-		})}})
-		var a=app.signal('a').seq(1)
-		var b=app.signal('b')
-		var j=app.join({
-			a: a,
-			c: app.join(a,b.join(a).seq(2)).seq(3)
-		}).seq(4)
-		a.value(123)
-
-		return steps.toString() === '1,2,3,4'
+		return s1.value().toString() === s2.value().toString()
 	})
 
 	test('channel value - literal (always)', function(){
 		var r = app.join({
 			a: 'a'
 		})
-		r.channels.a.value(123)
+		r.channels.a.input(123)
 		return r.value().a==='a'
 	})
 
 	test('channel value - passive', function(){
-		var r,s=app.signal().prime(2).map(inc)
+		var r=0, p = app.signal()
 		var c = app.join({
 			a: inc,
-			b: s.id
-		}).tap(function(v){r=v})
-		c.channels.a.value(1)
-		return r.b===2
+			b: p.id
+		}).tap(function(){r++})
+		p.input(1)
+		c.channels.a.input(1)
+		return r===1 && p.value()===1
 	})
 
 	test('circuit value - prime values', function(){
@@ -157,117 +129,71 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('circuit value - outer join state', function(){
+	test('circuit value - join context', function(){
 		var a,r = app.join({
-			a: app.signal().map(function(v,jv) {
-				a=jv
+			a: app.signal().map(function(v,j) {
+				a=j.value
 				return v
 			})
 		})
-		r.value('abc')
-		r.channels.a.value(123)
+		r.input('abc')
+		r.channels.a.input(123)
 
 		return a==='abc' && r.value().a===123
 	})
 
 
-	test('circuit value - outer merge state', function(){
+	test('circuit value - merge context', function(){
 		var a,r = app.merge({
-			a: app.signal().map(function(v,mv) {
-				a=mv
+			a: app.signal().map(function(v,m) {
+				a=m.value
 				return v
 			})
 		})
-		r.value('abc')
-		r.channels.a.value(123)
+		r.input('abc')
+		r.channels.a.input(123)
 
 		return a==='abc' && r.value()===123
 	})
 
 	test('circuit - placeholder', function(){
-		var c = app.join({a:Circus.ID})
-		return c.channels.a.value(1) === 1
+		var c = app.join({a:Circus.id})
+		return c.channels.a.input(1).value() === 1
 	})
 
 	test('circuit - overlay placeholder', function(){
 		var o = {a:inc}
-		var c = app.join({a:Circus.ID}).overlay(o)
-		return c.channels.a.value(0) === 1
+		var c = app.join({a:Circus.id}).overlay(o)
+		return c.channels.a.input(1).value() === 2
 	})
 
 	test('circuit - overlay input (pre)', function(){
-		var b = app.signal('b').map(dbl)
+		var b = app.signal().map(dbl)
 		var o = {a:inc}
 		var c = app.join({a:b}).overlay(o)
-		return c.channels.a.value(0) === 2
+		return c.channels.a.input(1).value() === 3
 	})
 
 	test('circuit - overlay input (signal)', function(){
-		var b = app.signal('b').map(dbl)
+		var b = app.signal().map(dbl)
 		var o = {a:app.signal().map(inc)}
 		var c = app.join({a:b}).overlay(o)
-		return c.channels.a.value(0) === 2
-	})
-
-	test('circuit - overlay output (pre)', function(){
-		var b = app.signal('b').map(dbl)
-		var o = {b:[inc]}
-		var c = app.join({a:b}).overlay(o)
-		return c.channels.a.value(0) === 2
-	})
-
-	test('circuit - overlay output (post)', function(){
-		var b = app.signal('b').map(dbl)
-		var o = {b:inc}
-		var c = app.join({a:b}).overlay(o)
-		return c.channels.a.value(0) === 1
-	})
-
-	test('circuit - overlay input & output', function(){
-		var b = app.signal('b')
-		var o = {a:inc, b:dbl}
-		var c = app.join({a:b}).overlay(o)
-		return c.channels.a.value(1) === 4
+		return c.channels.a.input(1).value() === 3
 	})
 
 	test('circuit - overlay deep', function(){
-		var b = app.signal('b')
+		var b = app.signal()
 		var o = {a:{a:{a:inc}}}
 		var c = app.join({a:{a:{a:b}}}).overlay(o)
-		return c.channels.a.channels.a.channels.a.value(1) === 2
+		return c.channels.a.channels.a.channels.a.input(1).value() === 2
 	})
 
 	test('circuit - overlay sample', function(){
-		var a = app.signal('a')
-		var b = app.signal('b')
+		var a = app.signal()
+		var b = app.signal()
 		var o = {a:inc,b:inc}
 		var c = app.join({a:a}).sample({b:b}).overlay(o)
-		return c.channels.a.value(1) === 2 && c.channels.b.value(1) === 2
-	})
-
-	test('circuit - overlay map', function(){
-		var a = app.signal('a')
-		var b = app.signal('b')
-		var o = {a:inc}
-		var c = app.join({b:b}).map({a:a}).overlay(o)
-		return c.channels.a.value(0) === 1
-	})
-
-	test('circuit - overlay finally', function(){
-		var a = app.signal('a')
-		var o = {a:inc}
-		var c = app.signal().finally({a:a})
-		c.overlay(o).value(0)
-		return c.channels.a.value() === 1
-	})
-
-	test('circuit - overlay finally fn', function(){
-		var a = app.signal('a')
-		var b = app.signal('b')
-		var o = {a:inc}
-		var c = app.merge({b:b}).finally({a:a}).overlay(o)
-		c.value(0)
-		return c.channels.a.value() === 1
+		return c.channels.a.input(1).value() === 2 && c.channels.b.input(1).value() === 2
 	})
 
     test('extend - app ctx', function(){

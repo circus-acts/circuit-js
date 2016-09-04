@@ -135,12 +135,12 @@ function base(){
 }
 
 // signal every or block
-function every(m){
+function all(m){
   return match.call(this, m, Circus.and, -1)
 }
 
 // signal some or block
-function some(m){
+function any(m){
   return match.call(this, m, Circus.and, 1, 2)
 }
 
@@ -166,7 +166,7 @@ function none(m){
       if (arguments.length===1 || s){
         return function(v,lv) {
           v = Circus[op](v, m===undefined? lv : m)
-          return s && v? this.asSignal(f).value(v) : v
+          return s && v? this.asSignal(f).input(v) : v
         }
       }
       return ops[op](v,m)
@@ -182,8 +182,8 @@ function none(m){
 export default function Match(app) {
   app.extend({
     match: base,
-    every: every,
-    some: some,
+    all: all,
+    any: any,
     one: one,
     none: none
   })

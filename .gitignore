@@ -2,3 +2,4 @@
 node_modules
 archive
 npm-debug.log
+./test/tests.js
