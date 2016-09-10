@@ -110,3 +110,24 @@ const api = {
 }
 
 export default api
+
+export function thunkOr(v, resolve) {
+  resolve = resolve || Circus.id
+  return typeof v === 'function'
+  ? function(next) { v(function(tv) {next(resolve(tv))}) }
+  : resolve(v)
+}
+
+var hv
+export function pure(diff) {
+  diff = diff || function(v1, v2) {return v1 !== v2}
+  return function(next, v, ctx) {
+    if (diff(hv, v)) {
+      var nv = next(v, ctx)
+      if (typeof v !== Circus.fail) {
+        hv = v
+      }
+      return v
+    }
+  }
+}

@@ -67,17 +67,20 @@ runTests('composables', function(mock) {
     })
 
     test('pluck - 1 key', function() {
-        var s = app.signal().pluck('b').input({a:1,b:2,c:3})
+        var s = app.signal().pluck('b')
+        s.input({a:1,b:2,c:3})
         return s.value() === 2
     })
 
     test('pluck - more than one key', function() {
-        var s = app.signal().pluck('a','b').input({a:1,b:2,c:3})
+        var s = app.signal().pluck('a','b')
+        s.input({a:1,b:2,c:3})
         return Utils.deepEqual(s.value(), [1,2])
     })
 
     test('pluck - deep', function() {
-        var s = app.signal().pluck('a.a1','b.b1[1]').input({a:{a1:1},b:{b1:[2,3]}})
+        var s = app.signal().pluck('a.a1','b.b1[1]')
+        s.input({a:{a1:1},b:{b1:[2,3]}})
         return Utils.deepEqual(s.value(), [1,3])
     })
 
