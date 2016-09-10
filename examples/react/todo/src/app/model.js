@@ -1,6 +1,6 @@
 const model = {
 
-  addToList: (description, todos) => todos.slice().concat({
+  addToList: (description, todos) => todos.concat({
     id: todos.length + 1,
     description,
     completed: false

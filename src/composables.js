@@ -46,36 +46,21 @@ export default function Composables(app) {
       })
     },
 
-    // Feed signal values into fanout signal(s)
-    // The input signal is terminated
-    feed: function() {
-      var feeds = [].slice.call(arguments)
-      return this.map(function(v){
-        feeds.forEach(function(s){
-          s.value(v)
-        })
-      })
-    },
-
-    filter: function(f) {
-      return this.map(function (v) {
-        return f(v)? v: undefined
-      })
-    },
-
     flatten: function(f) {
-      return this.map(Circus.async(function(v,next){
-        function flatten(v) {
-          if (Circus.typeOf(v) === Circus.type.ARRAY) {
-            v.forEach(flatten)
+      return this.map(function(v) {
+        return function(next){
+          function flatten(v) {
+            if (Circus.typeOf(v) === Circus.type.ARRAY) {
+              v.forEach(flatten)
+            }
+            else {
+              next(f? f(v) : v)
+            }
+            return undefined
           }
-          else {
-            next(f? f(v) : v)
-          }
-          return undefined
+          return flatten(v)
         }
-        return flatten(v)
-      }))
+      })
     },
 
     maybe: function(f) {
@@ -157,26 +142,27 @@ export default function Composables(app) {
 
     // Batch values into sliding window of size w
     window: function(w) {
-      var b = [], fn = function(v){
+      var b = [], window = function(v){
         b.push(v)
         if (--w < 0) {
           b.shift()
           return b
         }
       }
-      return this.map(fn)
+      return this.map(window)
     },
 
     // Zip signal channel values into a true array.
     zip: function(keys) {
-      keys = keys || [0,1]
-      var kl = keys.length, i=0
-      var fn = function(v) {
+      var i = 0
+      var zip = function(v) {
+        keys = keys || Object.keys(v)
+        var kl = keys.length
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]
         }) : undefined
       }
-      return this.map(fn)
+      return this.map(zip)
     }
 
   })

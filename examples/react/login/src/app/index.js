@@ -6,7 +6,7 @@ const init = {email:''}
 
 // Connect the logic up to the circuit and prime it with
 // an initial state
-circuit.overlay({tryLogin, view}).prime(init)
+circuit.map(tryLogin).prime(init).finally(view)
 
 // Since this circuit contains a sampled signal (login), it
 // won't auto push to the view so bypass it here.

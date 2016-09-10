@@ -2,13 +2,14 @@ import Circus from './circus'
 
 'use strict'
 
-var _Signal = function(aId, sId, _name) {
-  this.name = _name
+var sId = 0;
+var _Signal = function(name) {
   var _this = this
   this.id = function(){return _this}
   this.id.constructor = _Signal
   if (process.env.NODE_ENV==='development') {
-    this.$id= aId + '.' + sId
+    var _name = this.name || typeof name === 'string' && name || ''
+    this.$id = ++sId + _name
   }
 }
 
@@ -16,241 +17,261 @@ Circus.isSignal = function(s) {
   return s && s.constructor === _Signal
 }
 
-var ASYNC = 'async'
-var AFTER = 'after'
-var BEFORE = 'before'
-var SIGNAL = 'signal'
+Circus.id = function(v) {return v}
+var idDiff = function(v1, v2) {return v1!==v2}
 
-var noop = function(v) {return v}
-var diff = function(v1, v2) {return v1!==v2}
-
-var appId = 0;
-
-function SignalContext(_propagation) {
-
-  var aId = ++appId
-  var sId=0;
+function SignalContext() {
 
   // Generate a new signal
-  function Signal(_name){
+  function Signal(_steps, _diff, _pulse){
 
-    _Signal.call(this, aId, ++sId, _name)
+    _Signal.call(this, _steps)
 
     // private
     var _this = this
-    var _head, _state
-    var _step = 0, _steps = [], _after, _active
-    var _finallys = [], _pulse = Circus.UNDEFINED
-    var _pure, _diff = diff
+    var _head, _state, _bind
+    var _feeds = [], _fails = [], _finallys = []
 
-    // _runToState - next step
-    function _runToState(v,ns) {
-      var nv, fv, hv, fail = v instanceof Circus.fail
-      _propagation.start(_this, v)
-      if (fail) {
-        nv = v
-        v = _head
-      }
-      else if (!_pure || _diff(v,_head,_this.isJoin)) {
-        hv = nv = v
-        // steps in FIFO order
-        for (var i = ns, il = _steps.length; i < il; i++) {
-          nv = _bindEach(_steps[i], [v])
+    _steps = _steps && typeof _steps !== 'string' && _steps.map(_lift) || []
+    _pulse = _pulse || Circus.UNDEFINED
+    _diff = _diff === true? idDiff : _diff
+
+    function _runToState(v, ctx) {
+      var nv, hv = v, fail = v instanceof Circus.fail
+      if (!_diff || _diff(v,_head)) {
+        nv = hv
+        for (var i = ctx.step; i < _steps.length; i++) {
+          nv = _apply(_steps[i].f, v, ctx)
           fail = nv instanceof Circus.fail
           if (nv===undefined || fail) break;
           v = nv
         }
-        _mutate(v,fail)
       }
 
-      // finallys in FILO order - last value
-      if (nv!==undefined) {
-        for (var f = 0, fl = _finallys.length; f < fl; f++) {
-          _finallys[f].call(_this, v, fail? nv : undefined)
+      // TODO: maybe drop the undefined / async support in
+      // favour of built in await semantics?
+      if (nv !== undefined) {
+        // tail value is either a fail or new state
+        if (!fail) {
+          _head = hv
+          _state = nv === Circus.UNDEFINED? undefined : nv
         }
+        var tail = fail? _fails : _feeds
+        for (var t = 0; t < tail.length; t++) {
+          tail[t].call(_this, nv)
+        }
+        // report the last good value in finally
+        for (var f = 0; f < _finallys.length; f++) {
+          _finallys[f].call(_this, v)
+        }
+        if (_pulse !== Circus.UNDEFINED) _state = _pulse
       }
 
-      if (_pulse!==Circus.UNDEFINED) _mutate(_pulse)
-      if (!fail) _head = hv
-
-      _propagation.stop(_this, _state)
-      return nv
+      return _state
     }
 
-    function _mutate(v, fail) {
-       _active = v===undefined || fail? undefined : true
-      if (v ===Circus.UNDEFINED) v = undefined
-      _state=v
+    function _apply(f, v, ctx) {
+      v = f.call(_this, v, ctx)
+      // handle thunks and promises..
+      if (typeof v === 'function') {
+        v(_nextStep(ctx.step+1))
+        return undefined
+      }
+      if (typeof v === 'object' && typeof v.then === 'function') {
+        // promise chains end here
+        var next = _nextStep(ctx.step+1)
+        v.then(next, function(m) {next(new Circus.fail(m))})
+        return undefined
+      }
+      return v
     }
 
-    function _bindEach(f,args) {
-      return f.apply(_this, args)
-    }
+//    _bind = _apply
 
-    function _return(f,meta) {
-      meta = meta || {}
+    // lift a function or signal into functor form
+    function _lift(f) {
+      var fmap = f
       if (Circus.isSignal(f)) {
-        meta.value=f.value
-        meta[SIGNAL]=f
+        var next = _nextStep()
+        f.feed(function(v) {
+          return next(v)
+        })
+        fmap = function(v) {f.input(v)}
       }
-      else if (typeof f === 'object') {
-        if (f.state) {
-          meta[f.state]=true
-          return _return(f.value,meta)
-        }
-        for(var p in f) if (f.hasOwnProperty(p)) {
-          _this.channels = _this.channels || {}
-          return _return(_this.channels[p] = _this.asSignal(f[p]),meta)
-        }
-      }
-      else meta.value=f
-      return meta
-    }
-
-    function _functor(f) {
-      var _f = _return(f)
-      if (_f.signal) _f.signal.finally(_next())
-      if ( _f.async ) {
-        var done = _next(), _v = _f.value
-        _f.value = function async(v) {
-          _propagation.start(_this,v)
-          try {
-            var args = [].slice.call(arguments).concat(done)
-            return _v.apply(_this, args)
-          }
-          finally {
-            _propagation.stop(_this,v)
-          }
-        }
-      }
-      return _f
+      return {f:fmap, c:f}
     }
 
     // Allow values to be injected into the signal at arbitrary step points.
     // State propagation continues from this point
-    function _next() {
-      var next = (_after? _steps.length : _step) + 1
+    function _nextStep(step) {
+      var ctx = {step: step !== undefined? step : _steps.length + 1}
       return function(v){
-        return _runToState(v,next)
+        return _bind? _bind(_runToState, v, ctx) : _runToState(v, ctx)
       }
     }
 
-    this.asSignal = function(v) {
-      if (Circus.isSignal(v || this)) return v || this
+    this.step = _nextStep
+
+    // clone : X -> Y
+    //
+    // clone a signal (with limitations)
+    // - circuits cannot be cloned
+    this.clone = function() {
+      return new Signal(_steps.map(function(s){return s.f}), _diff, _pulse)
+    }
+
+    // bind : ( (A, B, C) -> A(D, C) ) -> Signal D
+    //
+    // Bind and apply a middleware to a signal context.
+    // eg : bind((next, value, ctx) => next(++value)).input(1) -> Signal 2
+    //
+    // The middleware should return next to propagate the signal.
+    // The middleware should return undefined to halt the signal.
+    // The middleware can optionally return a thunk or a promise.
+    // The middleware is free to modify value and / or context.
+    this.bind = function(mw) {
+      var next = _bind || _apply
+      _bind = function(f, v, ctx) {
+        return mw(function(v) {
+          return next(f, v, ctx)
+        }, v, ctx)
+      }
+      return this
+    }
+
+    // asSignal : A -> Signal A
+    //            A -> B -> Signal B
+    //            Signal A -> Signal A
+    //
+    this.asSignal = function(t) {
+      if (Circus.isSignal(t || this)) return t || this
       var s = Signal.create && Signal.create() || new Signal()
-      return (typeof v === 'function'? s.map(v) : s)
+      return (typeof t === 'function'? s.map(t) : s)
     }
 
-    // Set signal state directly bypassing propagation steps
+    // prime : (A) -> Signal A
+    //
+    // Set signal state directly, bypassing steps
     this.prime = function(v) {
-      _mutate(v)
-      return _this
+      _state = v
+      return this
     }
 
-    // Pass a value into a signal and receive a value back.
-    // This method produces state propagation throughout a connected circuit
-    // Note that the value returned is not always the state value. A fail
-    // will short the circuit and be returned immediately from this input.
-    this.value = function(v) {
-      if (arguments.length) return _runToState(v,0)
+    // value : () -> A
+    //
+    // Return state as the current signal value.
+    this.value = function() {
       return _state
-    },
-
-    this.step = _next
-
-    // Return to inactive pristine (or v) state after propagation
-    this.pulse = function(v){
-      _pulse = v
-      return _this
     }
 
-    // Map the current signal value and propagate
-    // The function will be called in signal context
-    // can halt propagation by returning undefined - retain current state (finally(s) not invoked)
-    // can cancel propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
+    // input : (A) -> Signal A
+    //
+    // Signal a new value.
+    // eg : input(123) -> Signal 123
+    //
+    // This method produces state propagation throughout a connected circuit.
+    this.input = function(v) {
+      var ctx = {step: 0}
+      _bind? _bind(_runToState, v, ctx) : _runToState(v,ctx)
+      return this
+    }
+
+    // map : () -> Signal
+    //       (A) -> Signal A
+    //       (A -> B) -> Signal B
+    //       (A -> B -> B (C)) -> Signal C
+    //       (A -> B -> B.resolve (C)) -> Signal C
+    //       (A -> B -> B.reject (C)) -> Signal
+    //       (Signal A) -> Signal A
+    //       (A -> B) -> Signal B
+    //       (Signal A) -> Signal A
+    //
+    // Map over the current signal value and propagate
+    // - can await propagation by returning a thunk or promise
+    // - can halt propagation by returning undefined - retain current state (finally(s) not invoked)
+    // - can short propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
     // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
     this.map = function(f) {
-      var _f = _functor(f),v=_f.value
-      _f.before? _steps.unshift(v) : _steps.splice(_step,0,v)
-      _step++
-      return _this
+      _steps.push(_lift(f))
+      return this
     }
 
-    // create an I/O channel where 2 signals share state and flow in i -> o order
-    // Optionally:
-    // - take behaviour
-    // todo: replace (ie wrap) public channel with before / after
-    //       capture step in channel to support after.joins
-    this.channel = function(io,take) {
-      var split = Circus.extend({}, _this, {constructor: _Signal})
-      var map = function(f) {
-        var _f = _functor(f),v=_f.value
-        _f.before? _steps.splice(_step,0,v) : _steps.push(v)
-        return _this
-      }
-      _Signal.call(split, aId,++sId,_name)
-      // return split as after / before, with step ownership resolved
-      _after = !io || io===Circus.after
-      if (_after? !!take : !take) _step=0
-      if (_after) split.map = map; else _this.map = map
-      return split
-    }
-
-    // convenient compose functor that maps from left to right
-    this.flow = function(){
+    // pipe : (A -> B, B -> C) -> Signal C
+    //        (A -> B, Signal C) -> Signal B ? C
+    //        (A -> B -> B (C), C -> D) -> Signal D
+    //
+    // Convenient compose functor that maps from left to right.
+    // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
+    //
+    this.pipe = function(){
       var args = [].slice.call(arguments)
       for (var i=0; i<args.length; i++) {
         this.map(args[i])
       }
-      return _this
+      return this
     }
 
-    // An active signal will propagate state
-    // An inactive signal will prevent state propagation
-    this.active = function(reset) {
-      if (arguments.length) {
-        if (!reset) {_reset.push(_active), _active = false }
-        else        {_active = !_reset.length || _reset.pop() }
+    // register or invoke a fail handler
+    this.fail = function(f) {
+      if (typeof f === 'function') {
+        _fails.push(f.input || f)
       }
-      return !!_active
-    }
-
-    // Bind the signal to a new context
-    this.bind = function(f) {
-      var _b = _bindEach
-      _bindEach = function(step,args) {
-        var bs = function() {
-          return _b(step, arguments)
+      else {
+        for (var i = 0; i < _fails.length; i++) {
+          _fails[i].call(_this, f)
         }
-        return f.call(_this, bs, args)
       }
-      return _this
+      return this
     }
 
-    // finally functions are executed in FILO order after all step functions regardless of state
+    // feed : (A -> B) -> Signal
+    //
+    // Register a feed handler.
+    // The handler will be called after successful propagation.
+    // The value passed to the handler will be the state value.
+    this.feed = function(f) {
+      _feeds.push(f.input || f)
+      return this
+    }
+
+    // finally : (A -> B) -> Signal
+    //
+    // Register a finally handler.
+    // The handler will be called after propagation, feeds and fails.
+    // The value passed to the handler will be the last good step value.
     this.finally = function(f) {
-      var _f = _return(f)
-      if (_f.SIGNAL) {
-        var fs=_f.value
-        _f.value = function(v) {
-          fs.value(v)
-        }
-      }
-      _finallys[_f.before? 'unshift' : 'push'](_f.value)
-      if (process.env.NODE_ENV==='development') {
-        _this.$finallys = _finallys
-      }
-      return _this
+      _finallys.push(f.inout || f)
+      return this
     }
 
-    this.pure = function(diff) {
-      _pure = diff!==false
-      if (typeof diff === 'function') _diff = diff
-      return _this
+    // pulse : (A) -> Signal A
+    //
+    // Return to pristine (or pv) state after propagation, feeds, fails and finallys
+    this.pulse = function(pv){
+      _pulse = pv
+      return this
     }
 
-    // Tap the current signal state value
-    // The function will be called in signal context
+    // diff (A) -> Signal
+    //
+    // Invoke an input diff function and don't propagate if equal
+    this.diff = function(test) {
+      _diff = test === undefined? idDiff : test
+      return this
+    }
+
+    this.filter = function(f) {
+      return this.map(function (v) {
+        return f(v)? v: undefined
+      })
+    }
+
+    // tap : (A -> B) -> Signal A
+    //
+    // Tap the current signal state value.
+    // eg : tap(A => console.log(A)) -> Signal A
+    //
+    // - tap ignores any value returned from the tap function.
     this.tap = function(f) {
       return this.map(function(v){
         f.apply(_this,arguments)
@@ -275,22 +296,6 @@ function SignalContext(_propagation) {
   return Signal
 }
 
-Circus.isAsync = function(f){
-  if (f.state===ASYNC) return f.value
-}
-
-Circus.after = function(f) {
-  return {state:AFTER, value:f}
-}
-
-Circus.before = function(f) {
-  return {state:BEFORE, value:f}
-}
-
-Circus.async = function(f) {
-  return {state:ASYNC, value:f}
-}
-
-var Signal = new SignalContext({start:noop, stop:noop})
+var Signal = new SignalContext({start:Circus.id, stop:Circus.id})
 export default SignalContext
 export { Signal }
