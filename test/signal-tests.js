@@ -44,34 +44,21 @@ runTests('signal', function(mock) {
     })
 
     test('as signal - from map', function(){
-        var r = signal.asSignal(inc).input(1).value()
-        return r === 2
+        var s = signal.asSignal(inc)
+        s.input(1)
+        return s.value() === 2
     })
 
 	test('input ',function() {
-		return signal.input(2).value() === 2
+		var s = signal
+		s.input(2)
+		return s.value() === 2
 	})
 
 	test('input - undefined',function() {
-		return signal.input(undefined).value() === undefined
-	})
-
-	test('input - pure',function() {
-		var r=0, s = signal.diff().tap(function(){r++})
-		s.input(1)
-		s.input(1)
-		return r===1
-	})
-
-	test('input - pure after fail',function() {
-		var fail = function(v) {
-			return v===1? v : Circus.fail()
-		}
-		var r=0, s = signal.diff().map(fail).tap(function(){r++})
-		s.input(1)
-		s.input(2)
-		s.input(1)
-		return r===1
+		var s = signal
+		s.input(undefined)
+		return s.value() === undefined
 	})
 
 	test('input - impure',function() {
@@ -118,7 +105,9 @@ runTests('signal', function(mock) {
 	})
 
 	test('map',function() {
-		return signal.map(dbl).input(1).value() === 2
+		var s = signal.map(dbl)
+		s.input(1)
+		return s.value() === 2
 	})
 
 	test('map - undefined halts propagation',function() {
@@ -129,18 +118,21 @@ runTests('signal', function(mock) {
 
 	test('map - Circus.UNDEFINED continues propagation',function() {
 		var r = 1
-		return signal.map(function(v){return Circus.UNDEFINED}).map(function(v){return 'abc'}).input(1).value() === 'abc'
+		var s = signal.map(function(v){return Circus.UNDEFINED}).map(function(v){return 'abc'})
+		s.input(1)
+		return s.value() === 'abc'
 	})
 
 	test('map - Circus.fail aborts propagation',function() {
 		var s = signal.map(function(v){return Circus.fail()}).map(inc)
-		return s.input(1).value() === undefined
+		s.input(1)
+		return s.value() === undefined
 	})
 
 	test('map - signal',function() {
 		var b = new Signal().map(inc)
 		signal.map(b).input(1)
-		return  signal.value() === 2
+		return signal.value() === 2
 	})
 
 	test('map - signal flow',function() {
@@ -214,23 +206,27 @@ runTests('signal', function(mock) {
 	test('pipe - signals',function() {
 		var s1 = new Signal().map(inc)
 		var s2 = new Signal().map(inc)
-		return new Signal().pipe(s1,s2).input(1).value() === 3
+		var p = new Signal().pipe(s1,s2)
+		p.input(1)
+		return p.value() === 3
 	})
 
     test('bind',function() {
         var s = signal.map(inc).map(dbl)
-        s.bind(function(next,v){return next(v+1)})
-        return s.input(0).value() === 4
+        s.bind(function(next,v){return next(v+1)}).input(0)
+        return s.value() === 4
     })
 
     test('bind - composed',function() {
     	var b = function(next,v){return next(v+1)}
-        var e = signal.map(inc).bind(b).bind(b).input(0).value()
-        return e === 3
+        var e = signal.map(inc).bind(b).bind(b)
+        e.input(0)
+        return e.value() === 3
     })
 
 	test('prime', function() {
-		return signal.map(inc).prime(1).value() === 1
+		var s = signal.map(inc).prime(1)
+		return s.value() === 1
 	})
 
 	test('finally', function() {
@@ -279,10 +275,14 @@ runTests('signal', function(mock) {
 		var a=new Signal('a').map(seq(1))
 		var b=new Signal('b').map(seq(2))
 		var c=new Signal('c').map(seq(3))
-		var s1=new Signal().map(a).map(b).map(c).input([]).value().toString()
-		var s2=new Signal().map(a.clone().map(b.clone().map(c.clone()))).input([]).value().toString()
 
-		return s1 === s2
+		var s1=new Signal().map(a).map(b).map(c)
+		s1.input([])
+
+		var s2=new Signal().map(a.clone().map(b.clone().map(c.clone())))
+		s2.input([])
+
+		return s1.value().toString() === s2.value().toString()
 	})
 
 })

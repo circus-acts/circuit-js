@@ -1,4 +1,5 @@
 import Circus from './circus'
+import {thunkOr} from './utils'
 
 'use strict';
 
@@ -40,16 +41,9 @@ export function Error(ctx) {
   })
 }
 
-export function maybeThunk(v, resolve) {
-  resolve = resolve || Circus.id
-  return typeof v === 'function'
-  ? function(next) { v(function(tv) {next(resolve(tv))}) }
-  : resolve(v)
-}
-
 export function test(f, m) {
   return function(v) {
-    return maybeThunk(f.apply(null,arguments), function(j) {
+    return thunkOr(f.apply(null,arguments), function(j) {
       return j? (j===true? v : j) : Circus.fail(m)
     })
   }

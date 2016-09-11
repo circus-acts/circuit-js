@@ -1,11 +1,15 @@
 import Circus from './circus'
 import Events from './events'
 import SignalContext from './signal'
+import {pure as _pure} from './utils'
 
 'use strict'
 
 function sdiff(v1,v2) {
-  if (v1 === undefined || v2 === undefined) return v1 !== v2
+  // keep open until first signal
+  if (v1 === undefined || v2 === undefined) return true
+  if (typeof v1 !== typeof v2) return true
+  if (v1.length !== v2.length) return true
   for(var i=0, k=Object.keys(v1); i< k.length; i++) {
     if (v1[k[i]] !== v2[k[i]]) return true
   }
@@ -53,14 +57,19 @@ function prime(ctx) {
   }
 }
 
+function pure(ctx) {
+  return function(diff) {
+    return ctx.bind(_pure(diff || sdiff))
+  }
+}
+
 function Circuit() {
 
   var _this = this
   var Signal = new SignalContext(new Events(this))
 
   function joinPoint(sampleOnly, joinOnly, circuit) {
-    var _jp = this.asSignal().diff(sampleOnly? false : joinOnly? sdiff : undefined)
-
+    var _jp = this.asSignal();
     var channels=_jp.channels || {}, signals = []
     Object.keys(circuit).forEach(function(k,i){
       var signal = toSignal(_this,circuit[k])
@@ -72,16 +81,15 @@ function Circuit() {
           return next.call(this,v,ctx)
         })
       }
-      // signal is an id which returns itself. Use this to feed
-      // the value into the jp
+      // signal is an identity. Use this to feed the value into the jp
       else {
         signal = {name: k, value:signal().value}
       }
       signals.push(signal)
 
-      // channels are simply aggregated but care must be taken not to overwrite
-      // any existing ones. Channel spec defines the inputs of a circuit so
-      // signals with duplicate names are lifted into the channel and cannot
+      // channels are simply aggregated as circuit inputs but care must be
+      // taken not to overwrite channels with the same name. Duplicates are
+      // lifted into the existing channel and cannot
       // directly feed the circuit themselves.
       if (!channels[k]) {
         channels[k] = signal
@@ -168,6 +176,7 @@ function Circuit() {
       merge: _this.merge,
       sample: _this.sample,
       prime: prime(ctx),
+      pure: pure(ctx),
       overlay: overlay(ctx)
     }
   })

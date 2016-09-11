@@ -18,12 +18,11 @@ Circus.isSignal = function(s) {
 }
 
 Circus.id = function(v) {return v}
-var idDiff = function(v1, v2) {return v1!==v2}
 
 function SignalContext() {
 
   // Generate a new signal
-  function Signal(_steps, _diff, _pulse){
+  function Signal(_steps, _pulse){
 
     _Signal.call(this, _steps)
 
@@ -32,28 +31,21 @@ function SignalContext() {
     var _head, _state, _bind
     var _feeds = [], _fails = [], _finallys = []
 
-    _steps = _steps && typeof _steps !== 'string' && _steps.map(_lift) || []
+    _steps = typeof _steps !== 'string' && _steps || []
     _pulse = _pulse || Circus.UNDEFINED
-    _diff = _diff === true? idDiff : _diff
 
     function _runToState(v, ctx) {
-      var nv, hv = v, fail = v instanceof Circus.fail
-      if (!_diff || _diff(v,_head)) {
-        nv = hv
-        for (var i = ctx.step; i < _steps.length; i++) {
-          nv = _apply(_steps[i].f, v, ctx)
-          fail = nv instanceof Circus.fail
-          if (nv===undefined || fail) break;
-          v = nv
-        }
+      var nv = v, fail = v instanceof Circus.fail
+      for (var i = ctx.step; i < _steps.length; i++) {
+        nv = _apply(_steps[i], v, ctx)
+        fail = nv instanceof Circus.fail
+        if (nv===undefined || fail) break;
+        v = nv
       }
 
-      // TODO: maybe drop the undefined / async support in
-      // favour of built in await semantics?
       if (nv !== undefined) {
         // tail value is either a fail or new state
         if (!fail) {
-          _head = hv
           _state = nv === Circus.UNDEFINED? undefined : nv
         }
         var tail = fail? _fails : _feeds
@@ -66,8 +58,6 @@ function SignalContext() {
         }
         if (_pulse !== Circus.UNDEFINED) _state = _pulse
       }
-
-      return _state
     }
 
     function _apply(f, v, ctx) {
@@ -94,11 +84,11 @@ function SignalContext() {
       if (Circus.isSignal(f)) {
         var next = _nextStep()
         f.feed(function(v) {
-          return next(v)
+          next(v)
         })
-        fmap = function(v) {f.input(v)}
+        fmap = f.input
       }
-      return {f:fmap, c:f}
+      return fmap
     }
 
     // Allow values to be injected into the signal at arbitrary step points.
@@ -117,7 +107,7 @@ function SignalContext() {
     // clone a signal (with limitations)
     // - circuits cannot be cloned
     this.clone = function() {
-      return new Signal(_steps.map(function(s){return s.f}), _diff, _pulse)
+      return new Signal(_steps, _pulse)
     }
 
     // bind : ( (A, B, C) -> A(D, C) ) -> Signal D
@@ -125,9 +115,8 @@ function SignalContext() {
     // Bind and apply a middleware to a signal context.
     // eg : bind((next, value, ctx) => next(++value)).input(1) -> Signal 2
     //
-    // The middleware should return next to propagate the signal.
-    // The middleware should return undefined to halt the signal.
-    // The middleware can optionally return a thunk or a promise.
+    // The middleware should call next to propagate the signal.
+    // The middleware should skip next to halt the signal.
     // The middleware is free to modify value and / or context.
     this.bind = function(mw) {
       var next = _bind || _apply
@@ -173,7 +162,6 @@ function SignalContext() {
     this.input = function(v) {
       var ctx = {step: 0}
       _bind? _bind(_runToState, v, ctx) : _runToState(v,ctx)
-      return this
     }
 
     // map : () -> Signal
@@ -249,14 +237,6 @@ function SignalContext() {
     // Return to pristine (or pv) state after propagation, feeds, fails and finallys
     this.pulse = function(pv){
       _pulse = pv
-      return this
-    }
-
-    // diff (A) -> Signal
-    //
-    // Invoke an input diff function and don't propagate if equal
-    this.diff = function(test) {
-      _diff = test === undefined? idDiff : test
       return this
     }
 
