@@ -1,4 +1,4 @@
-import Circus from '../src'
+import Circus, {Signal} from '../src'
 
 runTests('circuit', function(mock) {
 
@@ -32,12 +32,12 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - fail bubbling', function() {
-		var s1 = app.signal().map(Circus.fail)
+		var s1 = app.signal().map(Signal.fail)
 		var j1 = app.join({s1})
 		var r,j = app.join({j1})
 		j.fail(function(f){r=f})
 		s1.input(2)
-		return r instanceof Circus.fail
+		return r instanceof Signal.fail
 	})
 
 	test('channel - implied map', function(){
@@ -51,7 +51,7 @@ runTests('circuit', function(mock) {
 
 	test('channel - identity', function(){
 		var s = app.merge({
-			a: Circus.id
+			a: Signal.id
 		})
 		s.channels.a.input(1)
 
@@ -166,7 +166,7 @@ runTests('circuit', function(mock) {
 
 	test('overlay - placeholder', function(){
 		var o = {a:inc}
-		var c = app.join({a:Circus.id}).overlay(o)
+		var c = app.join({a:Signal.id}).overlay(o)
 		c.channels.a.input(1)
 		return c.channels.a.value() === 2
 	})
@@ -220,14 +220,14 @@ runTests('circuit', function(mock) {
     })
 
     test('impure', function() {
-    	var r=0, s = app.merge({a:Circus.id}).tap(function(){r++})
+    	var r=0, s = app.merge({a:Signal.id}).tap(function(){r++})
     	s.channels.a.input(1)
     	s.channels.a.input(1)
     	return r === 2
     })
 
     test('pure', function() {
-    	var r=0, s = app.merge({a:Circus.id}).pure().tap(function(){r++})
+    	var r=0, s = app.merge({a:Signal.id}).pure().tap(function(){r++})
     	s.channels.a.input(1)
     	s.channels.a.input(1)
     	return r === 1

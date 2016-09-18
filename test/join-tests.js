@@ -1,4 +1,5 @@
-import Circus from '../src'
+import Circuit from '../src/circuit'
+import Signal from '../src/signal'
 import Utils from '../src/utils'
 
 runTests('join', function(mock) {
@@ -7,7 +8,7 @@ runTests('join', function(mock) {
 	var dbl = function(v){return v+v}
 	var mul3 = function(v){return v*3}
 
-	var app = new Circus()
+	var app = new Circuit()
 	var signal = app.signal.bind(app)
 
 	test('join', function() {

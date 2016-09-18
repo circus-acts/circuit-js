@@ -1,4 +1,5 @@
 import Circus from '../src'
+import Signal from '../src/signal'
 import Match from '../src/match'
 import Utils from '../src/utils'
 
@@ -268,7 +269,7 @@ runTests('match', function(mock) {
     // boolean masks - mutate to boolean result
 
     test('or - restore dropped value', function() {
-        var r,s1 = app.any({a:Circus.or(function(v){r=v})})
+        var r,s1 = app.any({a:Match.or(function(v){r=v})})
         s1.input({a:1})
         s1.input({a:0})
         return r===1
@@ -276,34 +277,34 @@ runTests('match', function(mock) {
 
     test('or - default to mask value', function() {
         var r,mask = {
-            a:Circus.or(2,function(v){r=v})
+            a:Match.or(2,function(v){r=v})
         }
         app.any(mask).input({a:0})
         return r===2
     })
 
     test('xor - pass new value', function() {
-        var p=0, s = app.any({a:Circus.xor}).tap(function(){p++})
+        var p=0, s = app.any({a:Match.xor}).tap(function(){p++})
         s.input({a:1})
         s.input({a:2})
         return p==2
     })
 
     test('xor - block same value', function() {
-        var p=0, s = app.any({a:Circus.xor}).tap(function(){p++})
+        var p=0, s = app.any({a:Match.xor}).tap(function(){p++})
         s.input({a:1})
         s.input({a:1})
         return p===1
     })
 
     test('not - pass on falsey', function() {
-        var r, p, s = app.any({a:Circus.not}).tap(function(v){p=v})
+        var r, p, s = app.any({a:Match.not}).tap(function(v){p=v})
         s.input({a:0})
         return Utils.equal(p, {a:0})
     })
 
     test('not - block on truthy', function() {
-        var p, s = app.any({a:Circus.not}).tap(function(v){p=v})
+        var p, s = app.any({a:Match.not}).tap(function(v){p=v})
         s.input({a:1})
         return p === undefined
     })
@@ -312,14 +313,14 @@ runTests('match', function(mock) {
 
     test('switch - match channel', function(){
         var sig=app.signal().map(inc)
-        var a = app.any({a:Circus.and(1,sig)})
+        var a = app.any({a:Match.and(1,sig)})
         a.input({a:1})
         return sig.value()===2
     })
 
     test('switch - block channel', function(){
         var sig=app.signal().map(inc)
-        var a = app.any({a:Circus.and(1,sig)})
+        var a = app.any({a:Match.and(1,sig)})
         a.input({a:0})
         return sig.value() === undefined
     })

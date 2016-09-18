@@ -1,4 +1,3 @@
-import Circus from './circus'
 import Signal from './signal'
 import {pure as _pure} from './utils'
 
@@ -165,4 +164,4 @@ function Circuit() {
   return _this
 }
 
-export default Circus.extend(Circuit,Circus)
+export default Circuit

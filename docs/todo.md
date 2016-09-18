@@ -52,7 +52,7 @@ const newTodo = description => ({ description, completed: false })
 
 const addNewItem = {list, item} => list.slice().push({id: list.length, ...item}) // destructured v.list, v.item
 
-const displayList = Circus.id() // output ?? just return identity for now
+const displayList = Signal.id() // output ?? just return identity for now
 
 ```
 
@@ -171,7 +171,7 @@ The application needs more functionality: each list item should be editable. The
 // components
 const newTodo = description => ({ description, completed: false })
 const addNewItem = {list, item} => list.slice().push({id: list.length, ...item})
-const displayList = {list} => Circus.id() // output ?? just return identity for now
+const displayList = {list} => Signal.id() // output ?? just return identity for now
 const determineState = {list} => { total: list.length, completed: list.filter( item => item.completed ).length}
 const filterList = {list, flag} => list.filter( item => item.completed === flag )
 const replaceInList = { list, todo } => list.map(t => t.id===todo.id? todo : t)
