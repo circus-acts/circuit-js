@@ -1,5 +1,5 @@
 import Circuit, {Signal} from '../src'
-import Utils, {pure} from '../src/utils'
+import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
 
@@ -70,25 +70,6 @@ runTests('utils', function(mock) {
             return err || s.name==='i4'}
         return Utils.reduce(channels, error) === true
     })
-
-    test('input - pure',function() {
-        var r=0, s = app.signal().bind(pure()).tap(function(){r++})
-        s.input(1)
-        s.input(1)
-        return r===1
-    })
-
-    test('input - pure after fail',function() {
-        var fail = function(v) {
-            return v===1? v : Signal.fail()
-        }
-        var r=0, s = app.signal().bind(pure()).map(fail).tap(function(){r++})
-        s.input(1)
-        s.input(2)
-        s.input(1)
-        return r===1
-    })
-
 
     test('fail', function() {
         var f = Signal.fail()

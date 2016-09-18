@@ -1,9 +1,9 @@
 import Signal from './signal'
-import {pure as _pure} from './utils'
+import _Pure from './pure'
 
 'use strict'
 
-function sdiff(v1,v2) {
+function diff(v1,v2) {
   // keep open until first signal
   if (v1 === undefined || v2 === undefined ||
       typeof v1 !== typeof v2 ||
@@ -53,12 +53,6 @@ function prime(s) {
       })
     }
     return _prime(v)
-  }
-}
-
-function pure(s) {
-  return function(diff) {
-    return s.bind(_pure(diff || sdiff))
   }
 }
 
@@ -147,7 +141,6 @@ function Circuit() {
       merge: merge,
       sample: sample,
       prime: prime(signal),
-      pure: pure(signal),
       overlay: overlay(signal)
     }
   })
@@ -158,10 +151,13 @@ function Circuit() {
   }
 
   var args = [].slice.call(arguments).forEach(function(module) {
-    module(_this)
+    _this.extend(module)
   })
 
   return _this
 }
 
+var Pure = _Pure(diff)
+
+export {Pure}
 export default Circuit
