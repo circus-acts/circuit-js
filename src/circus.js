@@ -15,11 +15,11 @@ _type.FUNCTION = FUNCTION
 _type.LITERAL = LITERAL
 
 function extend(proto, ext) {
-  var args = [].slice.call(arguments,2)
   if (ext) {
     Object.keys(ext).forEach(function(k){
       proto[k] = ext[k]
     })
+    var args = [].slice.call(arguments,2)
     args.unshift(proto)
     proto = extend.apply(null, args)
   }

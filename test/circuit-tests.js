@@ -18,7 +18,7 @@ runTests('circuit', function(mock) {
 
     test('as signal - from app', function(){
         var s = app.asSignal(app)
-        return Circus.isSignal(s)
+        return s.isSignal
     })
 
 	test('circuit - propagation', function() {
@@ -34,7 +34,8 @@ runTests('circuit', function(mock) {
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(Circus.fail)
 		var j1 = app.join({s1})
-		var r,j = app.join({j1}).fail(function(f){r=f})
+		var r,j = app.join({j1})
+		j.fail(function(f){r=f})
 		s1.input(2)
 		return r instanceof Circus.fail
 	})
@@ -48,13 +49,30 @@ runTests('circuit', function(mock) {
 		return s.value() === 2
 	})
 
-	test('channel - identity map', function(){
+	test('channel - identity', function(){
 		var s = app.merge({
 			a: Circus.id
 		})
 		s.channels.a.input(1)
 
 		return s.value() === 1
+	})
+
+	test('channel - passive', function(){
+		var a = app.signal()
+		var b = app.signal().prime(2)
+		var s = app.join({
+			a: a,
+			b: b.id
+		})
+
+		a.input(1)
+		var r1 = s.value().b === 2
+
+		b.input(1)
+		var r2 = s.value().b === 2
+
+		return r1 && r2
 	})
 
 	test('channel - value (always) map', function(){
@@ -68,11 +86,19 @@ runTests('circuit', function(mock) {
 
 	test('channel - value (always undefined) map', function(){
 		var s = app.merge({
-			a: Circus.UNDEFINED
+			a: undefined
 		})
 		s.channels.a.input(1)
 
 		return s.value() === undefined
+	})
+
+	test('channel value - literal (always)', function(){
+		var r = app.join({
+			a: 'a'
+		})
+		r.channels.a.input(123)
+		return r.value().a==='a'
 	})
 
 	test('propagation order', function(){
@@ -91,26 +117,7 @@ runTests('circuit', function(mock) {
 		return s1.value().toString() === s2.value().toString()
 	})
 
-	test('channel value - literal (always)', function(){
-		var r = app.join({
-			a: 'a'
-		})
-		r.channels.a.input(123)
-		return r.value().a==='a'
-	})
-
-	test('channel value - passive', function(){
-		var r=0, p = app.signal()
-		var c = app.join({
-			a: inc,
-			b: p.id
-		}).tap(function(){r++})
-		p.input(1)
-		c.channels.a.input(1)
-		return r===1 && p.value()===1
-	})
-
-	test('circuit value - prime values', function(){
+	test('prime', function(){
 		var a=app.signal()
 		var r = app.join({
 			a: a
@@ -119,7 +126,7 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('circuit value - prime deep', function(){
+	test('prime - deep', function(){
 		var a=app.signal()
 		var r = app.join({
 			b: {
@@ -130,7 +137,7 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('circuit value - join context', function(){
+	test('context - join', function(){
 		var a,r = app.join({
 			a: app.signal().map(function(v,j) {
 				a=j.value
@@ -144,7 +151,7 @@ runTests('circuit', function(mock) {
 	})
 
 
-	test('circuit value - merge context', function(){
+	test('context - merge', function(){
 		var a,r = app.merge({
 			a: app.signal().map(function(v,m) {
 				a=m.value
@@ -157,44 +164,21 @@ runTests('circuit', function(mock) {
 		return a==='abc' && r.value()===123
 	})
 
-	test('circuit - placeholder', function(){
-		var c = app.join({a:Circus.id})
-		c.channels.a.input(1)
-		return c.channels.a.value() === 1
-	})
-
-	test('circuit - overlay placeholder', function(){
+	test('overlay - placeholder', function(){
 		var o = {a:inc}
 		var c = app.join({a:Circus.id}).overlay(o)
 		c.channels.a.input(1)
 		return c.channels.a.value() === 2
 	})
 
-	test('circuit - overlay input (pre)', function(){
+	test('overlay', function(){
 		var b = app.signal().map(dbl)
 		var o = {a:inc}
 		var c = app.join({a:b}).overlay(o)
 		c.channels.a.input(1)
 		return c.channels.a.value() === 3
 	})
-
-	test('circuit - overlay input (signal)', function(){
-		var b = app.signal().map(dbl)
-		var o = {a:app.signal().map(inc)}
-		var c = app.join({a:b}).overlay(o)
-		c.channels.a.input(1)
-		return c.channels.a.value() === 3
-	})
-
-	test('circuit - overlay deep', function(){
-		var b = app.signal()
-		var o = {a:{a:{a:inc}}}
-		var c = app.join({a:{a:{a:b}}}).overlay(o)
-		c.channels.a.channels.a.channels.a.input(1)
-		return c.channels.a.channels.a.channels.a.value() === 2
-	})
-
-	test('circuit - overlay sample', function(){
+	test('overlay - sample', function(){
 		var a = app.signal()
 		var b = app.signal()
 		var o = {a:inc,b:inc}
@@ -202,6 +186,22 @@ runTests('circuit', function(mock) {
 		c.channels.a.input(1)
 		c.channels.b.input(1)
 		return c.channels.a.value() === 2 && c.channels.b.value() === 2
+	})
+
+	test('overlay - signal', function(){
+		var b = app.signal().map(dbl)
+		var o = {a:app.signal().map(inc)}
+		var c = app.join({a:b}).overlay(o)
+		c.channels.a.input(1)
+		return c.channels.a.value() === 3
+	})
+
+	test('overlay - deep', function(){
+		var b = app.signal()
+		var o = {a:{a:{a:inc}}}
+		var c = app.join({a:{a:{a:b}}}).overlay(o)
+		c.channels.a.channels.a.channels.a.input(1)
+		return c.channels.a.channels.a.channels.a.value() === 2
 	})
 
     test('extend - app ctx', function(){

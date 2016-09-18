@@ -34,19 +34,22 @@ runTests('composables', function(mock) {
         return e === 5
     })
 
-    test('feed', function() {
-        var s1 = app.signal().map(inc)
-        var s2 = app.signal().feed(s1)
-        s2.input(2)
-        return s1.value() === 3
+
+    test('pipe',function() {
+        var e,s = app.signal()
+        .pipe(inc,dbl,dbl).tap(function(v){
+            e = v
+        })
+        s.input(1)
+        return e === 8
     })
 
-    test('filter', function(){
-        var s = app.signal().filter(function(v){
-            return v % 2
-        }).keep()
-        for (var i=0; i<4; i++) s.input(i)
-        return s.toArray().toString() === '1,3'
+    test('pipe - signals',function() {
+        var s1 = app.signal().map(inc)
+        var s2 = app.signal().map(inc)
+        var p = app.signal().pipe(s1,s2)
+        p.input(1)
+        return p.value() === 3
     })
 
     test('flatten', function(){

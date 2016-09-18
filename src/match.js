@@ -161,7 +161,7 @@ function none(m){
   Object.keys(ops).forEach(function(op){
     Circus[op] = function(v, m){
       if (arguments.length===1) m = v
-      var f = m, s = Circus.isSignal(f) || typeof f === 'function'
+      var f = m, s = f && f.isSignal || typeof f === 'function'
       if (s) m = arguments.length===2? v : undefined
       if (arguments.length===1 || s){
         return function(v,lv) {
