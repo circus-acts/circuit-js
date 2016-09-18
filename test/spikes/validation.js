@@ -1,10 +1,10 @@
-import Circus from '../../src'
+import Circus, {Signal} from '../../src'
 import Utils from '../../src/utils'
 import * as error from '../../src/error'
 
 runTests('validation', function() {
 
-    const _ = Circus.id
+    const _ = Signal.id
 
     // some validation
     const required = v => !!v

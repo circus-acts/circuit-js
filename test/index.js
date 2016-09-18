@@ -1,4 +1,3 @@
-require('./circus-tests')
 require('./signal-tests')
 require('./circuit-tests')
 require('./join-tests')

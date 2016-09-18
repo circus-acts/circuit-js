@@ -1,4 +1,5 @@
-import Circus from './'
+import Signal from './signal'
+import Utils from './utils'
 
 'use strict';
 
@@ -37,12 +38,12 @@ var vMatch={}, litKey = new Date().getTime()
 // the appropriate match function. They also provide a basic pattern matching facility
 // by way of signalling:
 //
-//    .match(Circus.and(6, signal().tap(v))) // signal 6
+//    .match(Match.and(6, signal().tap(v))) // signal 6
 //
 // By default:
 //    - every channel is tested (use some for early signal result)
 //    - the signal is blocked if all channels are blocked
-//    - the match function is provided by Circus.and
+//    - the match function is provided by Match.and
 //
 function match(){
 
@@ -58,7 +59,7 @@ function match(){
     else if (T === 'number' && lBound!==undefined) uBound=a
     else if (T === 'object' && !a.length) mask=a
   })
-  fn = fn || Circus.and
+  fn = fn || Match.and
 
   function maskFn(mf) {
     var lv
@@ -93,7 +94,7 @@ function match(){
   function matcher(v) {
     var m = mask || v
     if (!wcMask) {
-      isObject = Circus.typeOf(m) === Circus.type.OBJECT
+      isObject = Utils.typeOf(m) === Utils.type.OBJECT
       wcMask = {}
       if (!isObject || !memo(Object.keys(m),v, m,undefined)) {
         wcMask[litKey] = v
@@ -124,7 +125,7 @@ function match(){
       // early exit for some
       if (some && count) break
     }
-    return count>=lBound && count<=uBound ? v === undefined? Circus.UNDEFINED : v : block
+    return count>=lBound && count<=uBound ? v === undefined? Signal.UNDEFINED : v : block
   }
   return ctx.map(matcher)
 }
@@ -136,36 +137,36 @@ function base(){
 
 // signal every or block
 function all(m){
-  return match.call(this, m, Circus.and, -1)
+  return match.call(this, m, Match.and, -1)
 }
 
 // signal some or block
 function any(m){
-  return match.call(this, m, Circus.and, 1, 2)
+  return match.call(this, m, Match.and, 1, 2)
 }
 
 // signal one or block
 function one(m){
-  return match.call(this, m, Circus.and, 1, 1)
+  return match.call(this, m, Match.and, 1, 1)
 }
 
 // signal none or block
 function none(m){
-  return match.call(this, m, Circus.and, 0, 0)
+  return match.call(this, m, Match.and, 0, 0)
 }
 
 // logical match functions operate on current and previous channel values,
-// or current value and mask if provided: Circus.and(mvalue)
-// or switch on current value and mask: Circus.and(mvalue, Signal)
+// or current value and mask if provided: Match.and(mvalue)
+// or switch on current value and mask: Match.and(mvalue, Signal)
 ;(function(ops){
   Object.keys(ops).forEach(function(op){
-    Circus[op] = function(v, m){
+    Match[op] = function(v, m){
       if (arguments.length===1) m = v
       var f = m, s = f && f.isSignal || typeof f === 'function'
       if (s) m = arguments.length===2? v : undefined
       if (arguments.length===1 || s){
         return function(v,lv) {
-          v = Circus[op](v, m===undefined? lv : m)
+          v = Match[op](v, m===undefined? lv : m)
           return s && v? this.asSignal(f).input(v) : v
         }
       }
@@ -173,7 +174,7 @@ function none(m){
     }
   })
 })({
-  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? v === undefined? Circus.UNDEFINED : v : false },
+  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? v === undefined? Signal.UNDEFINED : v : false },
   or:  function(v, m) { return v || m },
   xor: function(v, m) { return v && m!==v?  v : !v && m },
   not: function(v, m) { return !v && m || !v}

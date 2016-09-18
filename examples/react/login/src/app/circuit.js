@@ -1,6 +1,6 @@
 import Circus, { Error, test } from 'circus-js'
 
-const _ = Circus.id
+const _ = Signal.id
 
 // some validation
 const required = v => !!v

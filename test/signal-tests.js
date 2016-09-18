@@ -126,15 +126,15 @@ runTests('signal', function(mock) {
 		return s.value() === undefined
 	})
 
-	test('map - Circus.UNDEFINED continues propagation',function() {
+	test('map - Signal.UNDEFINED continues propagation',function() {
 		var r = 1
-		var s = signal.map(function(v){return Circus.UNDEFINED}).map(function(v){return 'abc'})
+		var s = signal.map(function(v){return Signal.UNDEFINED}).map(function(v){return 'abc'})
 		s.input(1)
 		return s.value() === 'abc'
 	})
 
-	test('map - Circus.fail aborts propagation',function() {
-		var s = signal.map(function(v){return Circus.fail()}).map(inc)
+	test('map - Signal.fail aborts propagation',function() {
+		var s = signal.map(function(v){return Signal.fail()}).map(inc)
 		s.input(1)
 		return s.value() === undefined
 	})
@@ -167,7 +167,7 @@ runTests('signal', function(mock) {
 		function async(v) {
 			return function(next) {
 				setTimeout(function(){
-					next(Circus.fail())
+					next(Signal.fail())
 				})
 			}
 		}
@@ -258,7 +258,7 @@ runTests('signal', function(mock) {
 	})
 
 	test('finally - aborted propagation', function() {
-		var r1,r2,s = signal.map(function(){return Circus.fail()}).map(inc).finally(function(v){r1=v})
+		var r1,r2,s = signal.map(function(){return Signal.fail()}).map(inc).finally(function(v){r1=v})
 		s.input(1)
 		return r1 === 1
 	})
@@ -267,7 +267,7 @@ runTests('signal', function(mock) {
 		var r = [], s = signal
 		s.finally(function(v){r.push(2)})
 		s.fail(function(v){r.push(1)})
-		s.input(Circus.fail())
+		s.input(Signal.fail())
 		return r[0] === 1 && r[1] === 2
 	})
 
@@ -275,7 +275,7 @@ runTests('signal', function(mock) {
 		var r = [], s = signal
 		s.fail(function(v){r.push(2)})
 		s.fail(function(v){r.push(1)})
-		s.input(Circus.fail())
+		s.input(Signal.fail())
 		return r[0] === 2 && r[1] === 1
 	})
 

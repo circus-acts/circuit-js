@@ -1,4 +1,4 @@
-import Circus from '../src'
+import Circus, {Signal} from '../src'
 import * as error from '../src/error'
 
 var inc = function(v){return v+1}
@@ -22,7 +22,7 @@ runTests('error', function(mock) {
 
     test('test - fail', function() {
         var m = error.test(function(v){return !!v})(0)
-        return m instanceof Circus.fail
+        return m instanceof Signal.fail
     })
 
     test('test - fail with reason', function() {

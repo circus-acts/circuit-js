@@ -1,18 +1,33 @@
-import Circus from './circus'
+import Signal from './signal'
 
 'use strict';
 
+var _types = {}.toString, ARRAY='A',OBJECT='O', FUNCTION='F', LITERAL = 'SNBDR'
+var _type = function(t) {
+  return _types.call(t)[8]
+}
+var _typeOf = function(t) {
+  t = _type(t)
+  return ~LITERAL.indexOf(t) && LITERAL || t
+}
+
+_type.ARRAY = ARRAY
+_type.OBJECT = OBJECT
+_type.FUNCTION = FUNCTION
+_type.LITERAL = LITERAL
+
+
 function diff(v1,v2, recurse) {
-  var T = Circus.type(v1)
-  if (~Circus.type.LITERAL.indexOf(T) || T === Circus.type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
+  var T = _type(v1)
+  if (~_type.LITERAL.indexOf(T) || T === _type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
     return v1!==v2
   }
   else {
-    if (T === Circus.type.ARRAY) {
+    if (T === _type.ARRAY) {
       return  v1.length !== v2.length || v1.some(function(v,i) {
         return recurse? diff(v,v2[i],recurse) : v !== v2[i]
       })
-    } else if (T === Circus.type.OBJECT) {
+    } else if (T === _type.OBJECT) {
       var mk = Object.keys(v1), vk = Object.keys(v2)
       return mk.length != vk.length || typeof v2 !== 'object' || mk.some(function(k,i){
         return recurse? diff(v1[k],v2[k],recurse) : v1[k] !== v2[k] || mk[i] !== vk[i]
@@ -27,9 +42,9 @@ function pathToData(data, key) {
   if (i > 0){
     var idx=parseInt(key.substr(i+1,key.length-2),10)
     var idxKey = key.substr(0,i)
-    return data.hasOwnProperty(idxKey)? data[idxKey][idx] : Circus.UNDEFINED
+    return data.hasOwnProperty(idxKey)? data[idxKey][idx] : Signal.UNDEFINED
   }
-  return data && data.hasOwnProperty(key)? data[key] : Circus.UNDEFINED
+  return data && data.hasOwnProperty(key)? data[key] : Signal.UNDEFINED
 }
 
 // return a value from a nested structure
@@ -41,16 +56,16 @@ function lens(data,name,ns,def) {
   var path = ((ns? ns + '.' :'') + name).split('.')
   var v = path.reduce(pathToData,data)
 
-  if (data && v===Circus.UNDEFINED && Circus.typeOf(data) === Circus.type.OBJECT && data.constructor==={}.constructor) {
+  if (data && v===Signal.UNDEFINED && _typeOf(data) === _type.OBJECT && data.constructor==={}.constructor) {
     v = Object.keys(data).reduce(function(a,k){
-      return a!==Circus.UNDEFINED && a || lens(data[k],name,'',def)
-    },Circus.UNDEFINED)
+      return a!==Signal.UNDEFINED && a || lens(data[k],name,'',def)
+    },Signal.UNDEFINED)
   }
-  return v!==Circus.UNDEFINED? v : def
+  return v!==Signal.UNDEFINED? v : def
 }
 
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=Circus.UNDEFINED, fmap=[]
+  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=Signal.UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
@@ -97,22 +112,24 @@ const api = {
   },
 
   map: function(s, fn, tv) {
-    return traverse(s, fn, Circus.UNDEFINED,tv)[0]
+    return traverse(s, fn, Signal.UNDEFINED,tv)[0]
   },
 
   flatmap: function(s, fn, tv) {
-    return traverse(s, fn, Circus.UNDEFINED,tv)[2]
+    return traverse(s, fn, Signal.UNDEFINED,tv)[2]
   },
 
   tap: function(s, fn, tv) {
-    traverse(s, fn, Circus.UNDEFINED, tv)
-  }
+    traverse(s, fn, Signal.UNDEFINED, tv)
+  },
+  typeOf : _typeOf,
+  type: _type
 }
 
 export default api
 
 export function thunkOr(v, resolve) {
-  resolve = resolve || Circus.id
+  resolve = resolve || Signal.id
   return typeof v === 'function'
   ? function(next) { v(function(tv) {next(resolve(tv))}) }
   : resolve(v)
@@ -124,7 +141,7 @@ export function pure(diff) {
   return function(next, v, ctx) {
     if (diff(hv, v)) {
       var nv = next(v, ctx)
-      if (typeof v !== Circus.fail) {
+      if (typeof v !== Signal.fail) {
         hv = v
       }
       return v

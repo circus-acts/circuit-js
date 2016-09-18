@@ -1,4 +1,4 @@
-import Circus from './'
+import Signal from './signal'
 import Utils from './utils'
 
 'use strict';
@@ -50,7 +50,7 @@ export default function Composables(app) {
       return this.map(function(v) {
         return function(next){
           function flatten(v) {
-            if (Circus.typeOf(v) === Circus.type.ARRAY) {
+            if (Utils.typeOf(v) === Utils.type.ARRAY) {
               v.forEach(flatten)
             }
             else {
@@ -143,7 +143,7 @@ export default function Composables(app) {
     // The signal will not propagate until n + 1
     skip: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? Circus.fail(v) : v
+        return (n-- > 0)? Signal.fail(v) : v
       })
     },
 
@@ -151,7 +151,7 @@ export default function Composables(app) {
     // The signal will not propagate after n
     take: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? v: Circus.fail(v)
+        return (n-- > 0)? v: Signal.fail(v)
       })
     },
 
