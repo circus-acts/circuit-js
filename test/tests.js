@@ -56,7 +56,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(11), __webpack_require__(17), __webpack_require__(10), __webpack_require__(15), __webpack_require__(13), __webpack_require__(19), __webpack_require__(16), __webpack_require__(12), __webpack_require__(18), __webpack_require__(14)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(10), __webpack_require__(16), __webpack_require__(9), __webpack_require__(14), __webpack_require__(12), __webpack_require__(18), __webpack_require__(15), __webpack_require__(11), __webpack_require__(17), __webpack_require__(13)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(require('./circus-tests'), require('./signal-tests'), require('./circuit-tests'), require('./join-tests'), require('./error-tests'), require('./utils-tests'), require('./match-tests'), require('./composables-tests'), require('./spikes/validation'), require('./issues'));
 	  } else {
@@ -74,7 +74,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(6), __webpack_require__(4)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(5), __webpack_require__(4)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
 	    factory(exports, require('./circuit'), require('./error'));
 	  } else {
@@ -142,7 +142,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  function diff(v1, v2, recurse) {
 	    var T = _circus2.default.type(v1);
-	    if (~_circus2.default.type.LITERAL.indexOf(T) || T === _circus2.default.type.FUNCTION || v1 === undefined || v2 === undefined || _circus2.default.isSignal(v1)) {
+	    if (~_circus2.default.type.LITERAL.indexOf(T) || T === _circus2.default.type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
 	      return v1 !== v2;
 	    } else {
 	      if (T === _circus2.default.type.ARRAY) {
@@ -188,7 +188,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  function traverse(s, fn, acc, tv) {
-	    var c = s.channels || _circus2.default.isSignal(s) && { s: s } || s,
+	    var c = s.channels || s.isSignal && { s: s } || s,
 	        seed = acc != _circus2.default.UNDEFINED,
 	        fmap = [];
 	    fn = fn || function id(s) {
@@ -198,7 +198,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      var obj = {};
 	      Object.keys(c).forEach(function (ck) {
 	        var t = c[ck];
-	        var n = _circus2.default.isSignal(t) && t.name || ck;
+	        var n = t.isSignal && t.name || ck;
 	        var v = (sv || {})[n];
 	        if (t.channels && t.channels !== s.channels) {
 	          var a = stamp(t.channels, fn, v);
@@ -318,11 +318,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  _type.LITERAL = LITERAL;
 
 	  function extend(proto, ext) {
-	    var args = [].slice.call(arguments, 2);
 	    if (ext) {
 	      Object.keys(ext).forEach(function (k) {
 	        proto[k] = ext[k];
 	      });
+	      var args = [].slice.call(arguments, 2);
 	      args.unshift(proto);
 	      proto = extend.apply(null, args);
 	    }
@@ -369,7 +369,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Object.defineProperty(exports, "__esModule", {
 	    value: true
 	  });
-	  exports.Maybe = Maybe;
 	  exports.Error = Error;
 	  exports.test = test;
 
@@ -383,29 +382,17 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  'use strict';
 
-	  function Maybe(ctx) {
-	    ctx.extend(function (ctx) {
-	      return {
-	        maybe: function (m) {
-	          return ctx.finally(function (v, f) {
-	            return f ? m.nothing() : m.just(v);
-	          });
-	        }
-	      };
-	    });
-	  }
-
 	  function Error(ctx) {
-	    ctx.extend(function (ctx) {
+	    ctx.extend(function (signal) {
 	      var _fail;
-	      ctx.fail(function (error) {
+	      signal.fail(function (error) {
 	        _fail = _fail || error;
 	      });
 	      return {
 	        active: function (m) {
-	          return ctx.map(function (v) {
-	            return Object.keys(ctx.channels).filter(function (k) {
-	              return !ctx.channels[k].value();
+	          return signal.map(function (v) {
+	            return Object.keys(signal.channels).filter(function (k) {
+	              return !signal.channels[k].value();
 	            }).length ? _circus2.default.fail(m) : v;
 	          });
 	        },
@@ -436,338 +423,17 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(8), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circus'));
+	    factory(exports, require('./circus'), require('./signal'), require('./utils'));
 	  } else {
 	    var mod = {
 	      exports: {}
 	    };
-	    factory(mod.exports, global.circus);
-	    global.signal = mod.exports;
-	  }
-	})(this, function (exports, _circus) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-	  exports.Signal = undefined;
-
-	  var _circus2 = _interopRequireDefault(_circus);
-
-	  function _interopRequireDefault(obj) {
-	    return obj && obj.__esModule ? obj : {
-	      default: obj
-	    };
-	  }
-
-	  'use strict';
-
-	  var sId = 0;
-	  var _Signal = function (name) {
-	    var _this = this;
-	    this.id = function () {
-	      return _this;
-	    };
-	    this.id.constructor = _Signal;
-	    if (true) {
-	      var _name = this.name || typeof name === 'string' && name || '';
-	      this.$id = ++sId + _name;
-	    }
-	  };
-
-	  _circus2.default.isSignal = function (s) {
-	    return s && s.constructor === _Signal;
-	  };
-
-	  _circus2.default.id = function (v) {
-	    return v;
-	  };
-
-	  function SignalContext() {
-
-	    // Generate a new signal
-	    function Signal(_steps, _pulse) {
-
-	      _Signal.call(this, _steps);
-
-	      // private
-	      var _this = this;
-	      var _head, _state, _bind;
-	      var _feeds = [],
-	          _fails = [],
-	          _finallys = [];
-
-	      _steps = typeof _steps !== 'string' && _steps || [];
-	      _pulse = _pulse || _circus2.default.UNDEFINED;
-
-	      function _runToState(v, ctx) {
-	        var nv = v,
-	            fail = v instanceof _circus2.default.fail;
-	        for (var i = ctx.step; i < _steps.length; i++) {
-	          nv = _apply(_steps[i], v, ctx);
-	          fail = nv instanceof _circus2.default.fail;
-	          if (nv === undefined || fail) break;
-	          v = nv;
-	        }
-
-	        if (nv !== undefined) {
-	          // tail value is either a fail or new state
-	          if (!fail) {
-	            _state = nv === _circus2.default.UNDEFINED ? undefined : nv;
-	          }
-	          var tail = fail ? _fails : _feeds;
-	          for (var t = 0; t < tail.length; t++) {
-	            tail[t].call(_this, nv);
-	          }
-	          // report the last good value in finally
-	          for (var f = 0; f < _finallys.length; f++) {
-	            _finallys[f].call(_this, v);
-	          }
-	          if (_pulse !== _circus2.default.UNDEFINED) _state = _pulse;
-	        }
-	      }
-
-	      function _apply(f, v, ctx) {
-	        v = f.call(_this, v, ctx);
-	        // handle thunks and promises..
-	        if (typeof v === 'function') {
-	          v(_nextStep(ctx.step + 1));
-	          return undefined;
-	        }
-	        if (typeof v === 'object' && typeof v.then === 'function') {
-	          // promise chains end here
-	          var next = _nextStep(ctx.step + 1);
-	          v.then(next, function (m) {
-	            next(new _circus2.default.fail(m));
-	          });
-	          return undefined;
-	        }
-	        return v;
-	      }
-
-	      //    _bind = _apply
-
-	      // lift a function or signal into functor form
-	      function _lift(f) {
-	        var fmap = f;
-	        if (_circus2.default.isSignal(f)) {
-	          var next = _nextStep();
-	          f.feed(function (v) {
-	            next(v);
-	          });
-	          fmap = f.input;
-	        }
-	        return fmap;
-	      }
-
-	      // Allow values to be injected into the signal at arbitrary step points.
-	      // State propagation continues from this point
-	      function _nextStep(step) {
-	        var ctx = { step: step !== undefined ? step : _steps.length + 1 };
-	        return function (v) {
-	          return _bind ? _bind(_runToState, v, ctx) : _runToState(v, ctx);
-	        };
-	      }
-
-	      this.step = _nextStep;
-
-	      // clone : X -> Y
-	      //
-	      // clone a signal (with limitations)
-	      // - circuits cannot be cloned
-	      this.clone = function () {
-	        return new Signal(_steps, _pulse);
-	      };
-
-	      // bind : ( (A, B, C) -> A(D, C) ) -> Signal D
-	      //
-	      // Bind and apply a middleware to a signal context.
-	      // eg : bind((next, value, ctx) => next(++value)).input(1) -> Signal 2
-	      //
-	      // The middleware should call next to propagate the signal.
-	      // The middleware should skip next to halt the signal.
-	      // The middleware is free to modify value and / or context.
-	      this.bind = function (mw) {
-	        var next = _bind || _apply;
-	        _bind = function (f, v, ctx) {
-	          return mw(function (v) {
-	            return next(f, v, ctx);
-	          }, v, ctx);
-	        };
-	        return this;
-	      };
-
-	      // asSignal : A -> Signal A
-	      //            A -> B -> Signal B
-	      //            Signal A -> Signal A
-	      //
-	      this.asSignal = function (t) {
-	        if (_circus2.default.isSignal(t || this)) return t || this;
-	        var s = Signal.create && Signal.create() || new Signal();
-	        return typeof t === 'function' ? s.map(t) : s;
-	      };
-
-	      // prime : (A) -> Signal A
-	      //
-	      // Set signal state directly, bypassing steps
-	      this.prime = function (v) {
-	        _state = v;
-	        return this;
-	      };
-
-	      // value : () -> A
-	      //
-	      // Return state as the current signal value.
-	      this.value = function () {
-	        return _state;
-	      };
-
-	      // input : (A) -> Signal A
-	      //
-	      // Signal a new value.
-	      // eg : input(123) -> Signal 123
-	      //
-	      // This method produces state propagation throughout a connected circuit.
-	      this.input = function (v) {
-	        var ctx = { step: 0 };
-	        _bind ? _bind(_runToState, v, ctx) : _runToState(v, ctx);
-	      };
-
-	      // map : () -> Signal
-	      //       (A) -> Signal A
-	      //       (A -> B) -> Signal B
-	      //       (A -> B -> B (C)) -> Signal C
-	      //       (A -> B -> B.resolve (C)) -> Signal C
-	      //       (A -> B -> B.reject (C)) -> Signal
-	      //       (Signal A) -> Signal A
-	      //       (A -> B) -> Signal B
-	      //       (Signal A) -> Signal A
-	      //
-	      // Map over the current signal value and propagate
-	      // - can await propagation by returning a thunk or promise
-	      // - can halt propagation by returning undefined - retain current state (finally(s) not invoked)
-	      // - can short propagation by returning Circus.fail - revert to previous state (finally(s) invoked)
-	      // Note that to map state onto undefined the pseudo value Circus.UNDEFINED must be returned
-	      this.map = function (f) {
-	        _steps.push(_lift(f));
-	        return this;
-	      };
-
-	      // pipe : (A -> B, B -> C) -> Signal C
-	      //        (A -> B, Signal C) -> Signal B ? C
-	      //        (A -> B -> B (C), C -> D) -> Signal D
-	      //
-	      // Convenient compose functor that maps from left to right.
-	      // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
-	      //
-	      this.pipe = function () {
-	        var args = [].slice.call(arguments);
-	        for (var i = 0; i < args.length; i++) {
-	          this.map(args[i]);
-	        }
-	        return this;
-	      };
-
-	      // register or invoke a fail handler
-	      this.fail = function (f) {
-	        if (typeof f === 'function') {
-	          _fails.push(f.input || f);
-	        } else {
-	          for (var i = 0; i < _fails.length; i++) {
-	            _fails[i].call(_this, f);
-	          }
-	        }
-	        return this;
-	      };
-
-	      // feed : (A -> B) -> Signal
-	      //
-	      // Register a feed handler.
-	      // The handler will be called after successful propagation.
-	      // The value passed to the handler will be the state value.
-	      this.feed = function (f) {
-	        _feeds.push(f.input || f);
-	        return this;
-	      };
-
-	      // finally : (A -> B) -> Signal
-	      //
-	      // Register a finally handler.
-	      // The handler will be called after propagation, feeds and fails.
-	      // The value passed to the handler will be the last good step value.
-	      this.finally = function (f) {
-	        _finallys.push(f.inout || f);
-	        return this;
-	      };
-
-	      // pulse : (A) -> Signal A
-	      //
-	      // Return to pristine (or pv) state after propagation, feeds, fails and finallys
-	      this.pulse = function (pv) {
-	        _pulse = pv;
-	        return this;
-	      };
-
-	      this.filter = function (f) {
-	        return this.map(function (v) {
-	          return f(v) ? v : undefined;
-	        });
-	      };
-
-	      // tap : (A -> B) -> Signal A
-	      //
-	      // Tap the current signal state value.
-	      // eg : tap(A => console.log(A)) -> Signal A
-	      //
-	      // - tap ignores any value returned from the tap function.
-	      this.tap = function (f) {
-	        return this.map(function (v) {
-	          f.apply(_this, arguments);
-	          return v === undefined ? _circus2.default.UNDEFINED : v;
-	        });
-	      };
-
-	      // Extend a signal with custom step functions either through an
-	      // object hash, or a context bound function that returns an object hash
-	      // Chainable step functions need to return the context.
-	      this.extend = function (ext) {
-	        ext = typeof ext === 'function' ? ext(this) : ext;
-	        return _circus2.default.extend(this, ext);
-	      };
-
-	      return _this;
-	    }
-
-	    Signal.prototype = _Signal.prototype;
-	    Signal.prototype.constructor = _Signal;
-
-	    return Signal;
-	  }
-
-	  var Signal = new SignalContext({ start: _circus2.default.id, stop: _circus2.default.id });
-	  exports.default = SignalContext;
-	  exports.Signal = Signal;
-	});
-
-/***/ },
-/* 6 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports, __webpack_require__(3), __webpack_require__(8), __webpack_require__(5), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports, require('./circus'), require('./events'), require('./signal'), require('./utils'));
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports, global.circus, global.events, global.signal, global.utils);
+	    factory(mod.exports, global.circus, global.signal, global.utils);
 	    global.circuit = mod.exports;
 	  }
-	})(this, function (exports, _circus, _events, _signal, _utils) {
+	})(this, function (exports, _circus, _signal, _utils) {
 	  'use strict';
 
 	  Object.defineProperty(exports, "__esModule", {
@@ -775,8 +441,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 
 	  var _circus2 = _interopRequireDefault(_circus);
-
-	  var _events2 = _interopRequireDefault(_events);
 
 	  var _signal2 = _interopRequireDefault(_signal);
 
@@ -790,9 +454,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  function sdiff(v1, v2) {
 	    // keep open until first signal
-	    if (v1 === undefined || v2 === undefined) return true;
-	    if (typeof v1 !== typeof v2) return true;
-	    if (v1.length !== v2.length) return true;
+	    if (v1 === undefined || v2 === undefined || typeof v1 !== typeof v2 || v1.length !== v2.length) return true;
+
 	    for (var i = 0, k = Object.keys(v1); i < k.length; i++) {
 	      if (v1[k[i]] !== v2[k[i]]) return true;
 	    }
@@ -800,10 +463,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  function toSignal(app, s) {
-	    if (s === _circus2.default.UNDEFINED) s = function () {
-	      return _circus2.default.UNDEFINED;
-	    };
-	    if (!_circus2.default.isSignal(s)) {
+	    if (!s || !s.isSignal) {
 	      var v = s,
 	          fmap = typeof s === 'object' ? 'join' : 'map';
 	      if (typeof s !== 'function' && fmap === 'map') s = function () {
@@ -815,168 +475,148 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 
 	  // overlay circuit behaviour aligned on channel input / outputs
-	  function overlay(ctx) {
+	  function overlay(s) {
 	    return function recurse(g, c) {
-	      c = c || ctx;
+	      c = c || s;
 	      Object.keys(g).forEach(function (k) {
 	        var o = g[k];
-	        if (_circus2.default.isSignal(o) || typeof o === 'function') {
+	        if (o.isSignal || typeof o === 'function') {
 	          // use apply here
 	          c.channels[k].map(o);
 	        } else if (o) recurse(o, c.channels[k]);
 	      });
-	      return this;
+	      return s;
 	    };
 	  }
 
-	  function prime(ctx) {
-	    var _prime = ctx.prime.bind(ctx);
-	    return function prime(v) {
-	      if (typeof v === 'object' && ctx.channels) {
+	  function prime(s) {
+	    var _prime = s.prime.bind(s);
+	    return function prime(v, c) {
+	      s = c || s;
+	      if (typeof v === 'object' && s.channels) {
 	        Object.keys(v).filter(function (k) {
-	          return ctx.channels[k];
+	          return s.channels[k];
 	        }).forEach(function (k) {
-	          ctx.channels[k].prime(v[k]);
+	          s.channels[k].prime(v[k]);
 	        });
 	      }
 	      return _prime(v);
 	    };
 	  }
 
-	  function pure(ctx) {
+	  function pure(s) {
 	    return function (diff) {
-	      return ctx.bind((0, _utils.pure)(diff || sdiff));
+	      return s.bind((0, _utils.pure)(diff || sdiff));
 	    };
+	  }
+
+	  function joinPoint(sampleOnly, joinOnly, circuit) {
+	    var _jp = this.asSignal();
+	    var channels = _jp.channels || {},
+	        signals = [];
+	    Object.keys(circuit).forEach(function (k, i) {
+	      var signal = toSignal(_jp, circuit[k]);
+	      if (signal.id) {
+	        signal.name = k;
+	        // bind each joining signal to the context value
+	        signal.bind(function (next, v, ctx) {
+	          ctx[_jp.name || 'value'] = _jp.value();
+	          return next.call(_jp, v, ctx);
+	        });
+	        // channels are simply aggregated as circuit inputs but care must be
+	        // taken not to overwrite channels with the same name. Duplicates are
+	        // lifted into the existing channel and cannot directly feed the circuit.
+	        if (!channels[k]) {
+	          channels[k] = signal;
+	          signal.feed(merge(signal.name)).fail(_jp.input);
+	        } else {
+	          channels[k].map(signal);
+	        }
+	      }
+	      // signal is an identity
+	      else {
+	          signal = { name: k, value: signal().value };
+	        }
+	      signals.push(signal);
+	    });
+
+	    var step = _jp.step();
+	    function merge(channel) {
+	      return function (v) {
+	        var jv = joinOnly && signals.reduce(function (jv, s) {
+	          jv[s.name] = s.value();
+	          return jv;
+	        }, {}) || v;
+	        step({ key: channel, value: sampleOnly ? sv : jv });
+	      };
+	    }
+
+	    // bind the channel key into ctx
+	    _jp.bind(function (next, v, ctx) {
+	      ctx.channel = v && v.key || _jp.name;
+	      return next(v && v.hasOwnProperty('value') ? v.value : v, ctx);
+	    });
+
+	    // expose the channel in circuit form (can be flatmap'd later if required)
+	    _jp.channels = channels;
+
+	    // halt sampled signals at this step
+	    var sv;
+	    return _jp.filter(function (v) {
+	      sv = v;
+	      return !sampleOnly;
+	    });
+	  }
+
+	  // Join 1 or more input signals into 1 output signal
+	  // Input signals will be mapped onto output signal channels
+	  // - duplicate channels will be merged
+	  function join(c) {
+	    return joinPoint.call(this, false, true, c);
+	  }
+
+	  // Merge 1 or more input signals into 1 output signal
+	  // The output signal value will be the latest input signal value
+	  function merge(c) {
+	    return joinPoint.call(this, false, false, c);
+	  }
+
+	  // Sample input signal(s)
+	  function sample(c) {
+	    return joinPoint.call(this, true, false, c);
 	  }
 
 	  function Circuit() {
 
-	    var _this = this;
-	    var Signal = new _signal2.default(new _events2.default(this));
-
-	    function joinPoint(sampleOnly, joinOnly, circuit) {
-	      var _jp = this.asSignal();
-	      var channels = _jp.channels || {},
-	          signals = [];
-	      Object.keys(circuit).forEach(function (k, i) {
-	        var signal = toSignal(_this, circuit[k]);
-	        if (signal.id) {
-	          signal.name = k;
-	          // bind each joining signal to the context value
-	          signal.bind(function (next, v, ctx) {
-	            ctx[_jp.name || 'value'] = _jp.value();
-	            return next.call(this, v, ctx);
-	          });
-	        }
-	        // signal is an identity. Use this to feed the value into the jp
-	        else {
-	            signal = { name: k, value: signal().value };
-	          }
-	        signals.push(signal);
-
-	        // channels are simply aggregated as circuit inputs but care must be
-	        // taken not to overwrite channels with the same name. Duplicates are
-	        // lifted into the existing channel and cannot
-	        // directly feed the circuit themselves.
-	        if (!channels[k]) {
-	          channels[k] = signal;
-	          if (signal.feed) {
-	            signal.feed(merge(signal.name)).fail(_jp.fail);
-	          }
-	        } else {
-	          channels[k].map(signal);
-	        }
-	      });
-
-	      var step = _jp.step();
-	      function merge(channel) {
-	        return function (v) {
-	          var jv = joinOnly && signals.reduce(function (jv, s) {
-	            jv[s.name] = s.value();
-	            return jv;
-	          }, {}) || v;
-	          step({ key: channel, value: sampleOnly ? sv : jv });
-	        };
-	      }
-
-	      // bind the channel key into ctx
-	      _jp.bind(function (next, v, ctx) {
-	        ctx.channel = v && v.key || _jp.name;
-	        return next(v && v.hasOwnProperty('value') ? v.value : v, ctx);
-	      });
-
-	      // expose the channel in circuit form (can be flatmap'd later if required)
-	      _jp.channels = channels;
-
-	      // halt sampled signals at this step
-	      var sv;
-	      return _jp.filter(function (v) {
-	        sv = v;
-	        return !sampleOnly;
-	      });
-	    }
-
-	    // public
-
-	    this.signal = Signal.create = function (name) {
-	      return extensions.reduce(function (s, ext) {
-	        ext = typeof ext === 'function' ? ext(s) : ext;
-	        return _circus2.default.extend(s, ext);
-	      }, new Signal(name));
-	    };
-
-	    this.asSignal = function () {
-	      return this.signal();
-	    };
-
-	    // Join 1 or more input signals into 1 output signal
-	    // Input signal channels will be mapped onto output signal keys
-	    // - duplicate channels will be merged
-	    this.join = function (c) {
-	      return joinPoint.call(this, false, true, c);
-	    };
-
-	    // Merge 1 or more input signals into 1 output signal
-	    // The output signal value will be the latest input signal value
-	    this.merge = function (c) {
-	      return joinPoint.call(this, false, false, c);
-	    };
-
-	    // Sample input signal(s)
-	    this.sample = function (c) {
-	      return joinPoint.call(this, true, false, c);
-	    };
-
-	    var extensions = [];
-	    this.extend = function (ext) {
-	      extensions.push(ext);
-	      if (typeof ext !== 'function') {
-	        return _circus2.default.extend(this, ext);
-	      }
-	      return this;
-	    };
-
-	    this.extend(function (ctx) {
+	    // a circuit is a signal with join points
+	    var _this = new _signal2.default().extend(function (signal) {
 	      return {
-	        join: _this.join,
-	        merge: _this.merge,
-	        sample: _this.sample,
-	        prime: prime(ctx),
-	        pure: pure(ctx),
-	        overlay: overlay(ctx)
+	        join: join,
+	        merge: merge,
+	        sample: sample,
+	        prime: prime(signal),
+	        pure: pure(signal),
+	        overlay: overlay(signal)
 	      };
 	    });
+
+	    // override to filter out this - Circuit().join returns a new circuit
+	    _this.asSignal = function (s) {
+	      return s && s.isSignal && s !== _this ? s : _this.signal(s);
+	    };
 
 	    var args = [].slice.call(arguments).forEach(function (module) {
 	      module(_this);
 	    });
+
+	    return _this;
 	  }
 
 	  exports.default = _circus2.default.extend(Circuit, _circus2.default);
 	});
 
 /***/ },
-/* 7 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1075,6 +715,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return this.map(function (v) {
 	          return f(v) ? { just: v } : { nothing: true };
 	        });
+	      },
+
+	      // pipe : (A -> B, B -> C) -> Signal C
+	      //        (A -> B, Signal C) -> Signal B ? C
+	      //        (A -> B -> B (C), C -> D) -> Signal D
+	      //
+	      // Convenient compose functor that maps from left to right.
+	      // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
+	      //
+	      pipe: function () {
+	        var args = [].slice.call(arguments);
+	        for (var i = 0; i < args.length; i++) {
+	          this.map(args[i]);
+	        }
+	        return this;
 	      },
 
 	      // map object key values
@@ -1179,71 +834,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 8 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
-	  if (true) {
-	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	  } else if (typeof exports !== "undefined") {
-	    factory(exports);
-	  } else {
-	    var mod = {
-	      exports: {}
-	    };
-	    factory(mod.exports);
-	    global.events = mod.exports;
-	  }
-	})(this, function (exports) {
-	  'use strict';
-
-	  Object.defineProperty(exports, "__esModule", {
-	    value: true
-	  });
-	  exports.default = Events;
-	  function Events(app) {
-
-	    var events = [],
-	        pCount = 0,
-	        steadyCircuit = true,
-	        noop = function () {};
-
-	    app.stateChange = function (s, e) {
-	      //filo event order
-	      _events.unshift({
-	        start: s || noop,
-	        stop: e || noop
-	      });
-	    };
-
-	    return {
-	      // Circuits are active when they start propagation and steady when they stop
-	      start: function (ctx, v) {
-	        if (!pCount++ && steadyCircuit && events.length) {
-	          for (var i = 0, el = events.length; i < el; i++) {
-	            events[i].start(ctx, v);
-	          }
-	        }
-	      },
-
-	      // Circuit propagation is re-entrant. Any 'extra' circuit work performed in this
-	      // state will simply prolong it until there are no more propagations.
-	      stop: function (ctx, v) {
-	        if (! --pCount && events.length) {
-	          if (steadyCircuit) {
-	            steadyCircuit = false;
-	            for (var i = 0, el = events.length; i < el; i++) {
-	              events[i].stop(ctx, v);
-	            }
-	          } else steadyCircuit = true;
-	        }
-	      }
-	    };
-	  }
-	});
-
-/***/ },
-/* 9 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1439,7 +1030,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      _2.default[op] = function (v, m) {
 	        if (arguments.length === 1) m = v;
 	        var f = m,
-	            s = _2.default.isSignal(f) || typeof f === 'function';
+	            s = f && f.isSignal || typeof f === 'function';
 	        if (s) m = arguments.length === 2 ? v : undefined;
 	        if (arguments.length === 1 || s) {
 	          return function (v, lv) {
@@ -1477,7 +1068,299 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 10 */
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
+	  if (true) {
+	    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [exports], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	  } else if (typeof exports !== "undefined") {
+	    factory(exports);
+	  } else {
+	    var mod = {
+	      exports: {}
+	    };
+	    factory(mod.exports);
+	    global.signal = mod.exports;
+	  }
+	})(this, function (exports) {
+	  'use strict';
+
+	  Object.defineProperty(exports, "__esModule", {
+	    value: true
+	  });
+	  var sId = 0;
+
+	  function _Signal(_steps) {
+	    var _this = this;
+	    this.id = function () {
+	      return _this;
+	    };
+	    this.id.isSignal = true;
+
+	    if (true) {
+	      this.$id = ++sId + (this.$name || '');
+	    }
+
+	    // private
+	    var _state, _bind;
+	    var _feeds = [],
+	        _fails = [],
+	        _finallys = [];
+	    var _pulse = Signal.UNDEFINED;
+
+	    _steps = typeof _steps !== 'string' && _steps || [];
+
+	    function _propagate(v, ctx) {
+	      var nv = v,
+	          fail = v instanceof Signal.fail;
+	      for (var i = ctx.step; i < _steps.length && !fail; i++) {
+	        nv = _apply(_steps[i], v, ctx);
+	        fail = nv instanceof Signal.fail;
+	        if (nv === undefined || fail) break;
+	        v = nv;
+	      }
+
+	      if (nv !== undefined) {
+	        // tail value is either a fail or new state
+	        if (!fail) {
+	          _state = nv === Signal.UNDEFINED ? undefined : nv;
+	        }
+	        var tail = fail ? _fails : _feeds;
+	        for (var t = 0; t < tail.length; t++) {
+	          tail[t].call(_this, nv);
+	        }
+	        // report the last good value in finally
+	        for (var f = 0; f < _finallys.length; f++) {
+	          _finallys[f].call(_this, v);
+	        }
+	        if (_pulse !== Signal.UNDEFINED) _state = _pulse;
+	      }
+	    }
+
+	    // apply: Allow running arbitrary functions inside the functor
+	    function _apply(f, v, ctx) {
+	      v = f.call(_this, v, ctx);
+	      // handle thunks and promises..
+	      if (typeof v === 'function') {
+	        v(_nextStep(ctx.step + 1));
+	        return undefined;
+	      }
+	      if (typeof v === 'object' && typeof v.then === 'function') {
+	        // promise chains end here
+	        var next = _nextStep(ctx.step + 1);
+	        v.then(next, function (m) {
+	          next(new Signal.fail(m));
+	        });
+	        return undefined;
+	      }
+	      return v;
+	    }
+
+	    // lift a function or signal into functor form
+	    function _lift(f) {
+	      var fmap = f;
+	      if (f.isSignal) {
+	        var next = _nextStep();
+	        f.feed(function (v) {
+	          next(v);
+	        });
+	        fmap = f.input;
+	      }
+	      return fmap;
+	    }
+
+	    // Allow values to be injected into the signal at arbitrary step points.
+	    // State propagation continues from this point
+	    function _nextStep(step) {
+	      var ctx = { step: step !== undefined ? step : _steps.length + 1 };
+	      return function (v) {
+	        return _bind ? _bind(_propagate, v, ctx) : _propagate(v, ctx);
+	      };
+	    }
+
+	    this.step = _nextStep;
+
+	    // bind : ( (A, B, C) -> A(D, C) ) -> Signal D
+	    //
+	    // Bind and apply a middleware to a signal context.
+	    // eg : bind((next, value, ctx) => next(++value)).input(1) -> Signal 2
+	    //
+	    // The middleware should call next to propagate the signal.
+	    // The middleware should skip next to halt the signal.
+	    // The middleware is free to modify value and / or context.
+	    this.bind = function (mw) {
+	      var next = _bind || _apply;
+	      _bind = function (f, v, ctx) {
+	        return mw(function (v) {
+	          return next(f, v, ctx);
+	        }, v, ctx);
+	      };
+	      return this;
+	    };
+
+	    this.isSignal = true;
+
+	    // signal : A -> Signal A
+	    //            A -> B -> Signal B
+	    //            Signal A -> Signal A
+	    //
+	    this.asSignal = function (t) {
+	      if ((t || this).isSignal) return t || this;
+	      // todo: pass t into constructor?
+	      var s = this.signal();
+	      return typeof t === 'function' ? s.map(t) : s;
+	    };
+
+	    // clone : X -> Y
+	    //
+	    // clone a signal
+	    this.clone = function () {
+	      return new Signal(_steps);
+	    };
+
+	    // prime : (A) -> Signal A
+	    //
+	    // Set signal state directly, bypassing steps
+	    this.prime = function (v) {
+	      _state = v;
+	      return this;
+	    };
+
+	    // value : () -> A
+	    //
+	    // Return state as the current signal value.
+	    this.value = function () {
+	      return _state;
+	    };
+
+	    // input : (A) -> Signal A
+	    //
+	    // Signal a new value.
+	    // eg : input(123) -> Signal 123
+	    //
+	    // This method produces state propagation throughout a connected circuit.
+	    this.input = function (v) {
+	      var ctx = { step: 0 };
+	      _bind ? _bind(_propagate, v, ctx) : _propagate(v, ctx);
+	    };
+
+	    // map : () -> Signal
+	    //       (A) -> Signal A
+	    //       (A -> B) -> Signal B
+	    //       (A -> B -> B (C)) -> Signal C
+	    //       (A -> B -> B.resolve (C)) -> Signal C
+	    //       (A -> B -> B.reject (C)) -> Signal
+	    //       (Signal A) -> Signal A
+	    //       (A -> B) -> Signal B
+	    //       (Signal A) -> Signal A
+	    //
+	    // Map over the current signal value and propagate
+	    // - can await propagation by returning a thunk or promise
+	    // - can halt propagation by returning undefined - retain current state (finally(s) not invoked)
+	    // - can short propagation by returning Signal.fail - revert to previous state (finally(s) invoked)
+	    // Note that to map state onto undefined the pseudo value Signal.UNDEFINED must be returned
+	    this.map = function (f) {
+	      _steps.push(_lift(f));
+	      return this;
+	    };
+
+	    // register or invoke a fail handler
+	    this.fail = function (f) {
+	      _fails.push(f.input || f);
+	      return this;
+	    };
+
+	    // feed : (A -> B) -> Signal
+	    //
+	    // Register a feed handler.
+	    // The handler will be called after successful propagation.
+	    // The value passed to the handler will be the state value.
+	    this.feed = function (f) {
+	      _feeds.push(f.input || f);
+	      return this;
+	    };
+
+	    // finally : (A -> B) -> Signal
+	    //
+	    // Register a finally handler.
+	    // The handler will be called after propagation, feeds and fails.
+	    // The value passed to the handler will be the last good step value.
+	    this.finally = function (f) {
+	      _finallys.push(f.inout || f);
+	      return this;
+	    };
+
+	    // pulse : (A) -> Signal A
+	    //
+	    // Return to pristine (or pv) state after propagation, feeds, fails and finallys
+	    this.pulse = function (pv) {
+	      _pulse = pv;
+	      return this;
+	    };
+
+	    this.filter = function (f) {
+	      return this.map(function (v) {
+	        return f(v) ? v : undefined;
+	      });
+	    };
+
+	    // tap : (A -> B) -> Signal A
+	    //
+	    // Tap the current signal state value.
+	    // eg : tap(A => console.log(A)) -> Signal A
+	    //
+	    // - tap ignores any value returned from the tap function.
+	    this.tap = function (f) {
+	      return this.map(function (v) {
+	        f.apply(_this, arguments);
+	        return v === undefined ? Signal.UNDEFINED : v;
+	      });
+	    };
+	  }
+
+	  function extend(proto, ext) {
+	    Object.keys(ext).forEach(function (k) {
+	      proto[k] = ext[k];
+	    });
+	  }
+
+	  function Signal(steps) {
+	    var s = new _Signal(steps);
+
+	    s.signal = function () {
+	      var s = new Signal();
+	      for (var i = 0; i < _ext.length; i++) {
+	        s.extend(_ext[i]);
+	      }
+	      return s;
+	    };
+
+	    // Extend a signal with custom functions.
+	    // Chainable functions must return this.
+	    var _ext = [];
+	    s.extend = function (ext) {
+	      _ext.push(ext);
+	      extend(this, typeof ext === 'function' ? ext(this) || {} : ext);
+	      return this;
+	    };
+
+	    return s;
+	  }
+
+	  Signal.id = function (v) {
+	    return v;
+	  };
+	  Signal.UNDEFINED = Object.freeze({ value: undefined }), Signal.fail = function fail(v) {
+	    if (!(this instanceof fail)) return new fail(v);
+	    this.error = v || true;
+	  };
+
+	  exports.default = Signal;
+	});
+
+/***/ },
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1527,7 +1410,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 			test('as signal - from app', function () {
 				var s = app.asSignal(app);
-				return _src2.default.isSignal(s);
+				return s.isSignal;
 			});
 
 			test('circuit - propagation', function () {
@@ -1544,7 +1427,8 @@ return /******/ (function(modules) { // webpackBootstrap
 				var s1 = app.signal().map(_src2.default.fail);
 				var j1 = app.join({ s1 });
 				var r,
-				    j = app.join({ j1 }).fail(function (f) {
+				    j = app.join({ j1 });
+				j.fail(function (f) {
 					r = f;
 				});
 				s1.input(2);
@@ -1560,13 +1444,30 @@ return /******/ (function(modules) { // webpackBootstrap
 				return s.value() === 2;
 			});
 
-			test('channel - identity map', function () {
+			test('channel - identity', function () {
 				var s = app.merge({
 					a: _src2.default.id
 				});
 				s.channels.a.input(1);
 
 				return s.value() === 1;
+			});
+
+			test('channel - passive', function () {
+				var a = app.signal();
+				var b = app.signal().prime(2);
+				var s = app.join({
+					a: a,
+					b: b.id
+				});
+
+				a.input(1);
+				var r1 = s.value().b === 2;
+
+				b.input(1);
+				var r2 = s.value().b === 2;
+
+				return r1 && r2;
 			});
 
 			test('channel - value (always) map', function () {
@@ -1580,11 +1481,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 			test('channel - value (always undefined) map', function () {
 				var s = app.merge({
-					a: _src2.default.UNDEFINED
+					a: undefined
 				});
 				s.channels.a.input(1);
 
 				return s.value() === undefined;
+			});
+
+			test('channel value - literal (always)', function () {
+				var r = app.join({
+					a: 'a'
+				});
+				r.channels.a.input(123);
+				return r.value().a === 'a';
 			});
 
 			test('propagation order', function () {
@@ -1603,29 +1512,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return s1.value().toString() === s2.value().toString();
 			});
 
-			test('channel value - literal (always)', function () {
-				var r = app.join({
-					a: 'a'
-				});
-				r.channels.a.input(123);
-				return r.value().a === 'a';
-			});
-
-			test('channel value - passive', function () {
-				var r = 0,
-				    p = app.signal();
-				var c = app.join({
-					a: inc,
-					b: p.id
-				}).tap(function () {
-					r++;
-				});
-				p.input(1);
-				c.channels.a.input(1);
-				return r === 1 && p.value() === 1;
-			});
-
-			test('circuit value - prime values', function () {
+			test('prime', function () {
 				var a = app.signal();
 				var r = app.join({
 					a: a
@@ -1634,7 +1521,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return a.value() === 123;
 			});
 
-			test('circuit value - prime deep', function () {
+			test('prime - deep', function () {
 				var a = app.signal();
 				var r = app.join({
 					b: {
@@ -1645,7 +1532,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return a.value() === 123;
 			});
 
-			test('circuit value - join context', function () {
+			test('context - join', function () {
 				var a,
 				    r = app.join({
 					a: app.signal().map(function (v, j) {
@@ -1659,7 +1546,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				return a === 'join value' && r.value().a === 123;
 			});
 
-			test('circuit value - merge context', function () {
+			test('context - merge', function () {
 				var a,
 				    r = app.merge({
 					a: app.signal().map(function (v, m) {
@@ -1673,44 +1560,21 @@ return /******/ (function(modules) { // webpackBootstrap
 				return a === 'abc' && r.value() === 123;
 			});
 
-			test('circuit - placeholder', function () {
-				var c = app.join({ a: _src2.default.id });
-				c.channels.a.input(1);
-				return c.channels.a.value() === 1;
-			});
-
-			test('circuit - overlay placeholder', function () {
+			test('overlay - placeholder', function () {
 				var o = { a: inc };
 				var c = app.join({ a: _src2.default.id }).overlay(o);
 				c.channels.a.input(1);
 				return c.channels.a.value() === 2;
 			});
 
-			test('circuit - overlay input (pre)', function () {
+			test('overlay', function () {
 				var b = app.signal().map(dbl);
 				var o = { a: inc };
 				var c = app.join({ a: b }).overlay(o);
 				c.channels.a.input(1);
 				return c.channels.a.value() === 3;
 			});
-
-			test('circuit - overlay input (signal)', function () {
-				var b = app.signal().map(dbl);
-				var o = { a: app.signal().map(inc) };
-				var c = app.join({ a: b }).overlay(o);
-				c.channels.a.input(1);
-				return c.channels.a.value() === 3;
-			});
-
-			test('circuit - overlay deep', function () {
-				var b = app.signal();
-				var o = { a: { a: { a: inc } } };
-				var c = app.join({ a: { a: { a: b } } }).overlay(o);
-				c.channels.a.channels.a.channels.a.input(1);
-				return c.channels.a.channels.a.channels.a.value() === 2;
-			});
-
-			test('circuit - overlay sample', function () {
+			test('overlay - sample', function () {
 				var a = app.signal();
 				var b = app.signal();
 				var o = { a: inc, b: inc };
@@ -1718,6 +1582,22 @@ return /******/ (function(modules) { // webpackBootstrap
 				c.channels.a.input(1);
 				c.channels.b.input(1);
 				return c.channels.a.value() === 2 && c.channels.b.value() === 2;
+			});
+
+			test('overlay - signal', function () {
+				var b = app.signal().map(dbl);
+				var o = { a: app.signal().map(inc) };
+				var c = app.join({ a: b }).overlay(o);
+				c.channels.a.input(1);
+				return c.channels.a.value() === 3;
+			});
+
+			test('overlay - deep', function () {
+				var b = app.signal();
+				var o = { a: { a: { a: inc } } };
+				var c = app.join({ a: { a: { a: b } } }).overlay(o);
+				c.channels.a.channels.a.channels.a.input(1);
+				return c.channels.a.channels.a.channels.a.value() === 2;
 			});
 
 			test('extend - app ctx', function () {
@@ -1764,7 +1644,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 11 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -1842,12 +1722,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 12 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(7), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(6), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
 	        factory(require('../src'), require('../src/composables'), require('../src/utils'));
 	    } else {
@@ -1908,19 +1788,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return e === 5;
 	        });
 
-	        test('feed', function () {
-	            var s1 = app.signal().map(inc);
-	            var s2 = app.signal().feed(s1);
-	            s2.input(2);
-	            return s1.value() === 3;
+	        test('pipe', function () {
+	            var e,
+	                s = app.signal().pipe(inc, dbl, dbl).tap(function (v) {
+	                e = v;
+	            });
+	            s.input(1);
+	            return e === 8;
 	        });
 
-	        test('filter', function () {
-	            var s = app.signal().filter(function (v) {
-	                return v % 2;
-	            }).keep();
-	            for (var i = 0; i < 4; i++) s.input(i);
-	            return s.toArray().toString() === '1,3';
+	        test('pipe - signals', function () {
+	            var s1 = app.signal().map(inc);
+	            var s2 = app.signal().map(inc);
+	            var p = app.signal().pipe(s1, s2);
+	            p.input(1);
+	            return p.value() === 3;
 	        });
 
 	        test('flatten', function () {
@@ -2050,7 +1932,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 13 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2186,7 +2068,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 14 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2222,7 +2104,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 15 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -2373,12 +2255,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 16 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 	    if (true) {
-	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(9), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(7), __webpack_require__(2)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof exports !== "undefined") {
 	        factory(require('../src'), require('../src/match'), require('../src/utils'));
 	    } else {
@@ -2906,12 +2788,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 17 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
 		if (true) {
-			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(5)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+			!(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(1), __webpack_require__(8)], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 		} else if (typeof exports !== "undefined") {
 			factory(require('../src'), require('../src/signal'));
 		} else {
@@ -2925,6 +2807,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		'use strict';
 
 		var _src2 = _interopRequireDefault(_src);
+
+		var _signal2 = _interopRequireDefault(_signal);
 
 		function _interopRequireDefault(obj) {
 			return obj && obj.__esModule ? obj : {
@@ -2969,16 +2853,20 @@ return /******/ (function(modules) { // webpackBootstrap
 
 			var signal;
 			setup(function () {
-				signal = new _signal.Signal();
+				signal = new _signal2.default();
 			});
 
 			test('new signal', function () {
-				return _src2.default.isSignal(signal);
+				return signal.isSignal;
+			});
+
+			test('new signal - from signal', function () {
+				return signal.signal().isSignal;
 			});
 
 			test('as signal', function () {
 				var s = signal.asSignal();
-				return _src2.default.isSignal(s);
+				return s.isSignal;
 			});
 
 			test('as signal - from this', function () {
@@ -2991,6 +2879,12 @@ return /******/ (function(modules) { // webpackBootstrap
 				var s = signal.asSignal(inc);
 				s.input(1);
 				return s.value() === 2;
+			});
+
+			test('clone', function () {
+				var c = signal.map(inc).clone();
+				c.input(1);
+				return c.value() === 2;
 			});
 
 			test('input ', function () {
@@ -3087,14 +2981,14 @@ return /******/ (function(modules) { // webpackBootstrap
 			});
 
 			test('map - signal', function () {
-				var b = new _signal.Signal().map(inc);
+				var b = new _signal2.default().map(inc);
 				signal.map(b).input(1);
 				return signal.value() === 2;
 			});
 
 			test('map - signal flow', function () {
-				var a = new _signal.Signal().map(inc);
-				var b = new _signal.Signal().map(dbl);
+				var a = new _signal2.default().map(inc);
+				var b = new _signal2.default().map(dbl);
 				signal.map(a).map(b).map(mul3).input(1);
 				return signal.value() === 12;
 			});
@@ -3153,21 +3047,22 @@ return /******/ (function(modules) { // webpackBootstrap
 				s.input(1);
 			});
 
-			test('pipe', function () {
-				var e,
-				    s = signal.pipe(inc, dbl, dbl).tap(function (v) {
-					e = v;
-				});
-				s.input(0);
-				return e === 4;
+			test('feed', function () {
+				var s1 = signal.map(inc);
+				var s2 = signal.signal().feed(s1);
+				s2.input(2);
+				return s1.value() === 3;
 			});
 
-			test('pipe - signals', function () {
-				var s1 = new _signal.Signal().map(inc);
-				var s2 = new _signal.Signal().map(inc);
-				var p = new _signal.Signal().pipe(s1, s2);
-				p.input(1);
-				return p.value() === 3;
+			test('filter', function () {
+				var r = 0,
+				    s = signal.filter(function (v) {
+					return v % 2;
+				}).tap(function () {
+					r++;
+				});
+				for (var i = 0; i < 4; i++) s.input(i);
+				return r === 2;
 			});
 
 			test('bind', function () {
@@ -3264,23 +3159,92 @@ return /******/ (function(modules) { // webpackBootstrap
 			});
 
 			test('propagation order', function () {
-				var a = new _signal.Signal('a').map(seq(1));
-				var b = new _signal.Signal('b').map(seq(2));
-				var c = new _signal.Signal('c').map(seq(3));
+				var a = new _signal2.default('a').map(seq(1));
+				var b = new _signal2.default('b').map(seq(2));
+				var c = new _signal2.default('c').map(seq(3));
 
-				var s1 = new _signal.Signal().map(a).map(b).map(c);
+				var s1 = new _signal2.default().map(a).map(b).map(c);
 				s1.input([]);
 
-				var s2 = new _signal.Signal().map(a.clone().map(b.clone().map(c.clone())));
+				var s2 = new _signal2.default().map(a.clone().map(b.clone().map(c.clone())));
 				s2.input([]);
 
 				return s1.value().toString() === s2.value().toString();
+			});
+
+			test('extend', function () {
+				var r,
+				    ext = function () {
+					return this.map(function (v) {
+						r = v;
+					});
+				};
+				signal.extend({ ext: ext }).ext().input(1);
+				return r === 1;
+			});
+
+			test('extend - inheritance', function () {
+				var r,
+				    ext = function () {
+					return this.map(function (v) {
+						r = v;
+					});
+				};
+				signal.extend({ ext: ext });
+				signal.signal().signal().ext().input(1);
+				return r === 1;
+			});
+
+			test('extend - isolated inheritance', function () {
+				var r,
+				    ext = function () {
+					return this.map(function (v) {
+						r = v;
+					});
+				};
+				var s1 = signal.signal().extend({ ext: ext });
+				var s2 = signal.signal();
+				s1.ext().input(1);
+				return s2.ext === undefined && r === 1;
+			});
+
+			test('extend - override', function () {
+				var r,
+				    ext = function (_this) {
+					var _prime = _this.prime.bind(_this);
+					return {
+						prime: function (v) {
+							return _prime(v + 1);
+						}
+					};
+				};
+				return signal.extend(ext).prime(1).value() === 2;
+			});
+
+			test('extend - deep inherit override', function () {
+				var ext1 = function (_this) {
+					var _prime = _this.prime.bind(_this);
+					return {
+						prime: function (v) {
+							return _prime(v + 1);
+						}
+					};
+				};
+				var ext2 = function (_this) {
+					var _prime = _this.prime.bind(_this);
+					return {
+						prime: function (v) {
+							return _prime(v + 2);
+						}
+					};
+				};
+				return signal.extend(ext1).signal().extend(ext2).signal().prime(1).value() === 4;
 			});
 		});
 	});
 
 /***/ },
-/* 18 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {
@@ -3386,7 +3350,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 19 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;(function (global, factory) {

@@ -69,6 +69,21 @@ export default function Composables(app) {
       })
     },
 
+    // pipe : (A -> B, B -> C) -> Signal C
+    //        (A -> B, Signal C) -> Signal B ? C
+    //        (A -> B -> B (C), C -> D) -> Signal D
+    //
+    // Convenient compose functor that maps from left to right.
+    // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
+    //
+    pipe: function(){
+      var args = [].slice.call(arguments)
+      for (var i=0; i<args.length; i++) {
+        this.map(args[i])
+      }
+      return this
+    },
+
     // map object key values
     pluck: function() {
       var args = [].slice.call(arguments), a0 = args[0]

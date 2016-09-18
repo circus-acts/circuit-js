@@ -4,7 +4,7 @@ import Circus from './circus'
 
 function diff(v1,v2, recurse) {
   var T = Circus.type(v1)
-  if (~Circus.type.LITERAL.indexOf(T) || T === Circus.type.FUNCTION || v1 === undefined || v2 === undefined || Circus.isSignal(v1)) {
+  if (~Circus.type.LITERAL.indexOf(T) || T === Circus.type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
     return v1!==v2
   }
   else {
@@ -50,13 +50,13 @@ function lens(data,name,ns,def) {
 }
 
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || Circus.isSignal(s) && {s:s} || s, seed = acc!=Circus.UNDEFINED, fmap=[]
+  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=Circus.UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
     Object.keys(c).forEach (function(ck){
       var t = c[ck]
-      var n = (Circus.isSignal(t) && t.name) || ck
+      var n = (t.isSignal && t.name) || ck
       var v = (sv||{})[n]
       if (t.channels && t.channels !== s.channels) {
         var a = stamp(t.channels,fn, v)

@@ -3,29 +3,17 @@ import {thunkOr} from './utils'
 
 'use strict';
 
-export function Maybe(ctx) {
-  ctx.extend(function(ctx){
-    return {
-      maybe: function(m) {
-        return ctx.finally(function(v,f) {
-          return f? m.nothing() : m.just(v)
-        })
-      }
-    }
-  })
-}
-
 export function Error(ctx) {
-  ctx.extend(function(ctx){
+  ctx.extend(function(signal){
     var _fail
-    ctx.fail(function(error) {
+    signal.fail(function(error) {
       _fail = _fail || error
     })
     return {
       active: function(m) {
-        return ctx.map(function(v) {
-          return Object.keys(ctx.channels).filter(function(k){
-            return !ctx.channels[k].value()
+        return signal.map(function(v) {
+          return Object.keys(signal.channels).filter(function(k){
+            return !signal.channels[k].value()
           }).length ? Circus.fail(m) : v
         })
       },

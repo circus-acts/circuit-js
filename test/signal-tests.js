@@ -1,5 +1,5 @@
 import Circus from '../src'
-import {Signal} from '../src/signal'
+import Signal from '../src/signal'
 
 var inc = function(v){return v+1}
 var dbl = function(v){return v+v}
@@ -29,12 +29,16 @@ runTests('signal', function(mock) {
 	})
 
     test('new signal', function(){
-        return Circus.isSignal(signal)
+        return signal.isSignal
+    })
+
+    test('new signal - from signal', function(){
+        return signal.signal().isSignal
     })
 
     test('as signal', function(){
         var s = signal.asSignal()
-        return Circus.isSignal(s)
+        return s.isSignal
     })
 
     test('as signal - from this', function(){
@@ -47,6 +51,12 @@ runTests('signal', function(mock) {
         var s = signal.asSignal(inc)
         s.input(1)
         return s.value() === 2
+    })
+
+    test('clone', function(){
+    	var c = signal.map(inc).clone()
+    	c.input(1)
+    	return c.value() === 2
     })
 
 	test('input ',function() {
@@ -194,22 +204,20 @@ runTests('signal', function(mock) {
 		s.input(1)
 	})
 
-    test('pipe',function() {
-        var e,s = signal
-        .pipe(inc,dbl,dbl).tap(function(v){
-            e = v
-        })
-        s.input(0)
-        return e === 4
+    test('feed', function() {
+        var s1 = signal.map(inc)
+        var s2 = signal.signal().feed(s1)
+        s2.input(2)
+        return s1.value() === 3
     })
 
-	test('pipe - signals',function() {
-		var s1 = new Signal().map(inc)
-		var s2 = new Signal().map(inc)
-		var p = new Signal().pipe(s1,s2)
-		p.input(1)
-		return p.value() === 3
-	})
+    test('filter', function(){
+        var r=0, s = signal.filter(function(v){
+            return v % 2
+        }).tap(function(){r++})
+        for (var i=0; i<4; i++) s.input(i)
+        return r === 2
+    })
 
     test('bind',function() {
         var s = signal.map(inc).map(dbl)
@@ -283,6 +291,59 @@ runTests('signal', function(mock) {
 		s2.input([])
 
 		return s1.value().toString() === s2.value().toString()
+	})
+
+	test('extend', function(){
+		var r, ext = function() {return this.map(function(v) {r=v})}
+		signal.extend({ext: ext}).ext().input(1)
+		return r === 1
+	})
+
+	test('extend - inheritance', function(){
+		var r, ext = function() {return this.map(function(v) {r=v})}
+		signal.extend({ext: ext})
+		signal.signal().signal().ext().input(1)
+		return r === 1
+	})
+
+	test('extend - isolated inheritance', function(){
+		var r, ext = function() {return this.map(function(v) {r=v})}
+		var s1 = signal.signal().extend({ext: ext})
+		var s2 = signal.signal()
+		s1.ext().input(1)
+		return s2.ext === undefined && r === 1
+	})
+
+	test('extend - override', function(){
+		var r, ext = function(_this) {
+			var _prime = _this.prime.bind(_this)
+			return {
+				prime: function(v) {
+					return _prime(v + 1)
+				}
+			}
+		}
+		return signal.extend(ext).prime(1).value() === 2
+	})
+
+	test('extend - deep inherit override', function(){
+		var ext1 = function(_this) {
+			var _prime = _this.prime.bind(_this)
+			return {
+				prime: function(v) {
+					return _prime(v + 1)
+				}
+			}
+		}
+		var ext2 = function(_this) {
+			var _prime = _this.prime.bind(_this)
+			return {
+				prime: function(v) {
+					return _prime(v + 2)
+				}
+			}
+		}
+		return signal.extend(ext1).signal().extend(ext2).signal().prime(1).value() === 4
 	})
 
 })
