@@ -219,18 +219,4 @@ runTests('circuit', function(mock) {
         return r1===s && r2===s
     })
 
-    test('impure', function() {
-    	var r=0, s = app.merge({a:Signal.id}).tap(function(){r++})
-    	s.channels.a.input(1)
-    	s.channels.a.input(1)
-    	return r === 2
-    })
-
-    test('pure', function() {
-    	var r=0, s = app.merge({a:Signal.id}).pure().tap(function(){r++})
-    	s.channels.a.input(1)
-    	s.channels.a.input(1)
-    	return r === 1
-    })
-
 })

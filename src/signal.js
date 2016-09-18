@@ -42,6 +42,7 @@ function _Signal(_steps) {
       }
       if (_pulse !== Signal.UNDEFINED) _state = _pulse
     }
+    return nv
   }
 
   // apply: Allow running arbitrary functions inside the functor
@@ -191,7 +192,7 @@ function _Signal(_steps) {
   // The handler will be called after propagation, feeds and fails.
   // The value passed to the handler will be the last good step value.
   this.finally = function(f) {
-    _finallys.push(f.inout || f)
+    _finallys.push(f.input || f)
     return this
   }
 
