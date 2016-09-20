@@ -12,16 +12,16 @@ function _Signal(_steps) {
   }
 
   // private
-  var _state, _bind
+  var _state = {value: undefined, ctx: {}}, _bind
   var _feeds = [], _fails = [], _finallys = []
   var _pulse = Signal.UNDEFINED
 
   _steps = typeof _steps !== 'string' && _steps || []
 
-  function _propagate(v, ctx) {
+  function _propagate(v) {
     var nv = v, fail = v instanceof Signal.fail
-    for (var i = ctx.step; i < _steps.length && !fail; i++) {
-      nv = _apply(_steps[i], v, ctx)
+    for (var i = _state.ctx.step; i < _steps.length && !fail; i++) {
+      nv = _apply.apply(null, [_steps[i], v].concat([].slice.call(arguments, 1)))
       fail = nv instanceof Signal.fail
       if (nv===undefined || fail) break;
       v = nv
@@ -30,32 +30,33 @@ function _Signal(_steps) {
     if (nv !== undefined) {
       // tail value is either a fail or new state
       if (!fail) {
-        _state = nv === Signal.UNDEFINED? undefined : nv
+        _state.value = nv === Signal.UNDEFINED? undefined : nv
       }
       var tail = fail? _fails : _feeds
       for (var t = 0; t < tail.length; t++) {
-        tail[t].call(_this, nv)
+        tail[t](nv)
       }
       // report the last good value in finally
       for (var f = 0; f < _finallys.length; f++) {
-        _finallys[f].call(_this, v)
+        _finallys[f](v)
       }
-      if (_pulse !== Signal.UNDEFINED) _state = _pulse
+      if (_pulse !== Signal.UNDEFINED) _state.value = _pulse
     }
     return nv
   }
 
   // apply: Allow running arbitrary functions inside the functor
-  function _apply(f, v, ctx) {
-    v = f.call(_this, v, ctx)
-    // handle thunks and promises..
+  function _apply(f, v) {
+    var args = [].slice.call(arguments, 1)
+    v = f.apply(_state.ctx, args)
+    // handle thunks and promises in lieu of generators..
     if (typeof v === 'function') {
-      v(_nextStep(ctx.step+1))
+      v(_nextStep(_state.ctx.step+1))
       return undefined
     }
     if (typeof v === 'object' && typeof v.then === 'function') {
       // promise chains end here
-      var next = _nextStep(ctx.step+1)
+      var next = _nextStep(_state.ctx.step+1)
       v.then(next, function(m) {next(new Signal.fail(m))})
       return undefined
     }
@@ -78,87 +79,81 @@ function _Signal(_steps) {
   // Allow values to be injected into the signal at arbitrary step points.
   // State propagation continues from this point
   function _nextStep(step) {
-    var ctx = {step: step !== undefined? step : _steps.length + 1}
+    step = step !== undefined? step : _steps.length + 1
     return function(v){
-      return _bind? _bind(_propagate, v, ctx) : _propagate(v, ctx)
+      _state.ctx.step = step
+      return _bind? _bind.call(_state, _propagate, v) : _propagate(v)
     }
   }
 
   this.step = _nextStep
 
-  // bind : ( (A, B, C) -> A(D, C) ) -> Signal D
+  // bind : ( (A, B) -> A(C) ) -> Signal C
   //
   // Bind and apply a middleware to a signal context.
-  // eg : bind((next, value, ctx) => next(++value)).input(1) -> Signal 2
+  // eg : bind((next, value) => next(++value)).input(1) -> Signal 2
   //
   // The middleware should call next to propagate the signal.
   // The middleware should skip next to halt the signal.
   // The middleware is free to modify value and / or context.
   this.bind = function(mw) {
     var next = _bind || _apply
-    _bind = function(f, v, ctx) {
-      return mw(function(v) {
-        return next(f, v, ctx)
-      }, v, ctx)
+    _bind = function(fn, v) {
+      var args = [function(v) {return next.apply(_state, [fn].concat([].slice.call(arguments)))}].concat([].slice.call(arguments, 1))
+      return mw.apply(_state, args)
     }
     return this
   }
 
   this.isSignal = true
 
-  // signal : A -> Signal A
+  // asSignal : A -> Signal A
   //            A -> B -> Signal B
   //            Signal A -> Signal A
   //
   this.asSignal = function(t) {
     if ((t || this).isSignal) return t || this
-    // todo: pass t into constructor?
     var s = this.signal()
     return (typeof t === 'function'? s.map(t) : s)
   }
 
-  // clone : X -> Y
+  // clone :: Signal A -> Signal B
   //
-  // clone a signal
+  // Clone a signal, its bindings and its steps
   this.clone = function() {
     return new Signal(_steps)
   }
 
-  // prime : (A) -> Signal A
+  // prime :: (A) -> Signal A
   //
   // Set signal state directly, bypassing steps
   this.prime = function(v) {
-    _state = v
+    _state.value = v
     return this
   }
 
-  // value : () -> A
+  // value :: () -> A
   //
   // Return state as the current signal value.
   this.value = function() {
-    return _state
+    return _state.value
   }
 
-  // input : (A) -> Signal A
+  // input :: (A) -> Signal A
   //
   // Signal a new value.
   // eg : input(123) -> Signal 123
   //
   // This method produces state propagation throughout a connected circuit.
   this.input = function(v) {
-    var ctx = {step: 0}
-    _bind? _bind(_propagate, v, ctx) : _propagate(v,ctx)
+    _state.ctx = {step: 0}
+    _bind? _bind.call(_state, _propagate, v) : _propagate(v)
   }
 
-  // map : () -> Signal
-  //       (A) -> Signal A
-  //       (A -> B) -> Signal B
-  //       (A -> B -> B (C)) -> Signal C
-  //       (A -> B -> B.resolve (C)) -> Signal C
-  //       (A -> B -> B.reject (C)) -> Signal
-  //       (Signal A) -> Signal A
-  //       (A -> B) -> Signal B
-  //       (Signal A) -> Signal A
+  // map :: () -> Signal
+  //        (A -> B) -> Signal B
+  //        (A -> B -> C) -> Signal C
+  //        (Signal A) -> Signal A
   //
   // Map over the current signal value and propagate
   // - can await propagation by returning a thunk or promise
@@ -176,7 +171,7 @@ function _Signal(_steps) {
     return this
   }
 
-  // feed : (A -> B) -> Signal
+  // feed :: Signal x (A -> B) -> Signal x
   //
   // Register a feed handler.
   // The handler will be called after successful propagation.
@@ -186,7 +181,7 @@ function _Signal(_steps) {
     return this
   }
 
-  // finally : (A -> B) -> Signal
+  // finally :: Signal x (A -> B) -> Signal x
   //
   // Register a finally handler.
   // The handler will be called after propagation, feeds and fails.
@@ -196,7 +191,7 @@ function _Signal(_steps) {
     return this
   }
 
-  // pulse : (A) -> Signal A
+  // pulse :: Signal x () -> Signal x
   //
   // Return to pristine (or pv) state after propagation, feeds, fails and finallys
   this.pulse = function(pv){
@@ -210,7 +205,7 @@ function _Signal(_steps) {
     })
   }
 
-  // tap : (A -> B) -> Signal A
+  // tap :: Signal x (A -> B) -> Signal x
   //
   // Tap the current signal state value.
   // eg : tap(A => console.log(A)) -> Signal A
@@ -218,7 +213,7 @@ function _Signal(_steps) {
   // - tap ignores any value returned from the tap function.
   this.tap = function(f) {
     return this.map(function(v){
-      f.apply(_this,arguments)
+      f.apply(null,arguments)
       return v===undefined? Signal.UNDEFINED : v
     })
   }
