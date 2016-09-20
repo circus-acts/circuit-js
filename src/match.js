@@ -1,7 +1,10 @@
 import Signal from './signal'
-import Utils from './utils'
 
 'use strict';
+
+var _isObject = function(t) {
+  return {}.toString.call(t)[8] === 'O'
+}
 
 var vMatch={}, litKey = new Date().getTime()
 
@@ -94,9 +97,9 @@ function match(){
   function matcher(v) {
     var m = mask || v
     if (!wcMask) {
-      isObject = Utils.typeOf(m) === Utils.type.OBJECT
+      isObject = _isObject(m)
       wcMask = {}
-      if (!isObject || !memo(Object.keys(m),v, m,undefined)) {
+      if (!isObject || !memo(Object.keys(m),v, m, undefined)) {
         wcMask[litKey] = v
       }
       wcKeys = Object.keys(wcMask)

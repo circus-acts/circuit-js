@@ -1,5 +1,5 @@
 import Signal from './signal'
-import {thunkOr} from './utils'
+import thunkor from './thunkor'
 
 'use strict';
 
@@ -29,7 +29,7 @@ export function Error(signal) {
 
 export function test(f, m) {
   return function(v) {
-    return thunkOr(f.apply(null,arguments), function(j) {
+    return thunkor(f.apply(null,arguments), function(j) {
       return j? (j===true? v : j) : Signal.fail(m)
     })
   }
