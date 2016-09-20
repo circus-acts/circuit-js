@@ -73,7 +73,19 @@ runTests('join', function(mock) {
 			}
 		}
 		var s = app.join(j)
-		return j.a.b.c.name === 'c'
+		return s.a.b.c.name === 'c'
+	})
+
+	test('join - name conflict', function() {
+		var j = {
+			map: signal()
+		}
+		try {
+			var s = app.join(j)
+		}
+		catch(e) {
+			return true
+		}
 	})
 
 	test('merge', function() {

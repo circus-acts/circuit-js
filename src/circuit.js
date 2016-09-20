@@ -59,7 +59,7 @@ function prime(s) {
 function joinPoint(sampleOnly, joinOnly, circuit) {
   var _jp = this.asSignal();
   var channels=_jp.channels || {}, signals = []
-  Object.keys(circuit).forEach(function(k,i){
+  Object.keys(circuit).forEach(function(k){
     var signal = toSignal(_jp,circuit[k])
     if (signal.id) {
       signal.name = k
@@ -68,12 +68,17 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         ctx[_jp.name || 'value'] = _jp.value()
         return next.call(_jp,v,ctx)
       })
+      // is channel syntax really that bad?
+      if (process.env.NODE_ENV==='development') {
+        if (_jp[k] && !_jp[k].isSignal) throw new Error('channel name cannot use signal verb - ' + k)
+      }
       // channels are simply aggregated as circuit inputs but care must be
       // taken not to overwrite channels with the same name. Duplicates are
       // lifted into the existing channel and cannot directly feed the circuit.
       if (!channels[k]) {
+        _jp[k] = signal
         channels[k] = signal
-        signal.feed(merge(signal.name)).fail(_jp.input)
+        signal.feed(merge(k)).fail(_jp.input)
       }
       else {
         channels[k].map(signal)
@@ -83,7 +88,9 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
     else {
       signal = {name: k, value:signal().value}
     }
+
     signals.push(signal)
+
   })
 
   var step = _jp.step()
