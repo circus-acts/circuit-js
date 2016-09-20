@@ -16,7 +16,6 @@ _type.OBJECT = OBJECT
 _type.FUNCTION = FUNCTION
 _type.LITERAL = LITERAL
 
-
 function diff(v1,v2, recurse) {
   var T = _type(v1)
   if (~_type.LITERAL.indexOf(T) || T === _type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
@@ -89,6 +88,11 @@ function traverse(s, fn, acc, tv) {
 
 const api = {
 
+  lens: lens,
+  typeOf : _typeOf,
+  type: _type,
+
+  // force arity on diffs and traverses
   diff: function(v1,v2) {
     return diff(v1,v2)
   },
@@ -105,8 +109,6 @@ const api = {
     return !diff(v1,v2,true)
   },
 
-  lens: lens,
-
   reduce: function(s, fn, seed, tv) {
     return traverse(s, fn, seed, tv)[1]
   },
@@ -121,16 +123,7 @@ const api = {
 
   tap: function(s, fn, tv) {
     traverse(s, fn, Signal.UNDEFINED, tv)
-  },
-  typeOf : _typeOf,
-  type: _type
+  }
 }
 
 export default api
-
-export function thunkOr(v, resolve) {
-  resolve = resolve || Signal.id
-  return typeof v === 'function'
-  ? function(next) { v(function(tv) {next(resolve(tv))}) }
-  : resolve(v)
-}

@@ -49,15 +49,6 @@ runTests('circuit', function(mock) {
 		return s.value() === 2
 	})
 
-	test('channel - identity', function(){
-		var s = app.merge({
-			a: Signal.id
-		})
-		s.channels.a.input(1)
-
-		return s.value() === 1
-	})
-
 	test('channel - passive', function(){
 		var a = app.signal()
 		var b = app.signal().prime(2)
@@ -75,17 +66,17 @@ runTests('circuit', function(mock) {
 		return r1 && r2
 	})
 
-	test('channel - value (always) map', function(){
-		var s = app.merge({
+	test('channel - always', function(){
+		var s = app.join({
 			a: 123
 		})
 		s.channels.a.input(1)
 
-		return s.value() === 123
+		return s.value().a === 123
 	})
 
-	test('channel - value (always undefined) map', function(){
-		var s = app.merge({
+	test('channel - always undefined', function(){
+		var s = app.join({
 			a: undefined
 		})
 		s.channels.a.input(1)

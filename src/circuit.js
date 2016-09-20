@@ -72,9 +72,9 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       if (process.env.NODE_ENV==='development') {
         if (_jp[k] && !_jp[k].isSignal) throw new Error('channel name cannot use signal verb - ' + k)
       }
-      // channels are simply aggregated as circuit inputs but care must be
-      // taken not to overwrite channels with the same name. Duplicates are
-      // lifted into the existing channel and cannot directly feed the circuit.
+      // channels are simply aggregated as circuit inputs but care must
+      // be taken not to overwrite existing channels with the same name.
+      // So, duplicates are lifted, upstream, into the existing channel.
       if (!channels[k]) {
         _jp[k] = signal
         channels[k] = signal
@@ -84,8 +84,10 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         channels[k].map(signal)
       }
     }
-    // signal is an identity
-    else {
+    // signal is an identity and cannot actually signal. It's only
+    // useful for joins where its current state will be included as
+    // a passive channel.
+    else if (joinOnly) {
       signal = {name: k, value:signal().value}
     }
 
