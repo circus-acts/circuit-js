@@ -2,6 +2,8 @@ import Signal from './signal'
 
 'use strict';
 
+var UNDEFINED = {}
+
 var _types = {}.toString, ARRAY='A',OBJECT='O', FUNCTION='F', LITERAL = 'SNBDR'
 var _type = function(t) {
   return _types.call(t)[8]
@@ -41,9 +43,9 @@ function pathToData(data, key) {
   if (i > 0){
     var idx=parseInt(key.substr(i+1,key.length-2),10)
     var idxKey = key.substr(0,i)
-    return data.hasOwnProperty(idxKey)? data[idxKey][idx] : Signal.UNDEFINED
+    return data.hasOwnProperty(idxKey)? data[idxKey][idx] : UNDEFINED
   }
-  return data && data.hasOwnProperty(key)? data[key] : Signal.UNDEFINED
+  return data && data.hasOwnProperty(key)? data[key] : UNDEFINED
 }
 
 // return a value from a nested structure
@@ -55,16 +57,16 @@ function lens(data,name,ns,def) {
   var path = ((ns? ns + '.' :'') + name).split('.')
   var v = path.reduce(pathToData,data)
 
-  if (data && v===Signal.UNDEFINED && _typeOf(data) === _type.OBJECT && data.constructor==={}.constructor) {
+  if (data && v===UNDEFINED && _typeOf(data) === _type.OBJECT && data.constructor==={}.constructor) {
     v = Object.keys(data).reduce(function(a,k){
-      return a!==Signal.UNDEFINED && a || lens(data[k],name,'',def)
-    },Signal.UNDEFINED)
+      return a!==UNDEFINED && a || lens(data[k],name,'',def)
+    },UNDEFINED)
   }
-  return v!==Signal.UNDEFINED? v : def
+  return v!==UNDEFINED? v : def
 }
 
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=Signal.UNDEFINED, fmap=[]
+  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
@@ -114,15 +116,15 @@ const api = {
   },
 
   map: function(s, fn, tv) {
-    return traverse(s, fn, Signal.UNDEFINED,tv)[0]
+    return traverse(s, fn, UNDEFINED,tv)[0]
   },
 
   flatmap: function(s, fn, tv) {
-    return traverse(s, fn, Signal.UNDEFINED,tv)[2]
+    return traverse(s, fn, UNDEFINED,tv)[2]
   },
 
   tap: function(s, fn, tv) {
-    traverse(s, fn, Signal.UNDEFINED, tv)
+    traverse(s, fn, UNDEFINED, tv)
   }
 }
 

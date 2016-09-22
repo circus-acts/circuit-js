@@ -11,15 +11,15 @@ var seq = function(s){
 	}
 }
 
-var Promise = function(cb){
-	var thenR, thenF,
-		resolve = function(v) {thenR(v)},
-		reject = function(v) {thenF(v)}
-	cb(resolve,reject)
-	return {
-		then: function(r,f) {thenR=r,thenF=f}
-	}
-}
+// var Promise = function(cb){
+// 	var thenR, thenF,
+// 		resolve = function(v) {thenR(v)},
+// 		reject = function(v) {thenF(v)}
+// 	cb(resolve,reject)
+// 	return {
+// 		then: function(r,f) {thenR=r,thenF=f}
+// 	}
+// }
 
 runTests('signal', function(mock) {
 
@@ -120,8 +120,8 @@ runTests('signal', function(mock) {
 		return s.value() === 2
 	})
 
-	test('map - undefined halts propagation',function() {
-		var s = signal.map(function(v){return undefined}).map(inc)
+	test('map - halt propagation',function() {
+		var s = signal.map(function(v){return this.halt}).map(inc)
 		s.input(1)
 		return s.value() === undefined
 	})
@@ -134,7 +134,7 @@ runTests('signal', function(mock) {
 	})
 
 	test('map - Signal.fail aborts propagation',function() {
-		var s = signal.map(function(v){return Signal.fail()}).map(inc)
+		var s = signal.map(function(v){return this.fail()}).map(inc)
 		s.input(1)
 		return s.value() === undefined
 	})
@@ -165,10 +165,9 @@ runTests('signal', function(mock) {
 
 	test('map - async fail',function(done) {
 		function async(v) {
+			var fail = this.fail()
 			return function(next) {
-				setTimeout(function(){
-					next(Signal.fail())
-				})
+				setTimeout(() => next(fail))
 			}
 		}
 		signal.map(async).fail(function(f){
@@ -237,45 +236,17 @@ runTests('signal', function(mock) {
 		return s.value() === 1
 	})
 
-	test('finally', function() {
-		var r,s = signal.finally(function(v){r=v})
-		s.input(1)
-		return r===1
-	})
-
-	test('finally - fifo', function() {
-		var r = [], s = signal
-		s.finally(function(v){r.push(1)})
-		s.finally(function(v){r.push(2)})
-		s.input(1)
-		return r[0] === 1 && r[1] === 2
-	})
-
-	test('finally - halted propagation', function() {
-		var r,s = signal.map(inc).map(function(){return undefined}).finally(function(v){r=v})
-		s.input(1)
-		return r===undefined && s.value()===undefined
-	})
-
-	test('finally - aborted propagation', function() {
-		var r1,r2,s = signal.map(function(){return Signal.fail()}).map(inc).finally(function(v){r1=v})
-		s.input(1)
-		return r1 === 1
-	})
-
 	test('fail', function() {
-		var r = [], s = signal
-		s.finally(function(v){r.push(2)})
-		s.fail(function(v){r.push(1)})
-		s.input(Signal.fail())
-		return r[0] === 1 && r[1] === 2
+		var r
+		signal.fail(function(v){r = v}).map(function(){return this.fail(123)}).input('x')
+		return r === 123
 	})
 
 	test('fail - fifo', function() {
-		var r = [], s = signal
+		var r = [], s = signal.map(function(){return this.fail()})
 		s.fail(function(v){r.push(2)})
 		s.fail(function(v){r.push(1)})
-		s.input(Signal.fail())
+		s.input('x')
 		return r[0] === 2 && r[1] === 1
 	})
 

@@ -32,12 +32,12 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - fail bubbling', function() {
-		var s1 = app.signal().map(Signal.fail)
+		var s1 = app.signal().map(function(){return this.fail(123)})
 		var j1 = app.join({s1})
 		var r,j = app.join({j1})
 		j.fail(function(f){r=f})
 		s1.input(2)
-		return r instanceof Signal.fail
+		return r === 123
 	})
 
 	test('channel - implied map', function(){
@@ -81,7 +81,7 @@ runTests('circuit', function(mock) {
 		})
 		s.channels.a.input(1)
 
-		return s.value() === undefined
+		return s.value().a === undefined
 	})
 
 	test('channel value - literal (always)', function(){

@@ -2,65 +2,74 @@
 
 var sId = 0;
 
+var _halt = function() {}
+var _fail = function(v) {
+  if (!(this instanceof _fail)) return new _fail(v)
+  this.error = v || true
+}
+_fail.prototype = Object.create(_halt.prototype)
+_fail.prototype.error = true
+
+var immediate = Object.freeze({
+  halt: new _halt(),
+  fail: _fail
+})
+
 function _Signal(_steps) {
   var _this = this
   this.id = function(){return _this}
   this.id.isSignal = true
+  this.isSignal = true
 
   if (process.env.NODE_ENV==='development') {
     this.$id = ++sId + (this.$name || '')
   }
 
   // private
-  var _state = {value: undefined, ctx: {}}, _bind
-  var _feeds = [], _fails = [], _finallys = []
-  var _pulse = Signal.UNDEFINED
+  var _state = {value: undefined, ctx: {}, immediate : immediate}, _bind
+  var _feeds = [], _fails = []
 
   _steps = typeof _steps !== 'string' && _steps || []
 
   function _propagate(v) {
-    var nv = v, fail = v instanceof Signal.fail
-    for (var i = _state.ctx.step; i < _steps.length && !fail; i++) {
-      nv = _apply.apply(null, [_steps[i], v].concat([].slice.call(arguments, 1)))
-      fail = nv instanceof Signal.fail
-      if (nv===undefined || fail) break;
-      v = nv
+    for (var i = _state.ctx.step; i < _steps.length && !(v instanceof _halt); i++) {
+      v = _apply.apply(_state.immediate, [_steps[i], v].concat([].slice.call(arguments, 1)))
     }
-
-    if (nv !== undefined) {
-      // tail value is either a fail or new state
-      if (!fail) {
-        _state.value = nv === Signal.UNDEFINED? undefined : nv
+    if (!(v instanceof _halt)) {
+      _state.value = v
+      for (var f = 0; f < _feeds.length; f++) {
+        _feeds[f](v)
       }
-      var tail = fail? _fails : _feeds
-      for (var t = 0; t < tail.length; t++) {
-        tail[t](nv)
-      }
-      // report the last good value in finally
-      for (var f = 0; f < _finallys.length; f++) {
-        _finallys[f](v)
-      }
-      if (_pulse !== Signal.UNDEFINED) _state.value = _pulse
     }
-    return nv
+    if (v instanceof _fail) {
+      for (var f = 0; f < _fails.length; f++) {
+        _fails[f].call({fail:_fail}, v.error)
+      }
+    }
+    return _propagate
   }
 
-  // apply: Allow running arbitrary functions inside the functor
+  // apply: run ordinary functions inside the functor
   function _apply(f, v) {
     var args = [].slice.call(arguments, 1)
-    v = f.apply(_state.ctx, args)
-    // handle thunks and promises in lieu of generators..
-    if (typeof v === 'function') {
-      v(_nextStep(_state.ctx.step+1))
-      return undefined
+    v = f.apply(_state.immediate, args)
+    if (v !== _propagate) {
+      // handle thunks and promises in lieu of generators..
+      if (typeof v === 'function') {
+        v(_nextStep(_state.ctx.step+1))
+        return this.halt
+      }
+      if (typeof v === 'object' && typeof v.then === 'function') {
+        // promise chains end here
+        var next = _nextStep(_state.ctx.step+1)
+        v.then(next, function(m) {next(new _fail(m))})
+        return this.halt
+      }
+
+      _state.halted = v instanceof _halt
+      _state.error = v instanceof _fail && v.error || v == _fail
+      return v
     }
-    if (typeof v === 'object' && typeof v.then === 'function') {
-      // promise chains end here
-      var next = _nextStep(_state.ctx.step+1)
-      v.then(next, function(m) {next(new Signal.fail(m))})
-      return undefined
-    }
-    return v
   }
 
   // lift a function or signal into functor form
@@ -68,10 +77,11 @@ function _Signal(_steps) {
     var fmap = f
     if (f.isSignal) {
       var next = _nextStep()
-      f.feed(function(v) {
-        next(v)
-      })
-      fmap = f.input
+      f.feed(next)
+      fmap = function(v) {
+        f.input(v)
+        return this.halt
+      }
     }
     return fmap
   }
@@ -82,7 +92,7 @@ function _Signal(_steps) {
     step = step !== undefined? step : _steps.length + 1
     return function(v){
       _state.ctx.step = step
-      return _bind? _bind.call(_state, _propagate, v) : _propagate(v)
+      _bind? _bind.call(_state, _propagate, v) : _propagate(v)
     }
   }
 
@@ -104,8 +114,6 @@ function _Signal(_steps) {
     }
     return this
   }
-
-  this.isSignal = true
 
   // asSignal : A -> Signal A
   //            A -> B -> Signal B
@@ -157,9 +165,8 @@ function _Signal(_steps) {
   //
   // Map over the current signal value and propagate
   // - can await propagation by returning a thunk or promise
-  // - can halt propagation by returning undefined - retain current state (finally(s) not invoked)
-  // - can short propagation by returning Signal.fail - revert to previous state (finally(s) invoked)
-  // Note that to map state onto undefined the pseudo value Signal.UNDEFINED must be returned
+  // - can halt propagation by returning this.halt - retain current state (feeds(s) not invoked)
+  // - can short propagation by returning this.fail - revert to previous state (fails(s) invoked)
   this.map = function(f) {
     _steps.push(_lift(f))
     return this
@@ -181,27 +188,9 @@ function _Signal(_steps) {
     return this
   }
 
-  // finally :: Signal x (A -> B) -> Signal x
-  //
-  // Register a finally handler.
-  // The handler will be called after propagation, feeds and fails.
-  // The value passed to the handler will be the last good step value.
-  this.finally = function(f) {
-    _finallys.push(f.input || f)
-    return this
-  }
-
-  // pulse :: Signal x () -> Signal x
-  //
-  // Return to pristine (or pv) state after propagation, feeds, fails and finallys
-  this.pulse = function(pv){
-    _pulse = pv
-    return this
-  }
-
   this.filter = function(f) {
     return this.map(function (v) {
-      return f(v)? v: undefined
+      return f(v)? v: this.halt
     })
   }
 
@@ -214,7 +203,7 @@ function _Signal(_steps) {
   this.tap = function(f) {
     return this.map(function(v){
       f.apply(null,arguments)
-      return v===undefined? Signal.UNDEFINED : v
+      return v
     })
   }
 }
@@ -249,10 +238,5 @@ function Signal(steps) {
 }
 
 Signal.id = function(v) {return v}
-Signal.UNDEFINED = Object.freeze({value:undefined}),
-Signal.fail = function fail(v) {
-  if (!(this instanceof fail)) return new fail(v);
-  this.error = v || true
-}
 
 export default Signal

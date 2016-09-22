@@ -13,14 +13,14 @@ export function Error(signal) {
       return signal.map(function(v) {
         return Object.keys(signal.channels).filter(function(k){
           return !signal.channels[k].value()
-        }).length ? Signal.fail(m) : v
+        }).length ? this.fail(m) : v
       })
     },
     error: function() {
       if (_fail) {
         var v = _fail
         _fail = false
-        return v.error
+        return v
       }
       return ''
     }
@@ -29,8 +29,9 @@ export function Error(signal) {
 
 export function test(f, m) {
   return function(v) {
+    var fail = this.fail
     return thunkor(f.apply(null,arguments), function(j) {
-      return j? (j===true? v : j) : Signal.fail(m)
+      return j? (j===true? v : j) : fail(m)
     })
   }
 }

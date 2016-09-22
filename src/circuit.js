@@ -77,7 +77,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       if (!channels[k]) {
         _jp[k] = signal
         channels[k] = signal
-        signal.feed(merge(k)).fail(_jp.input)
+        signal.feed(merge(k)).fail(function(v){_jp.input(this.fail(v))})
       }
       else {
         channels[k].map(signal)
@@ -89,9 +89,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
     else if (joinOnly) {
       signal = {name: k, value:signal().value}
     }
-
     signals.push(signal)
-
   })
 
   var step = _jp.step()
