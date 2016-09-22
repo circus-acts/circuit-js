@@ -32,12 +32,12 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - fail bubbling', function() {
-		var s1 = app.signal().map(Signal.fail)
+		var s1 = app.signal().map(function(){return this.fail(123)})
 		var j1 = app.join({s1})
 		var r,j = app.join({j1})
 		j.fail(function(f){r=f})
 		s1.input(2)
-		return r instanceof Signal.fail
+		return r === 123
 	})
 
 	test('channel - implied map', function(){
@@ -81,7 +81,7 @@ runTests('circuit', function(mock) {
 		})
 		s.channels.a.input(1)
 
-		return s.value() === undefined
+		return s.value().a === undefined
 	})
 
 	test('channel value - literal (always)', function(){
@@ -129,30 +129,40 @@ runTests('circuit', function(mock) {
 	})
 
 	test('context - join', function(){
-		var a,r = app.join({
-			a: app.signal().map(function(v,j) {
-				a=j.value
+		var ctx,r = app.join({
+			a: app.signal().map(function(v, cv) {
+				ctx=cv
 				return v
 			})
 		})
 		r.input('join value')
 		r.channels.a.input(123)
 
-		return a==='join value' && r.value().a===123
+		return ctx==='join value' && r.value().a===123
 	})
 
-
 	test('context - merge', function(){
-		var a,r = app.merge({
-			a: app.signal().map(function(v,m) {
-				a=m.value
+		var ctx,r = app.merge({
+			a: app.signal().map(function(v, cv) {
+				ctx=cv
 				return v
 			})
 		})
 		r.input('abc')
 		r.channels.a.input(123)
 
-		return a==='abc' && r.value()===123
+		return ctx==='abc' && r.value()===123
+	})
+
+	test('context - channel', function(){
+		var ctx,r = app.join({
+			a: inc
+		}).map(function(v,channel) {
+			ctx = channel
+		})
+		r.channels.a.input(123)
+
+		return ctx==='a'
 	})
 
 	test('overlay - placeholder', function(){

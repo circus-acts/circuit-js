@@ -5,29 +5,29 @@ var inc = function(v){return v+1}
 
 runTests('error', function(mock) {
 
-    var app
+    var app, ctx = {fail:function(m){return m || true}}
     setup(function(){
         app = new Circus(error.Error)
     })
 
     test('test - true', function() {
-        var m = error.test(function(v){return true})(1)
+        var m = error.test(function(v){return true}).call(ctx, 1)
         return m === 1
     })
 
     test('test - value', function() {
-        var m = error.test(function(v){return v+1})(1)
+        var m = error.test(function(v){return v+1}).call(ctx, 1)
         return m === 2
     })
 
     test('test - fail', function() {
-        var m = error.test(function(v){return !!v})(0)
-        return m instanceof Signal.fail
+        var m = error.test(function(v){return !!v}).call(ctx, 0)
+        return m === true
     })
 
     test('test - fail with reason', function() {
-        var m = error.test(function(v){return !!v},'xyz')(0)
-        return m.error === 'xyz'
+        var m = error.test(function(v){return !!v},'xyz').call(ctx, 0)
+        return m === 'xyz'
     })
 
     test('error - circuit valid', function() {

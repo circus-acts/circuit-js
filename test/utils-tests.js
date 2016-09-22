@@ -71,16 +71,6 @@ runTests('utils', function(mock) {
         return Utils.reduce(channels, error) === true
     })
 
-    test('fail', function() {
-        var f = Signal.fail()
-        return f instanceof Signal.fail
-    })
-
-    test('fail - value', function() {
-        var f = Signal.fail(1)
-        return f.error === 1
-    })
-
     test('typeof - Array', function(){
         return Utils.typeOf([]) === Utils.type.ARRAY
     })

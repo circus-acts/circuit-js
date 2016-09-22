@@ -7,10 +7,10 @@ function idTest(v1, v2) {
 function test(diff) {
   var hv
   diff = diff || idTest
-  return function(next, v, ctx) {
+  return function(next, v) {
     if (diff(hv, v)) {
-      var nv = next(v, ctx)
-      if (!(nv instanceof Signal.fail)) {
+      var nv = next.apply(null, [].slice.call(arguments,1))
+      if (!(this.error)) {
         hv = v
       }
       return nv

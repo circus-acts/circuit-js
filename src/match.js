@@ -2,10 +2,7 @@ import Signal from './signal'
 
 'use strict';
 
-var _isObject = function(t) {
-  return {}.toString.call(t)[8] === 'O'
-}
-
+var objConstructor = {}.constructor
 var vMatch={}, litKey = new Date().getTime()
 
 // Pattern match a signal value to pass or block propagation
@@ -97,7 +94,7 @@ function match(){
   function matcher(v) {
     var m = mask || v
     if (!wcMask) {
-      isObject = _isObject(m)
+      isObject = m.constructor === objConstructor
       wcMask = {}
       if (!isObject || !memo(Object.keys(m),v, m, undefined)) {
         wcMask[litKey] = v
@@ -112,7 +109,7 @@ function match(){
     // b* = boolean...
     // v* = value...
     // m* = match...
-    var count=0, block = undefined
+    var count=0
     var some = lBound===1 && uBound===2
     for (var i=0; i < wcKeys.length; i++) {
       var k = wcKeys[i]
@@ -128,7 +125,7 @@ function match(){
       // early exit for some
       if (some && count) break
     }
-    return count>=lBound && count<=uBound ? v === undefined? Signal.UNDEFINED : v : block
+    return count>=lBound && count<=uBound ? v : this.halt
   }
   return ctx.map(matcher)
 }
@@ -177,7 +174,7 @@ function none(m){
     }
   })
 })({
-  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? v === undefined? Signal.UNDEFINED : v : false },
+  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? v === undefined? true : v : false },
   or:  function(v, m) { return v || m },
   xor: function(v, m) { return v && m!==v?  v : !v && m },
   not: function(v, m) { return !v && m || !v}

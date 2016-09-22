@@ -64,9 +64,8 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
     if (signal.id) {
       signal.name = k
       // bind each joining signal to the context value
-      signal.bind(function(next, v, ctx) {
-        ctx[_jp.name || 'value'] = _jp.value()
-        return next.call(_jp,v,ctx)
+      signal.bind(function(next, v) {
+        return next(v, _jp.value())
       })
       // is channel syntax really that bad?
       if (process.env.NODE_ENV==='development') {
@@ -78,7 +77,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       if (!channels[k]) {
         _jp[k] = signal
         channels[k] = signal
-        signal.feed(merge(k)).fail(_jp.input)
+        signal.feed(merge(k)).fail(function(v){_jp.input(this.fail(v))})
       }
       else {
         channels[k].map(signal)
@@ -90,9 +89,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
     else if (joinOnly) {
       signal = {name: k, value:signal().value}
     }
-
     signals.push(signal)
-
   })
 
   var step = _jp.step()
@@ -107,9 +104,9 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
   }
 
   // bind the channel key into ctx
-  _jp.bind(function(next, v, ctx) {
-    ctx.channel =  v && v.key || _jp.name
-    return next(v && v.hasOwnProperty('value')? v.value : v, ctx)
+  _jp.bind(function(next, v) {
+    var channel =  v && v.key || _jp.name
+    return next(v && v.hasOwnProperty('value')? v.value : v, channel)
   })
 
   // expose the channel in circuit form (can be flatmap'd later if required)

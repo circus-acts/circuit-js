@@ -17,7 +17,7 @@ runTests('pure', function(mock) {
 
     test('input - pure after fail',function() {
         var fail = function(v) {
-            return v===1? v : Signal.fail()
+            return v===1? v : this.fail()
         }
         var r=0, s = app.signal().map(fail).tap(function(){r++})
         s.input(1)
