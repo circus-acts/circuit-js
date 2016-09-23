@@ -154,11 +154,11 @@ runTests('signal', function(mock) {
 
 	test('map - async',function(done) {
 		function async(v) {
-			return function(next) {
+			return this.halt(function(next) {
 				setTimeout(function(){
 					next(v+1)
 				})
-			}
+			})
 		}
 		signal.map(async).tap(function(v){done(v===2)}).input(1)
 	})
@@ -166,9 +166,9 @@ runTests('signal', function(mock) {
 	test('map - async fail',function(done) {
 		function async(v) {
 			var fail = this.fail()
-			return function(next) {
+			return this.halt(function(next) {
 				setTimeout(() => next(fail))
-			}
+			})
 		}
 		signal.map(async).fail(function(f){
 			done(true)
@@ -177,11 +177,11 @@ runTests('signal', function(mock) {
 
 	test('map - promise',function(done) {
 		function async(v) {
-			return new Promise(function(resolve){
+			return this.halt(new Promise(function(resolve){
 				setTimeout(function(){
 					resolve(v+1)
 				})
-			})
+			}))
 		}
 		var s = signal.map(async).tap(function(v){
 			done(v===2)
@@ -191,11 +191,11 @@ runTests('signal', function(mock) {
 
 	test('map - promise reject',function(done) {
 		function async(v) {
-			return new Promise(function(_, reject){
+			return this.halt(new Promise(function(_, reject){
 				setTimeout(function(){
 					reject('error')
 				})
-			})
+			}))
 		}
 		var s = signal.map(async).fail(function(f){
 			done(true)

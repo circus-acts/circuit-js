@@ -2,16 +2,20 @@
 
 var sId = 0;
 
-var _halt = function() {}
+var _halt = function(v) {
+  if (!(this instanceof _halt)) return new _halt(v)
+  if (typeof v === 'function') this.thunk = v
+  else if (typeof v === 'object' && typeof v.then === 'function') this.promise = v
+  else this.value = v
+}
 var _fail = function(v) {
   if (!(this instanceof _fail)) return new _fail(v)
   this.error = v || true
 }
 _fail.prototype = Object.create(_halt.prototype)
-_fail.prototype.error = true
 
 var immediate = Object.freeze({
-  halt: new _halt(),
+  halt: _halt,
   fail: _fail
 })
 
@@ -32,18 +36,18 @@ function _Signal(_steps) {
   _steps = typeof _steps !== 'string' && _steps || []
 
   function _propagate(v) {
-    for (var i = _state.ctx.step; i < _steps.length && !(v instanceof _halt); i++) {
+    for (var i = _state.ctx.step; i < _steps.length && !(v === _halt || v instanceof _halt); i++) {
       v = _apply.apply(_state.immediate, [_steps[i], v].concat([].slice.call(arguments, 1)))
     }
-    if (!(v instanceof _halt)) {
+    if (!(v === _halt || v instanceof _halt)) {
       _state.value = v
       for (var f = 0; f < _feeds.length; f++) {
         _feeds[f](v)
       }
     }
-    if (v instanceof _fail) {
+    else if (v === _fail || v instanceof _fail) {
       for (var f = 0; f < _fails.length; f++) {
-        _fails[f].call({fail:_fail}, v.error)
+        _fails[f].call({fail:_fail}, v.error || true)
       }
     }
     return _propagate
@@ -54,20 +58,20 @@ function _Signal(_steps) {
     var args = [].slice.call(arguments, 1)
     v = f.apply(_state.immediate, args)
     if (v !== _propagate) {
-      // handle thunks and promises in lieu of generators..
-      if (typeof v === 'function') {
-        v(_nextStep(_state.ctx.step+1))
-        return this.halt
-      }
-      if (typeof v === 'object' && typeof v.then === 'function') {
-        // promise chains end here
-        var next = _nextStep(_state.ctx.step+1)
-        v.then(next, function(m) {next(new _fail(m))})
-        return this.halt
-      }
+      if (v === _halt || v instanceof _halt) {
+        _state.halted = true
+        _state.error = v instanceof _fail && v.error || v == _fail
 
-      _state.halted = v instanceof _halt
-      _state.error = v instanceof _fail && v.error || v == _fail
+        // handle thunks and promises in lieu of generators..
+        if (v.thunk) {
+          v.thunk(_nextStep(_state.ctx.step+1))
+        }
+        if (v.promise) {
+          // promise chains end here
+          var next = _nextStep(_state.ctx.step+1)
+          v.promise.then(next, function(m) {next(new _fail(m))})
+        }
+      }
       return v
     }
   }
@@ -190,7 +194,7 @@ function _Signal(_steps) {
 
   this.filter = function(f) {
     return this.map(function (v) {
-      return f(v)? v: this.halt
+      return f.apply(this, arguments)? v: this.halt
     })
   }
 
@@ -202,7 +206,7 @@ function _Signal(_steps) {
   // - tap ignores any value returned from the tap function.
   this.tap = function(f) {
     return this.map(function(v){
-      f.apply(null,arguments)
+      f.apply(this,arguments)
       return v
     })
   }

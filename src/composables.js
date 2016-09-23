@@ -49,7 +49,7 @@ export default function Composables(app) {
 
     flatten: function(f) {
       return this.map(function(v) {
-        return function(next){
+        return this.halt(function(next){
           function flatten(v) {
             if (Utils.typeOf(v) === Utils.type.ARRAY) {
               v.forEach(flatten)
@@ -60,7 +60,7 @@ export default function Composables(app) {
             return undefined
           }
           return flatten(v)
-        }
+        })
       })
     },
 
