@@ -5,23 +5,29 @@ function idTest(v1, v2) {
 }
 
 function test(diff) {
-  var hv
+  var lv
   diff = diff || idTest
   return function(next, v) {
-    if (diff(hv, v)) {
-      var nv = next.apply(null, [].slice.call(arguments,1))
-      if (!(this.error)) {
-        hv = v
+    if (diff(lv, v)) {
+      if (next.apply(null, [].slice.call(arguments,1))) {
+        lv = v
       }
-      return nv
     }
   }
 }
 
+// step
 var pure = function(signal) {
   return {
     pure: function(diff) {
-      return signal.bind(test(diff))
+      diff = diff || idTest
+      var lv
+      return signal.map(function(nv){
+        if (diff(lv,nv)) {
+          return (lv = nv)
+        }
+        else return this.halt()
+      })
     }
   }
 }

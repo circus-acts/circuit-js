@@ -37,7 +37,7 @@ runTests('circuit', function(mock) {
 		var r,j = app.join({j1})
 		j.fail(function(f){r=f})
 		s1.input(2)
-		return r === 123
+		return r.message === 123
 	})
 
 	test('channel - implied map', function(){

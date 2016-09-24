@@ -78,19 +78,66 @@ runTests('signal', function(mock) {
 		return r===2
 	})
 
-	test('set input ',function() {
-		var s = signal
-		s.input(1)
-		s.input(2)
-		s.input(3)
-		return s.value() === 3
-	})
-
 	test('input - natural bind',function() {
 		var bv = signal.input
 		bv(2)
 		return signal.value()===2
 	})
+
+    test('feed', function() {
+        var s1 = signal.map(inc)
+        var s2 = signal.signal().feed(s1)
+        s2.input(2)
+        return s1.value() === 3
+    })
+
+	test('halt',function() {
+		var s = signal.map(function(v){return this.halt()}).map(inc)
+		s.input(1)
+		return s.value() === undefined
+	})
+
+	test('halt - at value',function() {
+		var s = signal.map(function(v){return this.halt(123)}).map(inc)
+		s.input(1)
+		return s.value() === 123
+	})
+
+	test('fail',function() {
+		var s = signal.map(function(v){return this.fail()}).map(inc)
+		s.input(1)
+		return s.value() === undefined
+	})
+
+	test('halt - next',function(done) {
+		function async(v) {
+			return this.halt(function(next) {
+				setTimeout(function(){
+					next(v+1)
+				})
+			})
+		}
+		signal.map(async).tap(function(v){done(v===2)}).input(1)
+	})
+
+	test('halt - next fail',function(done) {
+		function async(v) {
+			var fail = this.fail()
+			return this.halt(function(next) {
+				setTimeout(() => next(fail))
+			})
+		}
+		signal.map(async).fail(function(f){
+			done(true)
+		}).input(1)
+	})
+
+    test('input - fail', function() {
+        var s1 = signal.map(inc)
+        var s2 = signal.signal().feed(s1)
+        s2.input(2)
+        return s1.value() === 3
+    })
 
 	test('tap',function() {
 		var e = 'xyz'
@@ -120,25 +167,6 @@ runTests('signal', function(mock) {
 		return s.value() === 2
 	})
 
-	test('map - halt propagation',function() {
-		var s = signal.map(function(v){return this.halt}).map(inc)
-		s.input(1)
-		return s.value() === undefined
-	})
-
-	test('map - Signal.UNDEFINED continues propagation',function() {
-		var r = 1
-		var s = signal.map(function(v){return Signal.UNDEFINED}).map(function(v){return 'abc'})
-		s.input(1)
-		return s.value() === 'abc'
-	})
-
-	test('map - Signal.fail aborts propagation',function() {
-		var s = signal.map(function(v){return this.fail()}).map(inc)
-		s.input(1)
-		return s.value() === undefined
-	})
-
 	test('map - signal',function() {
 		var b = new Signal().map(inc)
 		signal.map(b).input(1)
@@ -152,28 +180,6 @@ runTests('signal', function(mock) {
 		return signal.value() === 12
 	})
 
-	test('map - async',function(done) {
-		function async(v) {
-			return this.halt(function(next) {
-				setTimeout(function(){
-					next(v+1)
-				})
-			})
-		}
-		signal.map(async).tap(function(v){done(v===2)}).input(1)
-	})
-
-	test('map - async fail',function(done) {
-		function async(v) {
-			var fail = this.fail()
-			return this.halt(function(next) {
-				setTimeout(() => next(fail))
-			})
-		}
-		signal.map(async).fail(function(f){
-			done(true)
-		}).input(1)
-	})
 
 	test('map - promise',function(done) {
 		function async(v) {
@@ -202,14 +208,6 @@ runTests('signal', function(mock) {
 		})
 		s.input(1)
 	})
-
-    test('feed', function() {
-        var s1 = signal.map(inc)
-        var s2 = signal.signal().feed(s1)
-        s2.input(2)
-        return s1.value() === 3
-    })
-
     test('filter', function(){
         var r=0, s = signal.filter(function(v){
             return v % 2
@@ -236,10 +234,10 @@ runTests('signal', function(mock) {
 		return s.value() === 1
 	})
 
-	test('fail', function() {
+	test('fail - message', function() {
 		var r
 		signal.fail(function(v){r = v}).map(function(){return this.fail(123)}).input('x')
-		return r === 123
+		return r.message === 123
 	})
 
 	test('fail - fifo', function() {
@@ -316,5 +314,4 @@ runTests('signal', function(mock) {
 		}
 		return signal.extend(ext1).signal().extend(ext2).signal().prime(1).value() === 4
 	})
-
 })

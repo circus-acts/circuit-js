@@ -125,7 +125,7 @@ function match(){
       // early exit for some
       if (some && count) break
     }
-    return count>=lBound && count<=uBound ? v : this.halt
+    return count>=lBound && count<=uBound ? v : this.halt()
   }
   return ctx.map(matcher)
 }

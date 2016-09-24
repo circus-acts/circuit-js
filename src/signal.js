@@ -2,78 +2,81 @@
 
 var sId = 0;
 
-var _halt = function(v) {
-  if (!(this instanceof _halt)) return new _halt(v)
+var _halt = function(v,a) {
+  if (!(this instanceof _halt)) return new _halt(v, !!arguments.length)
   if (typeof v === 'function') this.thunk = v
   else if (typeof v === 'object' && typeof v.then === 'function') this.promise = v
-  else this.value = v
+  else if (a || arguments.length === 1) this.value =  v
 }
-var _fail = function(v) {
-  if (!(this instanceof _fail)) return new _fail(v)
-  this.error = v || true
+var _fail = function(m) {
+  if (!(this instanceof _fail)) return new _fail(m)
+  this.message = m || true
 }
 _fail.prototype = Object.create(_halt.prototype)
+var _wrap = function(v) {
+  if (!(this instanceof _wrap)) return new _wrap(v)
+  this.value = v
+}
 
 var immediate = Object.freeze({
   halt: _halt,
   fail: _fail
 })
 
-function _Signal(_steps) {
+function Signal(value) {
+  var sid = ++sId
   var _this = this
+  var _feeds = [], _fails = []
+
   this.id = function(){return _this}
   this.id.isSignal = true
   this.isSignal = true
 
   if (process.env.NODE_ENV==='development') {
-    this.$id = ++sId + (this.$name || '')
+    this.$id = sid + (this.$name || '')
   }
 
-  // private
-  var _state = {value: undefined, ctx: {}, immediate : immediate}, _bind
-  var _feeds = [], _fails = []
-
-  _steps = typeof _steps !== 'string' && _steps || []
+  var _id = sid, _state = {ctx: {}, value: value}, _bind, _steps = []
+  if (value instanceof _wrap) {
+    _steps = value.value.steps || []
+  }
 
   function _propagate(v) {
-    for (var i = _state.ctx.step; i < _steps.length && !(v === _halt || v instanceof _halt); i++) {
-      v = _apply.apply(_state.immediate, [_steps[i], v].concat([].slice.call(arguments, 1)))
+    for (var i = _state.ctx.step; i < _steps.length && !(v instanceof _halt); i++) {
+      v = _apply.apply(immediate, [_steps[i], v].concat([].slice.call(arguments, 1)))
     }
-    if (!(v === _halt || v instanceof _halt)) {
+    var tail = v instanceof _fail? _fails : []
+    if (v instanceof _halt) {
+      if (v.hasOwnProperty('value')) _state.value = v.value
+    } else {
       _state.value = v
-      for (var f = 0; f < _feeds.length; f++) {
-        _feeds[f](v)
-      }
+      tail = _feeds
     }
-    else if (v === _fail || v instanceof _fail) {
-      for (var f = 0; f < _fails.length; f++) {
-        _fails[f].call({fail:_fail}, v.error || true)
-      }
+    for (var t = 0; t < tail.length; t++) {
+      tail[t](v)
     }
-    return _propagate
+    return !(v instanceof _halt)
   }
 
   // apply: run ordinary functions inside the functor
   function _apply(f, v) {
     var args = [].slice.call(arguments, 1)
-    v = f.apply(_state.immediate, args)
-    if (v !== _propagate) {
-      if (v === _halt || v instanceof _halt) {
-        _state.halted = true
-        _state.error = v instanceof _fail && v.error || v == _fail
+    v = f.apply(immediate, args)
+    if (v instanceof _halt) {
+      _state.halted = true
+      _state.failed = !!v.message
 
-        // handle thunks and promises in lieu of generators..
-        if (v.thunk) {
-          v.thunk(_nextStep(_state.ctx.step+1))
-        }
-        if (v.promise) {
-          // promise chains end here
-          var next = _nextStep(_state.ctx.step+1)
-          v.promise.then(next, function(m) {next(new _fail(m))})
-        }
+      // handle thunks and promises in lieu of generators..
+      if (v.thunk) {
+        v.thunk(_nextStep(_state.ctx.step+1))
       }
-      return v
+      if (v.promise) {
+        // promise chains end here
+        var next = _nextStep(_state.ctx.step+1)
+        v.promise.then(next, function(m) {next(new _fail(m))})
+      }
     }
+    return v
   }
 
   // lift a function or signal into functor form
@@ -84,7 +87,7 @@ function _Signal(_steps) {
       f.feed(next)
       fmap = function(v) {
         f.input(v)
-        return this.halt
+        return this.halt()
       }
     }
     return fmap
@@ -100,7 +103,7 @@ function _Signal(_steps) {
     }
   }
 
-  this.step = _nextStep
+  this.next = _nextStep
 
   // bind : ( (A, B) -> A(C) ) -> Signal C
   //
@@ -113,8 +116,10 @@ function _Signal(_steps) {
   this.bind = function(mw) {
     var next = _bind || _apply
     _bind = function(fn, v) {
-      var args = [function(v) {return next.apply(_state, [fn].concat([].slice.call(arguments)))}].concat([].slice.call(arguments, 1))
-      return mw.apply(_state, args)
+      var args = [function() {
+        return !!next.apply(_state, [fn].concat([].slice.call(arguments)))
+      }].concat([].slice.call(arguments, 1))
+      return !!mw.apply(_state, args)
     }
     return this
   }
@@ -133,7 +138,14 @@ function _Signal(_steps) {
   //
   // Clone a signal, its bindings and its steps
   this.clone = function() {
-    return new Signal(_steps)
+    return new Signal(_wrap({steps: _steps}))
+  }
+
+  // value :: () -> A
+  //
+  // Return state as the current signal value.
+  this.value = function() {
+    return _state.value
   }
 
   // prime :: (A) -> Signal A
@@ -142,13 +154,6 @@ function _Signal(_steps) {
   this.prime = function(v) {
     _state.value = v
     return this
-  }
-
-  // value :: () -> A
-  //
-  // Return state as the current signal value.
-  this.value = function() {
-    return _state.value
   }
 
   // input :: (A) -> Signal A
@@ -169,7 +174,7 @@ function _Signal(_steps) {
   //
   // Map over the current signal value and propagate
   // - can await propagation by returning a thunk or promise
-  // - can halt propagation by returning this.halt - retain current state (feeds(s) not invoked)
+  // - can halt propagation by returning this.halt - retain current state
   // - can short propagation by returning this.fail - revert to previous state (fails(s) invoked)
   this.map = function(f) {
     _steps.push(_lift(f))
@@ -194,7 +199,7 @@ function _Signal(_steps) {
 
   this.filter = function(f) {
     return this.map(function (v) {
-      return f.apply(this, arguments)? v: this.halt
+      return f.apply(this, arguments)? v: this.halt()
     })
   }
 
@@ -218,11 +223,10 @@ function extend(proto, ext) {
   })
 }
 
-function Signal(steps) {
-  var s = new _Signal(steps)
-
+function Constructor(value) {
+  var s = new Signal(value)
   s.signal = function() {
-    var s = new Signal()
+    var s = Constructor()
     for (var i = 0; i < _ext.length; i++) {
       s.extend(_ext[i])
     }
@@ -234,13 +238,12 @@ function Signal(steps) {
   var _ext = []
   s.extend = function(ext) {
     _ext.push(ext)
-    extend(this,typeof ext==='function'? ext(this) || {}: ext)
+    extend(this,typeof ext==='function'? ext(this) || {} : ext)
     return this
   }
 
   return s
 }
 
-Signal.id = function(v) {return v}
-
-export default Signal
+Constructor.id = function(v) {return v}
+export default Constructor
