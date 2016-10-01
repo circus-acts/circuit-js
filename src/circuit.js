@@ -3,6 +3,8 @@ import _Pure from './pure'
 
 'use strict'
 
+var objConstructor = {}.constructor
+
 function diff(v1,v2) {
   // keep open until first signal
   if (v1 === undefined || v2 === undefined ||
@@ -15,7 +17,7 @@ function diff(v1,v2) {
   return false
 }
 
-function toSignal(app,s) {
+function toSignal(app, s, state) {
   if (!s || !s.isSignal) {
     var v = s, fmap = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fmap==='map') s = function() {return v}
@@ -24,7 +26,7 @@ function toSignal(app,s) {
   return s
 }
 
-// overlay circuit behaviour aligned on channel input / outputs
+// overlay circuit behaviour aligned on channel inputs
 function overlay(s) {
   return function recurse (g, c) {
     c = c || s
@@ -43,40 +45,48 @@ function overlay(s) {
 
 function prime(s) {
   var _prime = s.prime.bind(s)
-  return function prime(v, c) {
-    s = c || s
-    if (typeof v === 'object' && s.channels) {
-      Object.keys(v).filter(function(k) {
-        return s.channels[k]
-      }).forEach(function(k) {
-        s.channels[k].prime(v[k])
+  return function prime(v) {
+    if (v.constructor === objConstructor && s.channels) {
+      Object.keys(v).forEach(function(k) {
+        s.channels[k] && s.channels[k].prime(v[k])
       })
     }
     return _prime(v)
   }
 }
 
+function getState(s) {
+  var _getState = s.getState.bind(s)
+  return function getState(raw) {
+    var state = _getState(raw)
+    return (state.jp || {}).join? {value: Object.keys(s.channels).reduce(function(v, k) {
+      v[k] = s.channels[k].getState(raw)
+      return v
+    },{})} : state
+  }
+}
+
 function joinPoint(sampleOnly, joinOnly, circuit) {
-  var _jp = this.asSignal();
+  var _jp = this.asSignal(), _state = _jp.getState(true)
+  _state.jp = {join: joinOnly};
   var channels=_jp.channels || {}, signals = []
   Object.keys(circuit).forEach(function(k){
-    var signal = toSignal(_jp,circuit[k])
+    var signal = toSignal(_jp, circuit[k], _state[k])
     if (signal.id) {
       signal.name = k
       // bind each joining signal to the context value
       signal.bind(function(next, v) {
         return next(v, _jp.value())
       })
-      // is channel syntax really that bad?
-      if (process.env.NODE_ENV==='development') {
-        if (_jp[k] && !_jp[k].isSignal) throw new Error('channel name cannot use signal verb - ' + k)
-      }
       // channels are simply aggregated as circuit inputs but care must
       // be taken not to overwrite existing channels with the same name.
       // So, duplicates are lifted, upstream, into the existing channel.
       if (!channels[k]) {
-        _jp[k] = signal
-        channels[k] = signal
+        // is channel syntax really that bad?
+        if (process.env.NODE_ENV==='development') {
+          if (_jp[k] && !_jp[k].isSignal) throw new Error('channel name would overwrite signal verb - ' + k)
+        }
+        _jp[k] = channels[k] = signal
         signal.feed(merge(k)).fail(_jp.input)
       }
       else {
@@ -99,65 +109,108 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         jv[s.name] = s.value()
         return jv
       }, {}) || v
-      next(sampleOnly? sv : jv, channel)
+      next(sampleOnly? _state.jp.sv || _jp.value() : jv, channel)
     }
   }
 
-  // expose the channel in circuit form (can be flatmap'd later if required)
   _jp.channels = channels
 
   // halt sampled signals at this step
-  var sv
   return _jp.filter(function(v){
-    sv = v
+    _state.jp.sv = sampleOnly && v
     return !sampleOnly
   })
 }
 
-// Join 1 or more input signals into 1 output signal
-// Input signals will be mapped onto output signal channels
-// - duplicate channels will be merged
-function join(c) {
-  return joinPoint.call(this,false,true,c)
-}
+// Circuit API
 
+// signal().merge : ({A}) -> Signal A
+//
 // Merge 1 or more input signals into 1 output signal
 // The output signal value will be the latest input signal value
+//
+// example:
+//    merge({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> 20
+//
+//    signalA.input(10)
+//    signalB.input(20)
+//
 function merge(c) {
   return joinPoint.call(this,false,false,c)
 }
 
-// Sample input signal(s)
+
+// circuit().join : ({A}) -> Signal {A}
+//
+// Join 1 or more input signals into 1 output signal
+// - input signal channels will be mapped onto output signal values
+// - duplicate channels will be merged
+//
+// example:
+//    join({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> {A: 10, B, 20}
+//
+//    signalA.input(10)
+//    signalB.input(20)
+//
+function join(c) {
+  return joinPoint.call(this,false,true,c)
+}
+
+
+// circuit(A).sample : ({B}) -> Signal {A}
+//
+// Halt signal propagation until sample input signal(s) raised
+//
+// example:
+//    circuit = new Circuit().sample({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> {A: 10, B, 20}
+//
+//    circuit.input(10)   // -> undefined
+//    signalA.input(true) // -> 10
+//    signalB.input(true) // -> 10
+//
 function sample(c) {
   return joinPoint.call(this,true,false,c)
 }
 
-function Circuit() {
+// Constructor : () -> Signal
+//
+// Construct a new base circuit
+function Constructor() {
 
   // a circuit is a signal with join points
-  var _this = new Signal().extend(function(signal){
+  var circuit = new Signal().extend(function(signal){
     return {
       join: join,
       merge: merge,
       sample: sample,
       prime: prime(signal),
-      overlay: overlay(signal)
+      overlay: overlay(signal),
+      getState: getState(signal)
     }
   })
 
-  // override to filter out this - Circuit().join returns a new circuit
-  _this.asSignal = function(s) {
-    return s && s.isSignal && s !== _this ? s : _this.signal(s)
+  // override to filter out 'this' - joinpoints return a new instance
+  circuit.asSignal = function(s) {
+    return s && s.isSignal && s !== circuit ? s : circuit.signal(s)
   }
 
   var args = [].slice.call(arguments).forEach(function(module) {
-    _this.extend(module)
+    circuit.extend(module)
   })
 
-  return _this
+  return circuit
 }
 
 var Pure = _Pure(diff)
 
 export {Pure}
-export default Circuit
+export default Constructor

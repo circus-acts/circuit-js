@@ -1,4 +1,5 @@
 import Circus, {Signal} from '../src'
+import Utils from '../src/utils'
 
 runTests('circuit', function(mock) {
 
@@ -205,18 +206,49 @@ runTests('circuit', function(mock) {
 		return c.channels.a.channels.a.channels.a.value() === 2
 	})
 
-    test('extend - app ctx', function(){
+	test('getState', function() {
+		var a=app.signal()
+		var r = app.join({
+			b: {
+				a: a
+			}
+		})
+		r.b.a.input(123)
+		return Utils.deepEqual(r.getState(), {value: {b: {value: {a: {value: 123}}}}})
+	})
+
+	test('getState - prime', function() {
+		var a=app.signal()
+		var r = app.join({
+			b: {
+				a: a
+			}
+		}).prime({b:{a:123}})
+		return Utils.deepEqual(r.getState(), {value: {b: {value: {a: {value: 123}}}}})
+	})
+
+	test('getState - with context', function() {
+		var a=app.signal()
+		var r = app.sample({
+			a: a
+		}).map(dbl)
+		r.input(123)
+		a.input(true)
+		return Utils.deepEqual(r.getState(), {jp: {join: false, sv: 123}, value: 246})
+	})
+
+    test('extend - app', function(){
         var app1 = new Circus().extend({c:true})
         var app2 = new Circus()
 
         return app1.signal().c && !app2.signal().c
     })
 
-    test('extend - app ctx + signal ctx', function(){
-        var r1,r2,ctx = new Circus()
-        ctx.extend(function(c1){r1=c1;return {b:true}})
-        ctx.extend(function(c2){r2=c2;return {c:true}})
-        var s = ctx.signal()
+    test('extend - app + signal', function(){
+        var r1,r2,circuit = new Circus()
+        circuit.extend(function(c1){r1=c1;return {b:true}})
+        circuit.extend(function(c2){r2=c2;return {c:true}})
+        var s = circuit.signal()
         return r1===s && r2===s
     })
 

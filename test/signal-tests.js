@@ -1,5 +1,6 @@
 import Circus from '../src'
 import Signal from '../src/signal'
+import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
 var dbl = function(v){return v+v}
@@ -281,6 +282,12 @@ runTests('signal', function(mock) {
         return r === 'abc'
     })
 
+    test ('context', function() {
+    	var r=0, c = function(){this.ctx = 123}
+    	signal.map(c).tap(function(){r = this.ctx}).input()
+    	return r === 123
+    })
+
 	test('prime', function() {
 		var s = signal.map(inc).prime(1)
 		return s.value() === 1
@@ -312,6 +319,16 @@ runTests('signal', function(mock) {
 		s2.input([])
 
 		return s1.value().toString() === s2.value().toString()
+	})
+
+	test('getState', function() {
+		var s = signal.prime(123).getState()
+		return Utils.deepEqual(s, {value: 123})
+	})
+
+	test('getState - with ctx', function() {
+		signal.tap(function(){this.ctx=123}).input('abc')
+		return Utils.deepEqual(signal.getState(), {ctx: 123, value: 'abc'})
 	})
 
 	test('extend', function(){

@@ -64,12 +64,6 @@ export default function Composables(app) {
       })
     },
 
-    maybe: function(f) {
-      return this.map(function(v){
-        return f(v)? {just:v} : {nothing:true}
-      })
-    },
-
     // pipe : (A -> B, B -> C) -> Signal C
     //        (A -> B, Signal C) -> Signal B ? C
     //        (A -> B -> B (C), C -> D) -> Signal D
@@ -78,9 +72,8 @@ export default function Composables(app) {
     // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
     //
     pipe: function(){
-      var args = [].slice.call(arguments)
-      for (var i=0; i<args.length; i++) {
-        this.map(args[i])
+      for (var i=0; i<arguments.length; i++) {
+        this.map(arguments[i])
       }
       return this
     },
