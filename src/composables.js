@@ -109,21 +109,6 @@ export default function Composables(app) {
       })
     },
 
-    // continuously fold incoming signal values into
-    // an accumulated outgoing value
-    fold: function(f,accum) {
-      return this.map(function(v){
-        if (!accum) {
-          accum = v
-        }
-        else {
-          var args = [accum].concat([].slice.call(arguments))
-          accum = f.apply(null,args)
-        }
-        return accum
-      })
-    },
-
     // signal keep:
     //  h == 0 or undefined - keep all
     //  h >= 1         - keep n

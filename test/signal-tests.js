@@ -228,6 +228,32 @@ runTests('signal', function(mock) {
         return r === 2
     })
 
+    test('reduce', function() {
+        var e = 'xyz'
+        var s = signal.reduce(function(a,v){
+            return a+v
+        }).tap(function(v){
+            e = v
+        })
+        s.input(1)
+        s.input(2)
+        s.input(3)
+        return e === 6
+    })
+
+    test('reduce - accum', function() {
+        var e = 'xyz'
+        var s = signal.reduce(function(a,v){
+            return a+v
+        },6).tap(function(v){
+            e = v
+        })
+        s.input(1)
+        s.input(2)
+        s.input(3)
+        return e === 12
+    })
+
     test('bind',function() {
         var s = signal.map(inc).map(dbl)
         s.bind(function(next,v){return next(v+1)}).input(0)

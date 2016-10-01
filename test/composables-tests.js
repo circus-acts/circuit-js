@@ -93,34 +93,6 @@ runTests('composables', function(mock) {
         return Utils.deepEqual(s.value(), {a:1,b:3})
     })
 
-    test('fold', function() {
-        var e = 'xyz'
-        var s = app.signal()
-        .fold(function(a,v){
-            return a+v
-        }).tap(function(v){
-            e = v
-        })
-        s.input(1)
-        s.input(2)
-        s.input(3)
-        return e === 6
-    })
-
-    test('fold - accum', function() {
-        var e = 'xyz'
-        var s = app.signal()
-        .fold(function(a,v){
-            return a+v
-        },6).tap(function(v){
-            e = v
-        })
-        s.input(1)
-        s.input(2)
-        s.input(3)
-        return e === 12
-    })
-
     test('keep - depth', function() {
         var s = app.signal().keep(2)
         s.input(1)
