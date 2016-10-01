@@ -98,8 +98,9 @@ function Signal(value) {
   function _nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
     return function(v){
+       var args = [_propagate].concat([].slice.call(arguments))
       _state.ctx.step = step
-      _bind? _bind.call(_state, _propagate, v) : _propagate(v)
+      _bind? _bind.apply(_state.ctx, args) : _propagate.apply(_this,arguments)
     }
   }
 
@@ -162,10 +163,7 @@ function Signal(value) {
   // eg : input(123) -> Signal 123
   //
   // This method produces state propagation throughout a connected circuit.
-  this.input = function(v) {
-    _state.ctx = {step: 0}
-    _bind? _bind.call(_state, _propagate, v) : _propagate(v)
-  }
+  this.input = _nextStep(0)
 
   // map :: () -> Signal
   //        (A -> B) -> Signal B
