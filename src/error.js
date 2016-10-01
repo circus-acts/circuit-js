@@ -6,7 +6,7 @@ import thunkor from './thunkor'
 export function Error(signal) {
   var _fail
   signal.fail(function(error) {
-    _fail = _fail || error
+    _fail = _fail || error.message
   })
   return {
     active: function(m) {

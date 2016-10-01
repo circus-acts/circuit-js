@@ -22,7 +22,7 @@ export default function Composables(app) {
           v = b, b = []
           return v
         }
-        return this.halt
+        return this.halt()
       }
       return this.map(batch)
     },
@@ -144,7 +144,7 @@ export default function Composables(app) {
     // The signal will not propagate until n + 1
     skip: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? this.halt : v
+        return (n-- > 0)? this.halt() : v
       })
     },
 
@@ -152,7 +152,7 @@ export default function Composables(app) {
     // The signal will not propagate after n
     take: function (n) {
       return this.map(function (v) {
-        return (n-- > 0)? v: this.halt
+        return (n-- > 0)? v: this.halt()
       })
     },
 
@@ -176,7 +176,7 @@ export default function Composables(app) {
         var kl = keys.length
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]
-        }) : this.halt
+        }) : this.halt()
       }
       return this.map(zip)
     }
