@@ -99,15 +99,9 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         jv[s.name] = s.value()
         return jv
       }, {}) || v
-      next({key: channel, value: sampleOnly? sv : jv})
+      next(sampleOnly? sv : jv, channel)
     }
   }
-
-  // bind the channel key into ctx
-  _jp.bind(function(next, v) {
-    var channel =  v && v.key || _jp.name
-    return next(v && v.hasOwnProperty('value')? v.value : v, channel)
-  })
 
   // expose the channel in circuit form (can be flatmap'd later if required)
   _jp.channels = channels

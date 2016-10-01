@@ -65,6 +65,18 @@ runTests('signal', function(mock) {
 		return s.value() === 2
 	})
 
+	test('input - arity',function() {
+		var s = signal
+		s.input(1,2,3)
+		return s.value() === 1
+	})
+
+	test('input - args',function() {
+		var a,s = signal.tap(function(){a=arguments})
+		s.input(1,2,3)
+		return a.length===3
+	})
+
 	test('input - undefined',function() {
 		var s = signal
 		s.input(undefined)
@@ -222,11 +234,25 @@ runTests('signal', function(mock) {
         return s.value() === 4
     })
 
+    test('bind - halt',function() {
+        var s = signal.map(inc)
+        s.bind(function(next,v){}).input(0)
+        return s.value() === undefined
+    })
+
     test('bind - composed',function() {
     	var b = function(next,v){return next(v+1)}
         var e = signal.map(inc).bind(b).bind(b)
         e.input(0)
         return e.value() === 3
+    })
+
+    test('bind - arity',function() {
+    	var r
+    	var b = function(next,v){return next(v,'abc')}
+        var e = signal.bind(b).tap(function(v1, v2) {r = v2})
+        e.input(1)
+        return r === 'abc'
     })
 
 	test('prime', function() {
