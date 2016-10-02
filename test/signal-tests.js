@@ -308,9 +308,9 @@ runTests('signal', function(mock) {
 	})
 
 	test('propagation order', function(){
-		var a=new Signal('a').map(seq(1))
-		var b=new Signal('b').map(seq(2))
-		var c=new Signal('c').map(seq(3))
+		var a=new Signal().map(seq(1))
+		var b=new Signal().map(seq(2))
+		var c=new Signal().map(seq(3))
 
 		var s1=new Signal().map(a).map(b).map(c)
 		s1.input([])
@@ -329,6 +329,11 @@ runTests('signal', function(mock) {
 	test('getState - with ctx', function() {
 		signal.tap(function(){this.ctx=123}).input('abc')
 		return Utils.deepEqual(signal.getState(), {ctx: 123, value: 'abc'})
+	})
+
+	test('set state', function() {
+		var state = {value: 123}
+		return Utils.deepEqual(new Signal(state).getState(), {value: 123});
 	})
 
 	test('extend', function(){

@@ -44,7 +44,7 @@ var _wrap = function(v) {
 }
 
 // Signal - the object created and returned by Constructor
-function Signal(value) {
+function Signal(state) {
   var sid = ++sId
   var _this = this
   var _feeds = [], _fails = []
@@ -57,12 +57,9 @@ function Signal(value) {
     this.$id = sid + (this.$name || '')
   }
 
-  var _bind, _step, _steps = value instanceof _wrap? value.steps : []
-  var _state = value && value.value? value : {
-    value: value instanceof _wrap? undefined : value
-  }
-  _state.halt = halt
-  _state.fail = fail
+  var _bind, _step, _steps = state instanceof _wrap? state.steps : []
+  var _state = {value: undefined}
+  if (state && !(state instanceof _wrap)) Object.keys(state).forEach(function(k) {_state[k] = state[k]})
 
   function _propagate(v) {
     for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
@@ -85,6 +82,8 @@ function Signal(value) {
   // apply: run ordinary functions in functor context
   function _apply(f, v) {
     var args = [].slice.call(arguments, 1)
+    _state.halt = halt
+    _state.fail = fail
     v = f.apply(_state, args)
     if (v instanceof halt) {
       // handle thunks and promises in lieu of generators..
@@ -306,8 +305,8 @@ function extend(proto, ext) {
 // Constructor : () -> Signal
 //
 // Construct a new base signal
-function Constructor(value) {
-  var ext = [], s = new Signal(value)
+function Constructor(state) {
+  var ext = [], s = new Signal(state)
 
   s.signal = function(v) {
     var s = Constructor(v)

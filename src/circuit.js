@@ -21,7 +21,7 @@ function toSignal(app, s, state) {
   if (!s || !s.isSignal) {
     var v = s, fmap = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fmap==='map') s = function() {return v}
-    s = app.signal()[fmap](s)
+    s = app.signal(state)[fmap](s)
   }
   return s
 }
@@ -59,10 +59,11 @@ function getState(s) {
   var _getState = s.getState.bind(s)
   return function getState(raw) {
     var state = _getState(raw)
-    return (state.jp || {}).join? {value: Object.keys(s.channels).reduce(function(v, k) {
+    if ((state.jp || {}).join) state.value = Object.keys(s.channels).reduce(function(v, k) {
       v[k] = s.channels[k].getState(raw)
       return v
-    },{})} : state
+    }, {})
+    return state
   }
 }
 
@@ -71,7 +72,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
   _state.jp = {join: joinOnly};
   var channels=_jp.channels || {}, signals = []
   Object.keys(circuit).forEach(function(k){
-    var signal = toSignal(_jp, circuit[k], _state[k])
+    var signal = toSignal(_jp, circuit[k], _state.value? _state.value[k] : undefined)
     if (signal.id) {
       signal.name = k
       // bind each joining signal to the context value

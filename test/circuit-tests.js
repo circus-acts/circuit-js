@@ -180,6 +180,7 @@ runTests('circuit', function(mock) {
 		c.channels.a.input(1)
 		return c.channels.a.value() === 3
 	})
+
 	test('overlay - sample', function(){
 		var a = app.signal()
 		var b = app.signal()
@@ -214,7 +215,7 @@ runTests('circuit', function(mock) {
 			}
 		})
 		r.b.a.input(123)
-		return Utils.deepEqual(r.getState(), {value: {b: {value: {a: {value: 123}}}}})
+		return Utils.deepEqual(r.getState(), {jp: {join: true}, value: {b: {jp: {join: true}, value: {a: {value: 123}}}}})
 	})
 
 	test('getState - prime', function() {
@@ -224,7 +225,7 @@ runTests('circuit', function(mock) {
 				a: a
 			}
 		}).prime({b:{a:123}})
-		return Utils.deepEqual(r.getState(), {value: {b: {value: {a: {value: 123}}}}})
+		return Utils.deepEqual(r.getState(), {jp: {join: true}, value: {b: {jp: {join: true}, value: {a: {value: 123}}}}})
 	})
 
 	test('getState - with context', function() {
@@ -235,6 +236,15 @@ runTests('circuit', function(mock) {
 		r.input(123)
 		a.input(true)
 		return Utils.deepEqual(r.getState(), {jp: {join: false, sv: 123}, value: 246})
+	})
+
+	test('set state', function() {
+		var state = {value: {a: {value: 123}}}
+		var s = app.signal(state).join({
+			a: function(v){this.ctx = 'abc'; return v}
+		})
+		s.a.input(456)
+		return Utils.deepEqual(s.getState(), {jp: {join: true}, value: {a: {ctx: 'abc', value: 456}}});
 	})
 
     test('extend - app', function(){
