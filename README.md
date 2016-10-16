@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/philtoms/circus-js.svg?branch=master)](https://travis-ci.org/philtoms/circus-js)
 
+A modern javascript architecture that promotes functionl programming, precise control of application state and cooperative development.
 A library for building applications using circuit architecture - a functionally declarative software pattern that encourages application development through pure functions, composition and associativity - wrapped in a JavaScript hash.
 
 ## Installation

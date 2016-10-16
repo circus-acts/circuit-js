@@ -229,9 +229,9 @@ runTests('signal', function(mock) {
         return r === 2
     })
 
-    test('reduce', function() {
+    test('fold', function() {
         var e = 'xyz'
-        var s = signal.reduce(function(a,v){
+        var s = signal.fold(function(a,v){
             return a+v
         }).tap(function(v){
             e = v
@@ -242,9 +242,9 @@ runTests('signal', function(mock) {
         return e === 6
     })
 
-    test('reduce - accum', function() {
+    test('fold - accum', function() {
         var e = 'xyz'
-        var s = signal.reduce(function(a,v){
+        var s = signal.fold(function(a,v){
             return a+v
         },6).tap(function(v){
             e = v
@@ -288,10 +288,15 @@ runTests('signal', function(mock) {
     	return r === 123
     })
 
-	test('prime', function() {
-		var s = signal.map(inc).prime(1)
-		return s.value() === 1
-	})
+    test('prime - state', function() {
+        var s = signal.map(inc).prime({$value: 1})
+        return s.value() === 1
+    })
+
+    test('prime - value', function() {
+        var s = signal.map(inc).prime(1)
+        return s.value() === 1
+    })
 
 	test('fail - message', function() {
 		var r
@@ -323,23 +328,19 @@ runTests('signal', function(mock) {
 
 	test('getState', function() {
 		var s = signal.prime(123).getState()
-		return Utils.deepEqual(s, {value: 123})
+		return Utils.deepEqual(s, {$value: 123})
 	})
 
-	test('getState - with ctx', function() {
-		signal.tap(function(){this.ctx=123}).input('abc')
-		return Utils.deepEqual(signal.getState(), {ctx: 123, value: 'abc'})
-	})
+    test('extend', function(){
+        var r, ext = function() {return this.map(function(v) {r=v})}
+        signal.extend({ext: ext}).ext().input(1)
+        return r === 1
+    })
 
-	test('set state', function() {
-		var state = {value: 123}
-		return Utils.deepEqual(new Signal(state).getState(), {value: 123});
-	})
-
-	test('extend', function(){
-		var r, ext = function() {return this.map(function(v) {r=v})}
-		signal.extend({ext: ext}).ext().input(1)
-		return r === 1
+	test('extend - ctx', function() {
+        var r, ext = function() {this.ctx.x=123; return this.tap(function(){})}
+        signal.extend({ext: ext}).ext().input(1)
+        return Utils.deepEqual(signal.getState(), {ext: {x: 123}, $value: 1})
 	})
 
 	test('extend - inheritance', function(){

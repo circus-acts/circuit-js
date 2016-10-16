@@ -5,8 +5,10 @@ import Utils from '../src/utils'
 
 runTests('match', function(mock) {
 
-    var inc = function(v){return v+1}
-    var app = new Circus(Match)
+    var app, inc = function(v){return v+1}
+    setup(function(){
+        app = new Circus(Match)
+    })
 
     test('match - pass truthy literal', function() {
         var r, v=1
@@ -330,7 +332,7 @@ runTests('match', function(mock) {
     test('join - all active', function() {
         var s1 = app.signal()
         var s2 = app.signal()
-        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
+        var r,j = app.jp.join({s1,s2}).all().tap(function(){r=true})
         app.join({s1,s2}).all()
         s1.input(1)
         s2.input(2)
@@ -340,7 +342,7 @@ runTests('match', function(mock) {
     test('join - not all active', function() {
         var s1 = app.signal()
         var s2 = app.signal()
-        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
+        var r,j = app.jp.join({s1,s2}).all().tap(function(){r=true})
         app.join({s1,s2}).all()
         s1.input(1)
         return r === undefined

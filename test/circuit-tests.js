@@ -1,4 +1,4 @@
-import Circus, {Signal} from '../src'
+import Circuit, {Signal} from '../src'
 import Utils from '../src/utils'
 
 runTests('circuit', function(mock) {
@@ -7,14 +7,14 @@ runTests('circuit', function(mock) {
 	var dbl = function(v){return v+v}
 	var sqr = function(v){return v*v}
 	var seq = function(s){
-		return function(steps){
-			return [].concat(steps,s)
+		return function(){
+			return [].concat(arguments[arguments.length-1],s)
 		}
 	}
 	var app
 
 	setup(function(){
-		app = new Circus()
+		app = new Circuit()
 	})
 
     test('as signal - from app', function(){
@@ -35,19 +35,18 @@ runTests('circuit', function(mock) {
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(function(){return this.fail(123)})
 		var j1 = app.join({s1})
-		var r,j = app.join({j1})
-		j.fail(function(f){r=f})
+		var r,j = app.jp.join({j1}).fail(function(f){r=f})
 		s1.input(2)
 		return r.message === 123
 	})
 
 	test('channel - implied map', function(){
-		var s = app.merge({
+		var s = app.join({
 			a: inc
 		})
 		s.channels.a.input(1)
 
-		return s.value() === 2
+		return s.a.value() === 2
 	})
 
 	test('channel - passive', function(){
@@ -97,25 +96,43 @@ runTests('circuit', function(mock) {
 		var a=app.signal().map(seq(1))
 		var b=app.signal().map(seq(2))
 		var c=app.signal().map(seq(3))
-		var s1=app.signal().map(a).map(b).map(c)
-		var s2=app.merge({
-			c:app.signal().merge({
-				b:app.signal().merge({a}).map(b)
+		var s1=app.merge({
+			c:app.jp.merge({
+				b:app.jp.merge({a}).map(b)
 			}).map(c)
 		})
-		s1.input([])
-		s2.channels.c.channels.b.channels.a.input([])
+		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
+		s1.channels.c.channels.b.channels.a.input([])
+		s2.input([])
 
 		return s1.value().toString() === s2.value().toString()
 	})
 
-	test('prime', function(){
+	test('prime - state', function(){
+		var a=app.signal()
+		var r = app.join({
+			a: a
+		}).prime({a: {$value: 123}})
+
+		return a.value()===123
+	})
+
+	test('prime - value', function(){
 		var a=app.signal()
 		var r = app.join({
 			a: a
 		}).prime({a:123})
 
 		return a.value()===123
+	})
+
+	test('prime - sample value', function(){
+		var a=app.signal()
+		var r = app.prime({sample: {sv: 123}, $value: 456}).sample({
+			a: a
+		})
+		a.input(true)
+		return r.value()===123
 	})
 
 	test('prime - deep', function(){
@@ -129,22 +146,9 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('context - join', function(){
-		var ctx,r = app.join({
-			a: app.signal().map(function(v, cv) {
-				ctx=cv
-				return v
-			})
-		})
-		r.input('join value')
-		r.channels.a.input(123)
-
-		return ctx==='join value' && r.value().a===123
-	})
-
-	test('context - merge', function(){
+	test('merge - reduce', function(){
 		var ctx,r = app.merge({
-			a: app.signal().map(function(v, cv) {
+			a: app.signal().map(function(cv, v) {
 				ctx=cv
 				return v
 			})
@@ -155,7 +159,7 @@ runTests('circuit', function(mock) {
 		return ctx==='abc' && r.value()===123
 	})
 
-	test('context - channel', function(){
+	test('join - channel', function(){
 		var ctx,r = app.join({
 			a: inc
 		}).map(function(v,channel) {
@@ -208,54 +212,22 @@ runTests('circuit', function(mock) {
 	})
 
 	test('getState', function() {
-		var a=app.signal()
-		var r = app.join({
-			b: {
-				a: a
-			}
+		var r = new Circuit().join({
+			a: app.signal()
 		})
-		r.b.a.input(123)
-		return Utils.deepEqual(r.getState(), {jp: {join: true}, value: {b: {jp: {join: true}, value: {a: {value: 123}}}}})
-	})
-
-	test('getState - prime', function() {
-		var a=app.signal()
-		var r = app.join({
-			b: {
-				a: a
-			}
-		}).prime({b:{a:123}})
-		return Utils.deepEqual(r.getState(), {jp: {join: true}, value: {b: {jp: {join: true}, value: {a: {value: 123}}}}})
-	})
-
-	test('getState - with context', function() {
-		var a=app.signal()
-		var r = app.sample({
-			a: a
-		}).map(dbl)
-		r.input(123)
-		a.input(true)
-		return Utils.deepEqual(r.getState(), {jp: {join: false, sv: 123}, value: 246})
-	})
-
-	test('set state', function() {
-		var state = {value: {a: {value: 123}}}
-		var s = app.signal(state).join({
-			a: function(v){this.ctx = 'abc'; return v}
-		})
-		s.a.input(456)
-		return Utils.deepEqual(s.getState(), {jp: {join: true}, value: {a: {ctx: 'abc', value: 456}}});
+		r.a.input(123)
+		return Utils.deepEqual(r.getState(), {join: {join: true}, $value: {a: {$value: 123}}})
 	})
 
     test('extend - app', function(){
-        var app1 = new Circus().extend({c:true})
-        var app2 = new Circus()
+        var app1 = new Circuit().extend({c:true})
+        var app2 = new Circuit()
 
         return app1.signal().c && !app2.signal().c
     })
 
     test('extend - app + signal', function(){
-        var r1,r2,circuit = new Circus()
+        var r1,r2,circuit = new Circuit()
         circuit.extend(function(c1){r1=c1;return {b:true}})
         circuit.extend(function(c2){r2=c2;return {c:true}})
         var s = circuit.signal()
