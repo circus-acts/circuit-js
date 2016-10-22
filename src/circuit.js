@@ -1,7 +1,9 @@
 import Signal from './signal'
-import _Pure from './pure'
+import pure from './pure'
 
 'use strict'
+
+var objConstructor = {}.constructor
 
 function diff(v1,v2) {
   // keep open until first signal
@@ -15,18 +17,18 @@ function diff(v1,v2) {
   return false
 }
 
-function toSignal(app,s) {
+function toSignal(app, s, state) {
   if (!s || !s.isSignal) {
     var v = s, fmap = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fmap==='map') s = function() {return v}
-    s = app.signal()[fmap](s)
+    s = app.signal(state)[fmap](s)
   }
   return s
 }
 
-// overlay circuit behaviour aligned on channel input / outputs
+// overlay circuit behaviour aligned on channel inputs
 function overlay(s) {
-  return function recurse (g, c) {
+  return function overlay (g, c) {
     c = c || s
     Object.keys(g).forEach(function(k) {
       var o = g[k]
@@ -34,7 +36,7 @@ function overlay(s) {
         // use apply here
         c.channels[k].map(o)
       }
-      else if (o) recurse(o,c.channels[k])
+      else if (o) overlay(o,c.channels[k])
 
     })
     return s
@@ -43,51 +45,61 @@ function overlay(s) {
 
 function prime(s) {
   var _prime = s.prime.bind(s)
-  return function prime(v, c) {
-    s = c || s
-    if (typeof v === 'object' && s.channels) {
-      Object.keys(v).filter(function(k) {
-        return s.channels[k]
-      }).forEach(function(k) {
-        s.channels[k].prime(v[k])
+  return function prime(v) {
+    if (v.constructor === objConstructor && s.channels) {
+      Object.keys(v).forEach(function(k) {
+        s.channels[k] && s.channels[k].prime(v[k])
       })
     }
     return _prime(v)
   }
 }
 
+function getState(s) {
+  var _getState = s.getState.bind(s)
+  return function getState() {
+    var state = _getState()
+    if (state.join) state.$value = Object.keys(s.channels).reduce(function(v, k) {
+      v[k] = s.channels[k].getState()
+      return v
+    }, {})
+    return state
+  }
+}
+
 function joinPoint(sampleOnly, joinOnly, circuit) {
-  var _jp = this.asSignal();
+  var ctx = this.ctx, _jp = this.asSignal()
   var channels=_jp.channels || {}, signals = []
+  ctx.join = joinOnly;
+
   Object.keys(circuit).forEach(function(k){
-    var signal = toSignal(_jp,circuit[k])
+    var signal = toSignal(_jp, circuit[k], ctx.value? ctx.value[k] : undefined)
     if (signal.id) {
       signal.name = k
-      // bind each joining signal to the context value
-      signal.bind(function(next, v) {
-        return next(v, _jp.value())
-      })
-      // is channel syntax really that bad?
-      if (process.env.NODE_ENV==='development') {
-        if (_jp[k] && !_jp[k].isSignal) throw new Error('channel name cannot use signal verb - ' + k)
+      // bind merged values onto a reducer
+      if (!sampleOnly && ! joinOnly) {
+        signal.bind(function(next, v) {
+          return next(_jp.value(), v)
+        })
       }
       // channels are simply aggregated as circuit inputs but care must
       // be taken not to overwrite existing channels with the same name.
       // So, duplicates are lifted, upstream, into the existing channel.
       if (!channels[k]) {
+        // is channel syntax really that bad?
+        if (process.env.NODE_ENV==='development') {
+          if (_jp[k]) throw new Error('channel name would overwrite signal verb - ' + k)
+        }
         _jp[k] = signal
-        channels[k] = signal
-        signal.feed(merge(k)).fail(_jp.input)
+        channels[k] = signal.feed(merge(k)).fail(_jp.input)
       }
       else {
         channels[k].map(signal)
       }
     }
-    // signal is an identity and cannot actually signal. It's only
-    // useful for joins where its current state will be included as
-    // a passive channel.
+    // signal is just a signal identity and is only useful as a passive channel.
     else if (joinOnly) {
-      signal = {name: k, value:signal().value}
+      signal = {name: k, value: signal().value}
     }
     signals.push(signal)
   })
@@ -99,65 +111,114 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         jv[s.name] = s.value()
         return jv
       }, {}) || v
-      next(sampleOnly? sv : jv, channel)
+      // need to take the value when no primary state available. Worth warning about..
+      // todo: re-evaluate after priming has been fixed to state
+      if (process.env.NODE_ENV==='development') {
+        if (sampleOnly && !ctx.hasOwnProperty('sv')) {
+          console.warn('jp value substituted for primary state')
+        }
+      }
+      next(sampleOnly? ctx.sv || _jp.value() : jv, channel)
     }
   }
 
-  // expose the channel in circuit form (can be flatmap'd later if required)
   _jp.channels = channels
 
   // halt sampled signals at this step
-  var sv
   return _jp.filter(function(v){
-    sv = v
+    if (sampleOnly) ctx.sv = v
     return !sampleOnly
   })
 }
 
-// Join 1 or more input signals into 1 output signal
-// Input signals will be mapped onto output signal channels
-// - duplicate channels will be merged
-function join(c) {
-  return joinPoint.call(this,false,true,c)
-}
+// Circuit API
 
+// signal().merge : ({A}) -> Signal A
+//
 // Merge 1 or more input signals into 1 output signal
 // The output signal value will be the latest input signal value
-function merge(c) {
-  return joinPoint.call(this,false,false,c)
+//
+// example:
+//    merge({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> 20
+//
+//    signalA.input(10)
+//    signalB.input(20)
+//
+function merge(circuit) {
+  return joinPoint.call(this,false,false,circuit)
 }
 
-// Sample input signal(s)
-function sample(c) {
-  return joinPoint.call(this,true,false,c)
+
+// circuit().join : ({A}) -> Signal {A}
+//
+// Join 1 or more input signals into 1 output signal
+// - input signal channels will be mapped onto output signal values
+// - duplicate channels will be merged
+//
+// example:
+//    join({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> {A: 10, B, 20}
+//
+//    signalA.input(10)
+//    signalB.input(20)
+//
+function join(circuit) {
+  return joinPoint.call(this,false,true,circuit)
 }
 
+
+// circuit(A).sample : ({Signal B}) -> Signal {A}
+//
+// Halt signal propagation until sample input signal(s) raised
+//
+// example:
+//    circuit = new Circuit().sample({
+//      A: signalA
+//      B: signalB
+//    }).tap(log) // -> {A: 10, B, 20}
+//
+//    circuit.input(10)   // -> circuit undefined
+//    signalA.input(true) // -> circuit 10
+//    signalB.input(true) // -> circuit 10
+//
+function sample(circuit) {
+  return joinPoint.call(this,true,false,circuit)
+}
+
+// Circuit : () -> Signal
+//
+// Construct a new circuit
 function Circuit() {
 
   // a circuit is a signal with join points
-  var _this = new Signal().extend(function(signal){
+  var circuit = new Signal().extend(function(signal){
     return {
       join: join,
       merge: merge,
       sample: sample,
+      pure: pure(diff),
       prime: prime(signal),
-      overlay: overlay(signal)
+      overlay: overlay(signal),
+      getState: getState(signal)
     }
   })
 
-  // override to filter out this - Circuit().join returns a new circuit
-  _this.asSignal = function(s) {
-    return s && s.isSignal && s !== _this ? s : _this.signal(s)
+  circuit.jp = {
+    join: function(cct) {return circuit.signal().join(cct)},
+    merge: function(cct) {return circuit.signal().merge(cct)},
+    sample: function(cct) {return circuit.signal().sample(cct)}
   }
 
   var args = [].slice.call(arguments).forEach(function(module) {
-    _this.extend(module)
+    circuit.extend(module)
   })
 
-  return _this
+  return circuit
 }
 
-var Pure = _Pure(diff)
-
-export {Pure}
 export default Circuit

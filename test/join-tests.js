@@ -8,17 +8,10 @@ runTests('join', function(mock) {
 	var dbl = function(v){return v+v}
 	var mul3 = function(v){return v*3}
 
-	var app = new Circuit()
-	var signal = app.signal.bind(app)
-
-	test('join', function() {
-		var s1 = signal()
-		var s2 = signal()
-		var j = app.join({s1,s2})
-		s1.input(1)
-		s2.input(2)
-		var r = j.value()
-		return r.s1 === 1 && r.s2 === 2
+	var app, signal
+	setup(function() {
+		app = new Circuit()
+		signal = app.signal.bind(app)
 	})
 
 	test('join - channels', function() {
@@ -34,22 +27,36 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
-	test('join - nested channels', function() {
+	test('join - nested join points', function() {
 		var s1 = signal()
 		var s2 = signal()
-		var j = app.join({
-			k1:s1,
-			k2:app.join({
-				k3:s2
+		var j = app.jp.join({
+			k1:app.join({
+				k2:s2
 			})
 		})
 		s1.input(1)
 		s2.input(2)
 		var r = j.value()
-		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
+		return Utils.deepEqual(r,{k1:{k2:2}})
 	})
 
-	test('join - pure object hash', function() {
+	test('join - join point auto binding', function() {
+		var join = app.jp.join
+		var s1 = signal()
+		var s2 = signal()
+		var j = join({
+			k1:join({
+				k2:s2
+			})
+		})
+		s1.input(1)
+		s2.input(2)
+		var r = j.value()
+		return Utils.deepEqual(r,{k1:{k2:2}})
+	})
+
+	test('join - object hash syntax', function() {
 		var s1 = signal()
 		var s2 = signal()
 		var j = app.join({

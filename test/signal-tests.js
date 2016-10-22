@@ -1,5 +1,6 @@
 import Circus from '../src'
 import Signal from '../src/signal'
+import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
 var dbl = function(v){return v+v}
@@ -228,9 +229,9 @@ runTests('signal', function(mock) {
         return r === 2
     })
 
-    test('reduce', function() {
+    test('fold', function() {
         var e = 'xyz'
-        var s = signal.reduce(function(a,v){
+        var s = signal.fold(function(a,v){
             return a+v
         }).tap(function(v){
             e = v
@@ -241,9 +242,9 @@ runTests('signal', function(mock) {
         return e === 6
     })
 
-    test('reduce - accum', function() {
+    test('fold - accum', function() {
         var e = 'xyz'
-        var s = signal.reduce(function(a,v){
+        var s = signal.fold(function(a,v){
             return a+v
         },6).tap(function(v){
             e = v
@@ -281,10 +282,21 @@ runTests('signal', function(mock) {
         return r === 'abc'
     })
 
-	test('prime', function() {
-		var s = signal.map(inc).prime(1)
-		return s.value() === 1
-	})
+    test ('context', function() {
+    	var r=0, c = function(){this.ctx = 123}
+    	signal.map(c).tap(function(){r = this.ctx}).input()
+    	return r === 123
+    })
+
+    test('prime - state', function() {
+        var s = signal.map(inc).prime({$value: 1})
+        return s.value() === 1
+    })
+
+    test('prime - value', function() {
+        var s = signal.map(inc).prime(1)
+        return s.value() === 1
+    })
 
 	test('fail - message', function() {
 		var r
@@ -301,9 +313,9 @@ runTests('signal', function(mock) {
 	})
 
 	test('propagation order', function(){
-		var a=new Signal('a').map(seq(1))
-		var b=new Signal('b').map(seq(2))
-		var c=new Signal('c').map(seq(3))
+		var a=new Signal().map(seq(1))
+		var b=new Signal().map(seq(2))
+		var c=new Signal().map(seq(3))
 
 		var s1=new Signal().map(a).map(b).map(c)
 		s1.input([])
@@ -314,10 +326,21 @@ runTests('signal', function(mock) {
 		return s1.value().toString() === s2.value().toString()
 	})
 
-	test('extend', function(){
-		var r, ext = function() {return this.map(function(v) {r=v})}
-		signal.extend({ext: ext}).ext().input(1)
-		return r === 1
+	test('getState', function() {
+		var s = signal.prime(123).getState()
+		return Utils.deepEqual(s, {$value: 123})
+	})
+
+    test('extend', function(){
+        var r, ext = function() {return this.map(function(v) {r=v})}
+        signal.extend({ext: ext}).ext().input(1)
+        return r === 1
+    })
+
+	test('extend - ctx', function() {
+        var r, ext = function() {this.ctx.x=123; return this.tap(function(){})}
+        signal.extend({ext: ext}).ext().input(1)
+        return Utils.deepEqual(signal.getState(), {ext: {x: 123}, $value: 1})
 	})
 
 	test('extend - inheritance', function(){

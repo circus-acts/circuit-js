@@ -15,21 +15,21 @@ var sId = 0;
 // examples:
 //  signal(A).map(v => this.halt(B)).map(v => v) // -> Signal B
 //  signal(A).map(v => this.halt(next => setTimeout(() => next(B)))) -> Signal A...B
-var halt = function(v,a) {
+var halt = function(v, a) {
   if (!(this instanceof halt)) return new halt(v, !!arguments.length)
   if (typeof v === 'function') this.thunk = v
   else if (typeof v === 'object' && typeof v.then === 'function') this.promise = v
-  else if (a || arguments.length === 1) this.value =  v
+  else if (a || arguments.length === 1) this.$value =  v
 }
 
 // Fail propagation
 // - propagation is halted immediately.
 // - state is not updated.
 // - optionally return failure message
-//    NB: failure is not a state and must be captured to be processed
+//    NB: failure is not a state - it must be captured to be processed
 //
 // example:
-//  signal(A).fail(f => console.log(f.message)).map(v => this.fail('bad!')) // bad!
+//  signal(A).map(v => this.fail('boo!')).fail(f => console.log(f.message)) // boo!
 var fail = function(m) {
   if (!(this instanceof fail)) return new fail(m)
   this.message = m || true
@@ -39,17 +39,12 @@ fail.prototype = Object.create(halt.prototype)
 
 // internal signalling tunnel (used for cloning etc)
 var _wrap = function(v) {
-  if (!(this instanceof _wrap)) return new _wrap(v)
-  this.value = v
+  var _this = this
+  Object.keys(v).forEach(function(k){ _this[k] = v[k]})
 }
 
-var immediate = Object.freeze({
-  halt: halt,
-  fail: fail
-})
-
 // Signal - the object created and returned by Constructor
-function Signal(value) {
+function Signal(state) {
   var sid = ++sId
   var _this = this
   var _feeds = [], _fails = []
@@ -62,20 +57,24 @@ function Signal(value) {
     this.$id = sid + (this.$name || '')
   }
 
-  var _id = sid, _state = {ctx: {}, value: value}, _bind, _step, _steps = []
-  if (value instanceof _wrap) {
-    _steps = value.value.steps || []
+  var _bind, _step, _steps = state instanceof _wrap? state.steps : []
+  var _state = {$value: undefined}
+  if (state && !(state instanceof _wrap)) Object.keys(state).forEach(function(k) {_state[k] = state[k]})
+
+  if (process.env.NODE_ENV==='development') {
+    this.$state = _state
+    _state.$id = sid
   }
 
   function _propagate(v) {
     for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
-      v = _apply.apply(immediate, [_steps[i], v].concat([].slice.call(arguments, 1)))
+      v = _apply.apply(_state, [_steps[i], v].concat([].slice.call(arguments, 1)))
     }
     var tail = v instanceof fail? _fails : []
     if (v instanceof halt) {
-      if (v.hasOwnProperty('value')) _state.value = v.value
+      if (v.hasOwnProperty('$value')) _state.$value = v.$value
     } else {
-      _state.value = v
+      _state.$value = v
       tail = _feeds
     }
     for (var t = 0; t < tail.length; t++) {
@@ -88,11 +87,13 @@ function Signal(value) {
   // apply: run ordinary functions in functor context
   function _apply(f, v) {
     var args = [].slice.call(arguments, 1)
-    v = f.apply(immediate, args)
+    _state.halt = halt
+    _state.fail = fail
+    v = f.apply(_state, args)
     if (v instanceof halt) {
       // handle thunks and promises in lieu of generators..
       if (v.thunk) {
-        v.thunk(_nextStep(_step+1))
+        v.thunk.call(_state, _nextStep(_step+1))
       }
       if (v.promise) {
         // promise chains end here
@@ -103,18 +104,18 @@ function Signal(value) {
     return v
   }
 
-  // lift a function or signal into functor form
+  // lift a function or signal into functor context
   function _lift(f) {
     var fmap = f
     if (f.isSignal) {
-      var next = _nextStep()
-      f.feed(next)
-      fmap = function(v) {
-        f.input(v)
+      f.feed(_nextStep())
+      fmap = function() {
+        f.input.apply(_state, arguments)
         return this.halt()
       }
     }
-    return fmap
+    _steps.push(fmap)
+    return _this
   }
 
   // allow values to be injected into the signal at arbitrary step points.
@@ -122,9 +123,10 @@ function Signal(value) {
   function _nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
     return function(v){
-       var args = [_propagate].concat([].slice.call(arguments))
       _step = step
-      _bind? _bind.apply(_state.ctx, args) : _propagate.apply(_this,arguments)
+      _bind && _step < _steps.length
+        ? _bind.apply(_state, [_propagate].concat([].slice.call(arguments)))
+        : _propagate.apply(_this,arguments)
     }
   }
 
@@ -185,7 +187,7 @@ function Signal(value) {
   //
   // Return state as the current signal value.
   this.value = function() {
-    return _state.value
+    return _state.$value
   }
 
 
@@ -193,7 +195,7 @@ function Signal(value) {
   //
   // Clone a signal into a new context
   this.clone = function() {
-    return new Signal(_wrap({steps: _steps}))
+    return new Signal(new _wrap({steps: _steps}))
   }
 
 
@@ -201,7 +203,14 @@ function Signal(value) {
   //
   // Set signal state directly, bypassing any propagation steps
   this.prime = function(v) {
-    _state.value = v
+    if (v.hasOwnProperty('$value')) {
+      _state = v
+      if (process.env.NODE_ENV==='development') {
+        this.$state = _state
+        _state.$id = sid
+      }
+    }
+    else _state.$value = v
     return this
   }
 
@@ -211,10 +220,7 @@ function Signal(value) {
   // Map over the current signal value
   // - can halt propagation by returning this.halt
   // - can short propagation by returning this.fail
-  this.map = function(f) {
-    _steps.push(_lift(f))
-    return this
-  }
+  this.map = _lift
 
 
   // signal(A).fail : (F) -> Signal A
@@ -255,7 +261,7 @@ function Signal(value) {
   //
   // Continuously fold incoming signal values into an accumulated outgoing value.
   // - first value will be passed accumulator if not supplied.
-  this.reduce = function(f,accum) {
+  this.fold = function(f,accum) {
     return this.map(function(v){
       if (!accum) {
         accum = v
@@ -280,45 +286,61 @@ function Signal(value) {
       return v
     })
   }
-}
 
-function extend(proto, ext) {
-  Object.keys(ext).forEach(function(k){
-    proto[k] = ext[k]
-  })
-}
+  // signal(A).getState : () -> {value: A}
+  //
+  // Return the current signal state which minimally includes the current signal value.
+  //
+  // Note that state also includes signal context values which may be freely
+  // accessed and amended within the binding context of propagation. Like most
+  // J/S contexts, these values should be sparingly used in signal extensions.
+  // They play no part in core signal propagation.
+  //
+  // example with context:
+  //  signal.input(true)
+  //  signal.getState() // -> {$value: true}
+  this.getState = function() {
+    return Object.keys(_state).reduce((s,k) => {
+      if (k === '$value' || Object.keys(_state[k]).length) s[k] = _state[k]
+      return s
+    }, {});
+  }
 
 
-// Constructor : () -> Signal
-//
-// Construct a new base signal
-function Constructor(value) {
-  var ext = [], s = new Signal(value)
+  // signal().extend : ({A}) -> Signal
+  //                   (Signal -> {A}) -> Signal
+  //
+  // Extend a signal with custom steps.
+  // - arg can be: object hash, eg {step: function}
+  //               function that receives a Signal instance and returns an object hash
+  // - chainable steps must return this.
+  this.extend = function(e) {
+    ext.push(e)
+    e = typeof e==='function'? e(this) || {} : e
+    Object.keys(e).forEach(function(k){
+      if (typeof e[k] ==='object') _this.extend(e[k])
+      else {
+        _this[k] = function() {
+          _this.ctx = _state[k] = _state[k] || {}
+          var s = e[k].apply(_this, arguments)
+          delete _this.ctx
+          return s
+        }
+      }
+    })
+    return this
+  }
 
-  s.signal = function() {
-    var s = Constructor()
+  var ext = []
+  this.signal = function(v) {
+    var s = new Signal(v)
     for (var i = 0; i < ext.length; i++) {
       s.extend(ext[i])
     }
     return s
   }
 
-
-  // signal().extend : ({A}) -> Signal
-  //                    (Signal -> {A}) -> Signal
-  //
-  // Extend a signal with custom steps.
-  // - arg can be: object hash, eg {step: function}
-  //               function that receives a Signal instance and returns an object hash
-  // - chainable steps must return this.
-  s.extend = function(e) {
-    ext.push(e)
-    extend(this, typeof e==='function'? e(this) || {} : e)
-    return this
-  }
-
-  return s
 }
 
-Constructor.id = function(v) {return v}
-export default Constructor
+Signal.id = function(v) {return v}
+export default Signal
