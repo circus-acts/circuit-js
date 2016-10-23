@@ -58,7 +58,7 @@ function Signal(state) {
   }
 
   var _mw, _step, _steps = state instanceof _wrap? state.steps : []
-  var _state = {$value: undefined}
+  var _state = {$value: undefined}, _pulse = Signal.id
   if (state && !(state instanceof _wrap)) Object.keys(state).forEach(function(k) {_state[k] = state[k]})
 
   if (process.env.NODE_ENV==='development') {
@@ -66,9 +66,22 @@ function Signal(state) {
     _state.$id = sid
   }
 
-  function _propagate(v) {
-    for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
-      v = _apply.apply(null, [_steps[i], v].concat([].slice.call(arguments, 1)))
+  function propagate(v) {
+    var args = [].slice.call(arguments, 1)
+    for (var i = _step; i < _steps.length; i++) {
+      v = _steps[i].apply(null, [v].concat(args))
+      if (v instanceof halt) {
+        // handle thunks and promises in lieu of generators..
+        if (v.thunk) {
+          v.thunk.call(null, nextStep(i+1))
+        }
+        if (v.promise) {
+          // promise chains end here
+          var next = nextStep(i+1)
+          v.promise.then(next, function(m) {next(new fail(m))})
+        }
+        break
+      }
     }
     var tail = v instanceof fail? _fails : []
     if (v instanceof halt) {
@@ -81,32 +94,18 @@ function Signal(state) {
       tail[t](v)
     }
 
-    return !(v instanceof halt)
-  }
-
-  // apply: run ordinary functions in functor context
-  function _apply(f, v) {
-    var args = [].slice.call(arguments, 1)
-    v = f.apply(null, args)
-    if (v instanceof halt) {
-      // handle thunks and promises in lieu of generators..
-      if (v.thunk) {
-        v.thunk.call(null, _nextStep(_step+1))
-      }
-      if (v.promise) {
-        // promise chains end here
-        var next = _nextStep(_step+1)
-        v.promise.then(next, function(m) {next(new fail(m))})
-      }
+    if (_pulse !== Signal.id) {
+      _state.$value = _pulse
     }
+
     return v
   }
 
   // lift a function or signal into functor context
-  function _lift(f) {
+  function lift(f) {
     var fmap = f
     if (f.isSignal) {
-      f.feed(_nextStep())
+      f.feed(nextStep())
       fmap = function() {
         f.input.apply(null, arguments)
         return halt()
@@ -118,16 +117,18 @@ function Signal(state) {
 
   // allow values to be injected into the signal at arbitrary step points.
   // propagation continues from this point
-  function _nextStep(step) {
+  function nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
     return function(v){
       _step = step
-      _mw && _step < _steps.length
-        ? _mw.apply(null, [_propagate].concat([].slice.call(arguments)))
-        : _propagate.apply(null, arguments)
+      return _mw && _step < _steps.length
+        ? _mw.apply(null, arguments)
+        : propagate.apply(null, arguments)
     }
   }
 
+  // Extend a signal with custom steps and optionally bind a context to each step.
+  // The context will be shared between steps of the same type.
   var ext = []
   function extend(bind, e) {
     ext.push(arguments)
@@ -149,24 +150,31 @@ function Signal(state) {
 
   // Public API
 
-  // signal().input : (A) -> undefined
+  // signal().input : (A) -> A
   //
   // Signal a new value.
   //
   // Push a new value into a signal. The signal will propagate.
   // eg : input(123) -> Signal 123
-  this.input = _nextStep(0)
+  this.input = nextStep(0)
 
 
-  // Signal(A).next : (A) -> undefined
+  // Signal(A).next : (A) -> A
   //
   // Signal a new value at the next step point
   //
   // Push a new value into a signal at the next point in the propagation chain.
   // The signal will propagate onwards.
   // eg : signal.map(v=>v.forEach(i=>this.next(i)).input([1,2,3]) -> Signal 1 : 2 : 3
-  this.next = _nextStep.bind(_this, undefined)
+  this.next = nextStep.bind(_this, undefined)
 
+  // Signal().pulse : (A) -> A
+  //
+  // reset signal value after propagation
+  this.pulse = function(v) {
+    _pulse = v
+    return this
+  }
 
   // signal(A).bind : ((N, A) -> N(B)) -> Signal B
   //
@@ -174,15 +182,15 @@ function Signal(state) {
   //
   // The middleware should call next to propagate the signal.
   // The middleware should skip next to halt the signal.
-  // The middleware is free to modify value and / or context.
+  // The middleware is free to modify value and  / or arity
   // eg : applyMW((next, value) => next(++value)).input(1) -> Signal 2
   this.applyMW = function(mw) {
-    var next = _mw || _apply
-    _mw = function(fn, v) {
+    var next = _mw || propagate
+    _mw = function() {
       var args = [function() {
-        return !!next.apply(null, [fn].concat([].slice.call(arguments)))
-      }].concat([].slice.call(arguments, 1))
-      return !!mw.apply(null, args)
+        return next.apply(null, arguments)
+      }].concat([].slice.call(arguments))
+      return mw.apply(null, args)
     }
     return this
   }
@@ -216,8 +224,9 @@ function Signal(state) {
 
 
   // signal().prime : (A) -> Signal A
+  //                  ({$value: A}) -> Signal A
   //
-  // Set signal state directly, bypassing any propagation steps
+  // Set signal value or state directly, bypassing any propagation steps
   this.prime = function(v) {
     if (v.hasOwnProperty('$value')) {
       _state = v
@@ -236,7 +245,7 @@ function Signal(state) {
   // Map over the current signal value
   // - can halt propagation by returning Signal.halt
   // - can short propagation by returning Signal.fail
-  this.map = _lift
+  this.map = lift
 
 
   // signal(A).fail : (F) -> Signal A
@@ -264,19 +273,19 @@ function Signal(state) {
   // signal(A).filter : (A -> boolean) -> Signal A
   //
   // Filter the signal value.
-  // - return true to continue propagation
-  // - return false to halt propagation
+  // - return truthy to continue propagation
+  // - return falsey to halt propagation
   this.filter = function(f) {
     return this.map(function (v) {
       return f.apply(null, arguments)? v: halt()
     })
   }
 
-  // signal(A).reduce : ((A, A) -> B) -> Signal B
-  //                    ((A, B) -> C, B) -> Signal C
+  // signal(A).fold : ((A, A) -> B) -> Signal B
+  //                  ((A, B) -> C, B) -> Signal C
   //
   // Continuously fold incoming signal values into an accumulated outgoing value.
-  // - first value will be passed accumulator if not supplied.
+  // - accumulator will be first signal value if not supplied.
   this.fold = function(f,accum) {
     return this.map(function(v){
       if (!accum) {
@@ -327,15 +336,16 @@ function Signal(state) {
   //
   // bind a signal context to a custom step (or steps)
   // Note: chainable steps must return this.
-  this.bind = extend.bind(this, true)
+  this.bind = extend.bind(_this, true)
 
 
   // signal().extend : (Signal -> {A}) -> Signal
   //
   // extend a signal with unbound custom steps
   // Note: chainable steps must return this.
-  this.extend = extend.bind(this, false)
+  this.extend = extend.bind(_this, false)
 
+  // Constructor function
   this.signal = function(v) {
     var s = new Signal(v)
     for (var i = 0; i < ext.length; i++) {

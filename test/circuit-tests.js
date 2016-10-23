@@ -32,6 +32,22 @@ runTests('circuit', function(mock) {
 		return r.s1 === 1 && r.s2 === 2
 	})
 
+	test('propagation order', function(){
+		var a=app.signal().map(seq(1))
+		var b=app.signal().map(seq(2))
+		var c=app.signal().map(seq(3))
+		var s1=app.merge({
+			c:app.jp.merge({
+				b:app.jp.merge({a}).map(b)
+			}).map(c)
+		})
+		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
+		s1.channels.c.channels.b.channels.a.input([])
+		s2.input([])
+
+		return s1.value().toString() === s2.value().toString()
+	})
+
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(function(){return fail(123)})
 		var j1 = app.join({s1})
@@ -82,30 +98,6 @@ runTests('circuit', function(mock) {
 		s.channels.a.input(1)
 
 		return s.value().a === undefined
-	})
-
-	test('channel value - literal (always)', function(){
-		var r = app.join({
-			a: 'a'
-		})
-		r.channels.a.input(123)
-		return r.value().a==='a'
-	})
-
-	test('propagation order', function(){
-		var a=app.signal().map(seq(1))
-		var b=app.signal().map(seq(2))
-		var c=app.signal().map(seq(3))
-		var s1=app.merge({
-			c:app.jp.merge({
-				b:app.jp.merge({a}).map(b)
-			}).map(c)
-		})
-		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
-		s1.channels.c.channels.b.channels.a.input([])
-		s2.input([])
-
-		return s1.value().toString() === s2.value().toString()
 	})
 
 	test('prime - state', function(){
@@ -159,9 +151,11 @@ runTests('circuit', function(mock) {
 		return ctx==='abc' && r.value()===123
 	})
 
-	test('join - channel', function(){
+	test('join - channel identity', function(){
 		var ctx,r = app.join({
 			a: inc
+		}).map(function(v,channel) {
+			ctx = channel
 		}).map(function(v,channel) {
 			ctx = channel
 		})
