@@ -1,5 +1,5 @@
 import Circus from '../src'
-import Signal from '../src/signal'
+import Signal, {halt, fail} from '../src/signal'
 import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
@@ -105,26 +105,26 @@ runTests('signal', function(mock) {
     })
 
 	test('halt',function() {
-		var s = signal.map(function(v){return this.halt()}).map(inc)
+		var s = signal.map(function(v){return halt()}).map(inc)
 		s.input(1)
 		return s.value() === undefined
 	})
 
 	test('halt - at value',function() {
-		var s = signal.map(function(v){return this.halt(123)}).map(inc)
+		var s = signal.map(function(v){return halt(123)}).map(inc)
 		s.input(1)
 		return s.value() === 123
 	})
 
 	test('fail',function() {
-		var s = signal.map(function(v){return this.fail()}).map(inc)
+		var s = signal.map(function(v){return fail()}).map(inc)
 		s.input(1)
 		return s.value() === undefined
 	})
 
 	test('halt - next',function(done) {
 		function async(v) {
-			return this.halt(function(next) {
+			return halt(function(next) {
 				setTimeout(function(){
 					next(v+1)
 				})
@@ -135,9 +135,8 @@ runTests('signal', function(mock) {
 
 	test('halt - next fail',function(done) {
 		function async(v) {
-			var fail = this.fail()
-			return this.halt(function(next) {
-				setTimeout(() => next(fail))
+			return halt(function(next) {
+				setTimeout(() => next(fail()))
 			})
 		}
 		signal.map(async).fail(function(f){
@@ -196,7 +195,7 @@ runTests('signal', function(mock) {
 
 	test('map - promise',function(done) {
 		function async(v) {
-			return this.halt(new Promise(function(resolve){
+			return halt(new Promise(function(resolve){
 				setTimeout(function(){
 					resolve(v+1)
 				})
@@ -210,7 +209,7 @@ runTests('signal', function(mock) {
 
 	test('map - promise reject',function(done) {
 		function async(v) {
-			return this.halt(new Promise(function(_, reject){
+			return halt(new Promise(function(_, reject){
 				setTimeout(function(){
 					reject('error')
 				})
@@ -255,37 +254,31 @@ runTests('signal', function(mock) {
         return e === 12
     })
 
-    test('bind',function() {
+    test('applyMW',function() {
         var s = signal.map(inc).map(dbl)
-        s.bind(function(next,v){return next(v+1)}).input(0)
+        s.applyMW(function(next,v){return next(v+1)}).input(0)
         return s.value() === 4
     })
 
-    test('bind - halt',function() {
+    test('applyMW - halt',function() {
         var s = signal.map(inc)
-        s.bind(function(next,v){}).input(0)
+        s.applyMW(function(next,v){}).input(0)
         return s.value() === undefined
     })
 
-    test('bind - composed',function() {
+    test('applyMW - composed',function() {
     	var b = function(next,v){return next(v+1)}
-        var e = signal.map(inc).bind(b).bind(b)
+        var e = signal.map(inc).applyMW(b).applyMW(b)
         e.input(0)
         return e.value() === 3
     })
 
-    test('bind - arity',function() {
+    test('applyMW - arity',function() {
     	var r
     	var b = function(next,v){return next(v,'abc')}
-        var e = signal.bind(b).tap(function(v1, v2) {r = v2})
+        var e = signal.applyMW(b).tap(function(v1, v2) {r = v2})
         e.input(1)
         return r === 'abc'
-    })
-
-    test ('context', function() {
-    	var r=0, c = function(){this.ctx = 123}
-    	signal.map(c).tap(function(){r = this.ctx}).input()
-    	return r === 123
     })
 
     test('prime - state', function() {
@@ -300,12 +293,12 @@ runTests('signal', function(mock) {
 
 	test('fail - message', function() {
 		var r
-		signal.fail(function(v){r = v}).map(function(){return this.fail(123)}).input('x')
+		signal.fail(function(v){r = v}).map(function(){return fail(123)}).input('x')
 		return r.message === 123
 	})
 
 	test('fail - fifo', function() {
-		var r = [], s = signal.map(function(){return this.fail()})
+		var r = [], s = signal.map(function(){return fail()})
 		s.fail(function(v){r.push(2)})
 		s.fail(function(v){r.push(1)})
 		s.input('x')
@@ -331,62 +324,87 @@ runTests('signal', function(mock) {
 		return Utils.deepEqual(s, {$value: 123})
 	})
 
-    test('extend', function(){
-        var r, ext = function() {return this.map(function(v) {r=v})}
-        signal.extend({ext: ext}).ext().input(1)
+    test('bind', function(){
+        var r, ext = function(s) {
+            return {
+                ext: function() {
+                    return s.map(function(v) {r = v})
+                }
+            }
+        }
+        signal.bind(ext).ext().input(1)
         return r === 1
     })
 
-	test('extend - ctx', function() {
-        var r, ext = function() {this.ctx.x=123; return this.tap(function(){})}
-        signal.extend({ext: ext}).ext().input(1)
-        return Utils.deepEqual(signal.getState(), {ext: {x: 123}, $value: 1})
+	test('bind - ctx', function() {
+        var r, ext = function() {
+            return {
+                ext: function(s, ctx) {
+                    ctx.test = 123
+                    return s.tap(function() {})
+                }
+            }
+        }
+        signal.bind(ext).ext().input(1)
+        return Utils.deepEqual(signal.getState(), {ext: {test: 123}, $value: 1})
 	})
 
-	test('extend - inheritance', function(){
-		var r, ext = function() {return this.map(function(v) {r=v})}
-		signal.extend({ext: ext})
+	test('bind - inheritance', function(){
+        var r, ext = function(s) {
+            return {
+                ext: function() {
+                    return s.map(function(v) {r = v})
+                }
+            }
+        }
+		signal.bind(ext)
 		signal.signal().signal().ext().input(1)
 		return r === 1
 	})
 
-	test('extend - isolated inheritance', function(){
-		var r, ext = function() {return this.map(function(v) {r=v})}
-		var s1 = signal.signal().extend({ext: ext})
+	test('bind - isolated inheritance', function(){
+        var r, ext = function(s) {
+            return {
+                ext: function() {
+                    return s.map(function(v) {r = v})
+                }
+            }
+        }
+		var s1 = signal.signal().bind(ext)
 		var s2 = signal.signal()
 		s1.ext().input(1)
 		return s2.ext === undefined && r === 1
 	})
 
-	test('extend - override', function(){
-		var r, ext = function(_this) {
-			var _prime = _this.prime.bind(_this)
-			return {
-				prime: function(v) {
+	test('bind - override', function(){
+        var r, ext = function(s) {
+            var _prime = s.prime.bind(s)
+            return {
+                prime: function(s,_, v) {
 					return _prime(v + 1)
-				}
-			}
-		}
-		return signal.extend(ext).prime(1).value() === 2
+                }
+            }
+        }
+		return signal.bind(ext).prime(1).value() === 2
 	})
 
-	test('extend - deep inherit override', function(){
-		var ext1 = function(_this) {
-			var _prime = _this.prime.bind(_this)
-			return {
-				prime: function(v) {
-					return _prime(v + 1)
-				}
-			}
-		}
-		var ext2 = function(_this) {
-			var _prime = _this.prime.bind(_this)
-			return {
-				prime: function(v) {
-					return _prime(v + 2)
-				}
-			}
-		}
-		return signal.extend(ext1).signal().extend(ext2).signal().prime(1).value() === 4
+	test('bind - deep inherit override', function(){
+        var ext1 = function(s) {
+            var _prime = s.prime.bind(s)
+            return {
+                prime: function(s,_, v) {
+                    return _prime(v + 1)
+                }
+            }
+        }
+        var ext2 = function(s) {
+            var _prime = s.prime.bind(s)
+            return {
+                prime: function(s,_, v) {
+                    return _prime(v + 2)
+                }
+            }
+        }
+		return signal.bind(ext1).signal().bind(ext2).signal().prime(1).value() === 4
 	})
 })

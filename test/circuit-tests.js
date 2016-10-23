@@ -1,4 +1,4 @@
-import Circuit, {Signal} from '../src'
+import Circuit, {Signal, fail} from '../src'
 import Utils from '../src/utils'
 
 runTests('circuit', function(mock) {
@@ -33,7 +33,7 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - fail bubbling', function() {
-		var s1 = app.signal().map(function(){return this.fail(123)})
+		var s1 = app.signal().map(function(){return fail(123)})
 		var j1 = app.join({s1})
 		var r,j = app.jp.join({j1}).fail(function(f){r=f})
 		s1.input(2)
@@ -219,17 +219,17 @@ runTests('circuit', function(mock) {
 		return Utils.deepEqual(r.getState(), {join: {join: true}, $value: {a: {$value: 123}}})
 	})
 
-    test('extend - app', function(){
-        var app1 = new Circuit().extend({c:true})
+    test('bind - app', function(){
+        var app1 = new Circuit().bind(function(){return {c:true}})
         var app2 = new Circuit()
 
         return app1.signal().c && !app2.signal().c
     })
 
-    test('extend - app + signal', function(){
+    test('bind - app + signal', function(){
         var r1,r2,circuit = new Circuit()
-        circuit.extend(function(c1){r1=c1;return {b:true}})
-        circuit.extend(function(c2){r2=c2;return {c:true}})
+        circuit.bind(function(c1){r1=c1;return {b:true}})
+        circuit.bind(function(c2){r2=c2;return {c:true}})
         var s = circuit.signal()
         return r1===s && r2===s
     })

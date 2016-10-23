@@ -11,7 +11,7 @@ runTests('join', function(mock) {
 	var app, signal
 	setup(function() {
 		app = new Circuit()
-		signal = app.signal.bind(app)
+		signal = app.signal
 	})
 
 	test('join - channels', function() {

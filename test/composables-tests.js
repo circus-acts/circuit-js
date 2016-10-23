@@ -7,7 +7,10 @@ runTests('composables', function(mock) {
     function inc(v) {return v+1}
     function dbl(v) {return v+v}
 
-    var app = new Circus(Composables)
+    var app
+    setup(function(){
+        app = new Circus().extend(Composables)
+    })
 
     test('always',function() {
         var s = app.signal()
