@@ -75,8 +75,10 @@ function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
       signal.name = k
       // map merged values onto a reducer
       if (!sampleOnly && ! joinOnly) {
-        signal.applyMW(function(next, v) {
-          return next(_jp.value(), v)
+        signal.applyMW(function(next, v1, v2) {
+          return arguments.length > 3
+            ? next.apply(null, [_jp.value()].concat([].slice.call(arguments, 1)))
+            : next(_jp.value(), v1, v2)
         })
       }
       // channels are simply aggregated as circuit inputs but care must
