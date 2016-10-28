@@ -10,7 +10,7 @@ runTests('validation', function() {
     const required = v => !!v
     const email = v => /\S+@\S+\.\S+/i.test(v)
 
-    let circuit, channels
+    let circuit
 
     setup(function(){
 
@@ -19,45 +19,43 @@ runTests('validation', function() {
             email: error.test( email, `please enter a valid email` ),
             password: error.test( required, `please enter your password` )
         })
-        .extend(error.Error)
+        .bind(error.Error)
         .sample({login: _ })
         .active('required!')
-
-        channels = circuit.channels
     })
 
     test('email - error', function() {
-        channels.email.input('x')
+        circuit.channels.email.input('x')
         return circuit.error() === `please enter a valid email`
     })
 
     test('password - valid', function() {
-        channels.password.input('x')
+        circuit.channels.password.input('x')
         return circuit.error() === ``
     })
 
     test('login - required', function() {
-        channels.login.input(true)
+        circuit.channels.login.input(true)
         return circuit.error() === `required!`
     })
 
     test('circuit - primed', function() {
         circuit.prime({email:'hi@home.com', password:'ok'})
-        channels.login.input(true)
+        circuit.channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - happy path', function() {
-        channels.email.input('hi@home.com')
-        channels.password.input('ok')
-        channels.login.input(true)
+        circuit.channels.email.input('hi@home.com')
+        circuit.channels.password.input('ok')
+        circuit.channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - error', function() {
         circuit.prime({password:'ok'})
-        channels.email.input('badformat')
-        channels.login.input(true)
+        circuit.channels.email.input('badformat')
+        circuit.channels.login.input(true)
         return circuit.error() === `please enter a valid email`
     })
 })

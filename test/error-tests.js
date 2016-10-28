@@ -5,28 +5,28 @@ var inc = function(v){return v+1}
 
 runTests('error', function(mock) {
 
-    var app, ctx = {fail:function(m){return m || true}}
+    var app
     setup(function(){
-        app = new Circus(error.Error)
+        app = new Circus().bind(error.Error)
     })
 
     test('test - true', function() {
-        var m = error.test(function(v){return true}).call(ctx, 1)
+        var m = error.test(function(v){return true})(1)
         return m === 1
     })
 
     test('test - value', function() {
-        var m = error.test(function(v){return v+1}).call(ctx, 1)
+        var m = error.test(function(v){return v+1})(1)
         return m === 2
     })
 
     test('test - fail', function() {
-        var m = error.test(function(v){return !!v && v}).call(ctx, 0)
+        var m = error.test(function(v){return !!v && v})(0).message
         return m === true
     })
 
     test('test - fail with reason', function() {
-        var m = error.test(function(v){return !!v && v},'xyz').call(ctx, 0)
+        var m = error.test(function(v){return !!v && v},'xyz')(0).message
         return m === 'xyz'
     })
 

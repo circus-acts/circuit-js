@@ -1,15 +1,16 @@
-import Signal from './signal'
+import Signal, {halt} from './signal'
 import Utils from './utils'
 
 'use strict';
 
 var MAXDEPTH = Number.MAX_SAFE_INTEGER || -1 >>> 1
 
-export default function Composables(app) {
-  app.extend({
+// unbound extensions
+export default function Composables(sig) {
+  return {
     // A steady state signal
     always: function(v){
-      return this.map(function(){
+      return sig.map(function(){
         return v
       })
     },
@@ -22,22 +23,22 @@ export default function Composables(app) {
           v = b, b = []
           return v
         }
-        return this.halt()
+        return halt()
       }
-      return this.map(batch)
+      return sig.map(batch)
     },
 
     compose: function(){
       var args = [].slice.call(arguments)
       for (var i=args.length-1; i>=0; i--) {
-        this.map(args[i])
+        sig.map(args[i])
       }
       return this
     },
 
     debounce: function(t){
       var dbid
-      return this.map(function(v, next){
+      return sig.map(function(v, next){
         if (!dbid) {
           dbid = setTimeout(function(){
             dbid=false
@@ -48,8 +49,8 @@ export default function Composables(app) {
     },
 
     flatten: function(f) {
-      return this.map(function(v) {
-        return this.halt(function(next){
+      return sig.map(function(v) {
+        return halt(function(next){
           function flatten(v) {
             if (Utils.typeOf(v) === Utils.type.ARRAY) {
               v.forEach(flatten)
@@ -73,7 +74,7 @@ export default function Composables(app) {
     //
     pipe: function(){
       for (var i=0; i<arguments.length; i++) {
-        this.map(arguments[i])
+        sig.map(arguments[i])
       }
       return this
     },
@@ -81,7 +82,7 @@ export default function Composables(app) {
     // map object key values
     pluck: function() {
       var args = [].slice.call(arguments), a0 = args[0]
-      return this.map(function(v) {
+      return sig.map(function(v) {
         return args.length===1 && (v[a0] || Utils.lens(v,a0)) || args.map(function(key){
           return Utils.lens(v,key)
         })
@@ -91,7 +92,7 @@ export default function Composables(app) {
     // named (projected) map
     project: function() {
       var args = [].slice.call(arguments)
-      return this.map(function(v) {
+      return sig.map(function(v) {
         var r = {}
         return args.reduce(function(r,arg){
           Object.keys(arg).forEach(function(key){
@@ -108,10 +109,10 @@ export default function Composables(app) {
     keep: function(h) {
       var accum = []
       var keep = h || MAXDEPTH
-      this.toArray = function() {
+      sig.toArray = function() {
         return accum
       }
-      return this.map(function(v) {
+      return sig.map(function(v) {
         if (accum.length===keep) accum.shift()
         accum.push(v)
         return v
@@ -121,16 +122,16 @@ export default function Composables(app) {
     // Skip the first n values from the signal
     // The signal will not propagate until n + 1
     skip: function (n) {
-      return this.map(function (v) {
-        return (n-- > 0)? this.halt() : v
+      return sig.map(function (v) {
+        return (n-- > 0)? halt() : v
       })
     },
 
     // Take the first n values from the signal
     // The signal will not propagate after n
     take: function (n) {
-      return this.map(function (v) {
-        return (n-- > 0)? v: this.halt()
+      return sig.map(function (v) {
+        return (n-- > 0)? v: halt()
       })
     },
 
@@ -143,7 +144,7 @@ export default function Composables(app) {
           return b
         }
       }
-      return this.map(window)
+      return sig.map(window)
     },
 
     // Zip signal channel values into a true array.
@@ -154,10 +155,10 @@ export default function Composables(app) {
         var kl = keys.length
         return ++i % kl === 0 ? keys.map(function(k){
           return v[k]
-        }) : this.halt()
+        }) : halt()
       }
-      return this.map(zip)
+      return sig.map(zip)
     }
 
-  })
+  }
 }

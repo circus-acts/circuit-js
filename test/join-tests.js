@@ -11,7 +11,7 @@ runTests('join', function(mock) {
 	var app, signal
 	setup(function() {
 		app = new Circuit()
-		signal = app.signal.bind(app)
+		signal = app.signal
 	})
 
 	test('join - channels', function() {
@@ -69,30 +69,6 @@ runTests('join', function(mock) {
 		s2.input(2)
 		var r = j.value()
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
-	})
-
-	test('join - auto name spacing', function() {
-		var j = {
-			a: {
-				b: {
-					c: signal()
-				}
-			}
-		}
-		var s = app.join(j)
-		return s.a.b.c.name === 'c'
-	})
-
-	test('join - name conflict', function() {
-		var j = {
-			map: signal()
-		}
-		try {
-			var s = app.join(j)
-		}
-		catch(e) {
-			return true
-		}
 	})
 
 	test('merge', function() {

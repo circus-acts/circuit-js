@@ -28,15 +28,13 @@ function toSignal(app, s, state) {
 
 // overlay circuit behaviour aligned on channel inputs
 function overlay(s) {
-  return function overlay (g, c) {
-    c = c || s
+  return function overlay (s, c, g) {
     Object.keys(g).forEach(function(k) {
       var o = g[k]
       if (o.isSignal || typeof o === 'function') {
-        // use apply here
-        c.channels[k].map(o)
+        s.channels[k].map(o)
       }
-      else if (o) overlay(o,c.channels[k])
+      else if (o) overlay(s.channels[k], c, o)
 
     })
     return s
@@ -45,7 +43,7 @@ function overlay(s) {
 
 function prime(s) {
   var _prime = s.prime.bind(s)
-  return function prime(v) {
+  return function prime(s, c, v) {
     if (v.constructor === objConstructor && s.channels) {
       Object.keys(v).forEach(function(k) {
         s.channels[k] && s.channels[k].prime(v[k])
@@ -67,8 +65,7 @@ function getState(s) {
   }
 }
 
-function joinPoint(sampleOnly, joinOnly, circuit) {
-  var ctx = this.ctx, _jp = this.asSignal()
+function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
   var channels=_jp.channels || {}, signals = []
   ctx.join = joinOnly;
 
@@ -76,10 +73,12 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
     var signal = toSignal(_jp, circuit[k], ctx.value? ctx.value[k] : undefined)
     if (signal.id) {
       signal.name = k
-      // bind merged values onto a reducer
+      // map merged values onto a reducer
       if (!sampleOnly && ! joinOnly) {
-        signal.bind(function(next, v) {
-          return next(_jp.value(), v)
+        signal.applyMW(function(next, v1, v2) {
+          return arguments.length > 3
+            ? next.apply(null, [_jp.value()].concat([].slice.call(arguments, 1)))
+            : next(_jp.value(), v1, v2)
         })
       }
       // channels are simply aggregated as circuit inputs but care must
@@ -88,9 +87,9 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       if (!channels[k]) {
         // is channel syntax really that bad?
         if (process.env.NODE_ENV==='development') {
-          if (_jp[k]) throw new Error('channel name would overwrite signal verb - ' + k)
+          if (_jp[k]) throw new Error('channel name would overwrite signal verb ' + k)
         }
-        _jp[k] = signal
+        _jp[k] = _jp.input[k] = signal.input
         channels[k] = signal.feed(merge(k)).fail(_jp.input)
       }
       else {
@@ -147,8 +146,8 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
 //    signalA.input(10)
 //    signalB.input(20)
 //
-function merge(circuit) {
-  return joinPoint.call(this,false,false,circuit)
+function merge(s, c, circuit) {
+  return joinPoint(s,c,false,false,circuit)
 }
 
 
@@ -167,8 +166,8 @@ function merge(circuit) {
 //    signalA.input(10)
 //    signalB.input(20)
 //
-function join(circuit) {
-  return joinPoint.call(this,false,true,circuit)
+function join(s, c, circuit) {
+  return joinPoint(s,c,false,true,circuit)
 }
 
 
@@ -186,8 +185,8 @@ function join(circuit) {
 //    signalA.input(true) // -> circuit 10
 //    signalB.input(true) // -> circuit 10
 //
-function sample(circuit) {
-  return joinPoint.call(this,true,false,circuit)
+function sample(s, c, circuit) {
+  return joinPoint(s,c,true,false,circuit)
 }
 
 // Circuit : () -> Signal
@@ -196,7 +195,7 @@ function sample(circuit) {
 function Circuit() {
 
   // a circuit is a signal with join points
-  var circuit = new Signal().extend(function(signal){
+  var circuit = new Signal().bind(function(signal){
     return {
       join: join,
       merge: merge,
@@ -213,10 +212,6 @@ function Circuit() {
     merge: function(cct) {return circuit.signal().merge(cct)},
     sample: function(cct) {return circuit.signal().sample(cct)}
   }
-
-  var args = [].slice.call(arguments).forEach(function(module) {
-    circuit.extend(module)
-  })
 
   return circuit
 }

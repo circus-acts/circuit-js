@@ -1,11 +1,11 @@
-import Circuit, {Signal} from '../src'
+import Circuit, {Signal, halt, fail} from '../src'
 import pure from '../src/pure'
 
 runTests('pure', function(mock) {
 
     var sig
 	setup(function() {
-        sig = new Signal().extend(pure).pure()
+        sig = new Signal().bind(pure).pure()
 	})
 
     test('pure',function() {
@@ -16,10 +16,10 @@ runTests('pure', function(mock) {
     })
 
     test('pure after halt',function() {
-        var halt = function(v) {
-            return v===1? v : this.halt()
+        var _halt = function(v) {
+            return v===1? v : halt()
         }
-        var r=0, s = sig.map(halt).tap(function(){r++})
+        var r=0, s = sig.map(_halt).tap(function(){r++})
         s.input(1)
         s.input(2)
         s.input(1)
@@ -27,10 +27,10 @@ runTests('pure', function(mock) {
     })
 
     test('pure after fail',function() {
-        var fail = function(v) {
-            return v===1? v : this.fail()
+        var _fail = function(v) {
+            return v===1? v : fail()
         }
-        var r=0, s = sig.map(fail).tap(function(){r++})
+        var r=0, s = sig.map(_fail).tap(function(){r++})
         s.input(1)
         s.input(2)
         s.input(1)

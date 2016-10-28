@@ -7,7 +7,7 @@ runTests('match', function(mock) {
 
     var app, inc = function(v){return v+1}
     setup(function(){
-        app = new Circus(Match)
+        app = new Circus().bind(Match)
     })
 
     test('match - pass truthy literal', function() {

@@ -1,4 +1,4 @@
-import Signal from './signal'
+import Signal, {halt} from './signal'
 
 'use strict';
 
@@ -45,10 +45,9 @@ var vMatch={}, litKey = new Date().getTime()
 //    - the signal is blocked if all channels are blocked
 //    - the match function is provided by Match.and
 //
-function match(){
+function match(sig){
 
-  var ctx = this.asSignal()
-  var args = [].slice.call(arguments)
+  var args = [].slice.call(arguments, 2)
   var mask, fn, lBound, uBound
 
   args.forEach(function(a){
@@ -64,7 +63,7 @@ function match(){
   function maskFn(mf) {
     var lv
     return function(v) {
-      var r = mf.call(ctx,v,lv)
+      var r = mf.call(sig,v,lv)
       lv=v
       return r
     }
@@ -118,41 +117,36 @@ function match(){
       if (!bv) {
         var vv = hasK? v[k] : mask? undefined : v
         var mv = wcMask[k] === vMatch? vv : wcMask[k]
-        bv = typeof mv === 'function'? mv.call(ctx,vv) : mv
-        if (bv===mv) bv = fn.call(ctx, vv, mv)
+        bv = typeof mv === 'function'? mv.call(sig,vv) : mv
+        if (bv===mv) bv = fn.call(sig, vv, mv)
       }
       count += bv ? 1 : 0
       // early exit for some
       if (some && count) break
     }
-    return count>=lBound && count<=uBound ? v : this.halt()
+    return count>=lBound && count<=uBound ? v : halt()
   }
-  return ctx.map(matcher)
-}
-
-// build a custom match
-function base(){
-  return match.apply(this,arguments)
+  return sig.map(matcher)
 }
 
 // signal every or block
-function all(m){
-  return match.call(this, m, Match.and, -1)
+function all(s,c,m){
+  return match(s, c, m, Match.and, -1)
 }
 
 // signal some or block
-function any(m){
-  return match.call(this, m, Match.and, 1, 2)
+function any(s,c,m){
+  return match(s, c, m, Match.and, 1, 2)
 }
 
 // signal one or block
-function one(m){
-  return match.call(this, m, Match.and, 1, 1)
+function one(s,c,m){
+  return match(s, c, m, Match.and, 1, 1)
 }
 
 // signal none or block
-function none(m){
-  return match.call(this, m, Match.and, 0, 0)
+function none(s,c,m){
+  return match(s, c, m, Match.and, 0, 0)
 }
 
 // logical match functions operate on current and previous channel values,
@@ -181,11 +175,11 @@ function none(m){
 })
 
 export default function Match(app) {
-  app.extend({
-    match: base,
+  return {
+    match: match,
     all: all,
     any: any,
     one: one,
     none: none
-  })
+  }
 }
