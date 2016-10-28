@@ -71,30 +71,6 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
-	test('join - auto name spacing', function() {
-		var j = {
-			a: {
-				b: {
-					c: signal()
-				}
-			}
-		}
-		var s = app.join(j)
-		return s.a.b.c.name === 'c'
-	})
-
-	test('join - name conflict', function() {
-		var j = {
-			map: signal()
-		}
-		try {
-			var s = app.join(j)
-		}
-		catch(e) {
-			return true
-		}
-	})
-
 	test('merge', function() {
 		var s1 = signal()
 		var s2 = signal()

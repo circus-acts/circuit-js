@@ -25,37 +25,37 @@ runTests('validation', function() {
     })
 
     test('email - error', function() {
-        circuit.email.input('x')
+        circuit.channels.email.input('x')
         return circuit.error() === `please enter a valid email`
     })
 
     test('password - valid', function() {
-        circuit.password.input('x')
+        circuit.channels.password.input('x')
         return circuit.error() === ``
     })
 
     test('login - required', function() {
-        circuit.login.input(true)
+        circuit.channels.login.input(true)
         return circuit.error() === `required!`
     })
 
     test('circuit - primed', function() {
         circuit.prime({email:'hi@home.com', password:'ok'})
-        circuit.login.input(true)
+        circuit.channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - happy path', function() {
-        circuit.email.input('hi@home.com')
-        circuit.password.input('ok')
-        circuit.login.input(true)
+        circuit.channels.email.input('hi@home.com')
+        circuit.channels.password.input('ok')
+        circuit.channels.login.input(true)
         return circuit.error() === ``
     })
 
     test('circuit - error', function() {
         circuit.prime({password:'ok'})
-        circuit.email.input('badformat')
-        circuit.login.input(true)
+        circuit.channels.email.input('badformat')
+        circuit.channels.login.input(true)
         return circuit.error() === `please enter a valid email`
     })
 })

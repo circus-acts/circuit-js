@@ -7,8 +7,8 @@ runTests('circuit', function(mock) {
 	var dbl = function(v){return v+v}
 	var sqr = function(v){return v*v}
 	var seq = function(s){
-		return function(){
-			return [].concat(arguments[arguments.length-1],s)
+		return function(a, v){
+			return [].concat(v || a, s)
 		}
 	}
 	var app
@@ -62,7 +62,7 @@ runTests('circuit', function(mock) {
 		})
 		s.channels.a.input(1)
 
-		return s.a.value() === 2
+		return s.channels.a.value() === 2
 	})
 
 	test('channel - passive', function(){
@@ -209,7 +209,7 @@ runTests('circuit', function(mock) {
 		var r = new Circuit().join({
 			a: app.signal()
 		})
-		r.a.input(123)
+		r.channels.a.input(123)
 		return Utils.deepEqual(r.getState(), {join: {join: true}, $value: {a: {$value: 123}}})
 	})
 
@@ -227,5 +227,31 @@ runTests('circuit', function(mock) {
         var s = circuit.signal()
         return r1===s && r2===s
     })
+
+
+	test('channels - auto name spacing', function() {
+		var j = {
+			a: {
+				b: {
+					c: app.signal()
+				}
+			}
+		}
+		var s = app.join(j)
+		s.a.b.c(123)
+		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
+	})
+
+	test('channels - name conflict', function() {
+		var j = {
+			map: app.signal()
+		}
+		try {
+			var s = app.join(j)
+		}
+		catch(e) {
+			return true
+		}
+	})
 
 })

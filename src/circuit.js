@@ -89,7 +89,7 @@ function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
         if (process.env.NODE_ENV==='development') {
           if (_jp[k]) throw new Error('channel name would overwrite signal verb ' + k)
         }
-        _jp[k] = signal
+        _jp[k] = _jp.input[k] = signal.input
         channels[k] = signal.feed(merge(k)).fail(_jp.input)
       }
       else {
