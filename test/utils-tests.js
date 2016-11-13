@@ -5,7 +5,7 @@ var inc = function(v){return v+1}
 
 runTests('utils', function(mock) {
 
-    var app, channels, sigBlock, valBlock
+    var app, signals, sigBlock, valBlock
     setup(function(){
 
         app = new Circuit()
@@ -28,7 +28,7 @@ runTests('utils', function(mock) {
             }
         }
 
-        channels = app.join(sigBlock);
+        signals = app.join(sigBlock);
     })
 
     test('lens', function(){
@@ -46,7 +46,7 @@ runTests('utils', function(mock) {
     test('map', function(){
         function id(s){
             return s.name}
-        return Utils.deepEqual(Utils.map(channels, id),{
+        return Utils.deepEqual(Utils.map(signals, id),{
                                                     i1:'i1',
                                                     i2: 'i2',
                                                     i3: {
@@ -62,13 +62,13 @@ runTests('utils', function(mock) {
 
     test('map - prime', function(){
         function prime(s,v){return v}
-        return Utils.deepEqual(Utils.map(channels,prime,valBlock),valBlock)
+        return Utils.deepEqual(Utils.map(signals,prime,valBlock),valBlock)
     })
 
     test('reduce', function(){
         function error(err,s){
             return err || s.name==='i4'}
-        return Utils.reduce(channels, error) === true
+        return Utils.reduce(signals, error) === true
     })
 
     test('typeof - Array', function(){

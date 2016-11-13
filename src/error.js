@@ -11,8 +11,8 @@ export function Error(signal) {
   return {
     active: function(s, c, m) {
       return signal.map(function(v) {
-        return Object.keys(signal.channels).filter(function(k){
-          return !signal.channels[k].value()
+        return Object.keys(signal.signals).filter(function(k){
+          return !signal.signals[k].value()
         }).length ? fail(m) : v
       })
     },

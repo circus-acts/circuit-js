@@ -32,9 +32,9 @@ function overlay(s) {
     Object.keys(g).forEach(function(k) {
       var o = g[k]
       if (o.isSignal || typeof o === 'function') {
-        s.channels[k].map(o)
+        s.signals[k].map(o)
       }
-      else if (o) overlay(s.channels[k], c, o)
+      else if (o) overlay(s.signals[k], c, o)
 
     })
     return s
@@ -44,9 +44,9 @@ function overlay(s) {
 function prime(s) {
   var _prime = s.prime.bind(s)
   return function prime(s, c, v) {
-    if (v.constructor === objConstructor && s.channels) {
+    if (v.constructor === objConstructor && s.signals) {
       Object.keys(v).forEach(function(k) {
-        s.channels[k] && s.channels[k].prime(v[k])
+        s.signals[k] && s.signals[k].prime(v[k])
       })
     }
     return _prime(v)
@@ -57,8 +57,8 @@ function getState(s) {
   var _getState = s.getState.bind(s)
   return function getState() {
     var state = _getState()
-    if (state.join) state.$value = Object.keys(s.channels).reduce(function(v, k) {
-      v[k] = s.channels[k].getState()
+    if (state.join) state.$value = Object.keys(s.signals).reduce(function(v, k) {
+      v[k] = s.signals[k].getState()
       return v
     }, {})
     return state
@@ -66,8 +66,8 @@ function getState(s) {
 }
 
 function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
-  var channels=_jp.channels || {}, signals = []
-  ctx.join = joinOnly;
+  var channels=_jp.channels || {}, signals = _jp.signals || {}, joinPoints = []
+  ctx.join = joinOnly
 
   Object.keys(circuit).forEach(function(k){
     var signal = toSignal(_jp, circuit[k], ctx.value? ctx.value[k] : undefined)
@@ -75,38 +75,37 @@ function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
       signal.name = k
       // map merged values onto a reducer
       if (!sampleOnly && ! joinOnly) {
-        signal.applyMW(function(next, v1, v2) {
-          return arguments.length > 3
-            ? next.apply(null, [_jp.value()].concat([].slice.call(arguments, 1)))
-            : next(_jp.value(), v1, v2)
+        signal.applyMW(function(next, v1, v2, v3) {
+          switch (arguments.length) {
+            case 2: return next(_jp.value(), v1)
+            case 3: return next(_jp.value(), v1, v2)
+            case 4: return next(_jp.value(), v1, v2, v3)
+          }
+          return next.apply(null, [_jp.value()].concat([].slice.call(arguments, 1)))
         })
       }
       // channels are simply aggregated as circuit inputs but care must
       // be taken not to overwrite existing channels with the same name.
       // So, duplicates are lifted, upstream, into the existing channel.
       if (!channels[k]) {
-        // is channel syntax really that bad?
-        if (process.env.NODE_ENV==='development') {
-          if (_jp[k]) throw new Error('channel name would overwrite signal verb ' + k)
-        }
-        _jp[k] = _jp.input[k] = signal.input
-        channels[k] = signal.feed(merge(k)).fail(_jp.input)
+        channels[k] = _jp.input[k] = signal.input
+        signals[k] = signal.feed(merge(k)).fail(_jp.input)
       }
       else {
-        channels[k].map(signal)
+        signals[k].map(signal)
       }
     }
     // signal is just a signal identity and is only useful as a passive channel.
     else if (joinOnly) {
       signal = {name: k, value: signal().value}
     }
-    signals.push(signal)
+    joinPoints.push(signal)
   })
 
   var next = _jp.next()
   function merge(channel) {
     return function(v) {
-      var jv = joinOnly && signals.reduce(function(jv, s) {
+      var jv = joinOnly && joinPoints.reduce(function(jv, s) {
         jv[s.name] = s.value()
         return jv
       }, {}) || v
@@ -122,6 +121,7 @@ function joinPoint(_jp, ctx, sampleOnly, joinOnly, circuit) {
   }
 
   _jp.channels = channels
+  _jp.signals = signals
 
   // halt sampled signals at this step
   return _jp.filter(function(v){
