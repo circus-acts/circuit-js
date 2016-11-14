@@ -231,6 +231,7 @@ runTests('signal', function(mock) {
         })
         s.input(1)
     })
+
     test('filter', function(){
         var r=0, s = signal.filter(function(v){
             return v % 2

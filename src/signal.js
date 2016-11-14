@@ -68,34 +68,35 @@ function Signal(state) {
 
   function propagate(v) {
     var args = [].slice.call(arguments, 1)
-    for (var i = _step; i < _steps.length; i++) {
+    for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
       v = _steps[i].apply(null, [v].concat(args))
-      if (v instanceof halt) {
-        // handle thunks and promises in lieu of generators..
-        if (v.thunk) {
-          v.thunk.call(null, nextStep(i+1))
-        }
-        if (v.promise) {
-          // promise chains end here
-          var next = nextStep(i+1)
-          v.promise.then(next, function(m) {next(new fail(m))})
-        }
-        break
-      }
-    }
-    var tail = v instanceof fail? _fails : []
-    if (v instanceof halt) {
-      if (v.hasOwnProperty('$value')) _state.$value = v.$value
-    } else {
-      _state.$value = v
-      tail = _feeds
-    }
-    for (var t = 0; t < tail.length; t++) {
-      tail[t](v)
     }
 
-    if (_pulse !== Signal.id) {
-      _state.$value = _pulse
+    if (v instanceof halt) {
+      // handle thunks and promises in lieu of generators..
+      if (v.thunk) {
+        return v.thunk.call(null, nextStep(i))
+      }
+      else if (v.promise) {
+        var next = nextStep(i)
+        return v.promise.then(next, function(m) {next(new fail(m))})
+      }
+      else {
+        if (v instanceof fail) {
+          for (var t = 0; t < _fails.length; t++) {
+            _fails[t](v)
+          }
+        }
+        else if (v.hasOwnProperty('$value')) _state.$value = v.$value
+      }
+    } else {
+      _state.$value = v
+      for (var t = 0; t < _feeds.length; t++) {
+        _feeds[t](v)
+      }
+      if (_pulse !== Signal.id) {
+        _state.$value = _pulse
+      }
     }
 
     return v
