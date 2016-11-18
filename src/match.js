@@ -4,6 +4,7 @@ import Signal, {halt} from './signal'
 
 var objConstructor = {}.constructor
 var vMatch={}, litKey = new Date().getTime()
+var Match = {}
 
 // Pattern match a signal value to pass or block propagation
 //
@@ -45,9 +46,9 @@ var vMatch={}, litKey = new Date().getTime()
 //    - the signal is blocked if all channels are blocked
 //    - the match function is provided by Match.and
 //
-function match(sig){
-
-  var args = [].slice.call(arguments, 2)
+function match(){
+  var sig = this.signal
+  var args = [].slice.call(arguments)
   var mask, fn, lBound, uBound
 
   args.forEach(function(a){
@@ -129,24 +130,26 @@ function match(sig){
   return sig.map(matcher)
 }
 
+Match.match = match
+
 // signal every or block
-function all(s,c,m){
-  return match(s, c, m, Match.and, -1)
+Match.all = function all(m){
+  return match.call(this, m, Match.and, -1)
 }
 
 // signal some or block
-function any(s,c,m){
-  return match(s, c, m, Match.and, 1, 2)
+Match.any = function any(m){
+  return match.call(this, m, Match.and, 1, 2)
 }
 
 // signal one or block
-function one(s,c,m){
-  return match(s, c, m, Match.and, 1, 1)
+Match.one = function one(m){
+  return match.call(this, m, Match.and, 1, 1)
 }
 
 // signal none or block
-function none(s,c,m){
-  return match(s, c, m, Match.and, 0, 0)
+Match.none = function none(m){
+  return match.call(this, m, Match.and, 0, 0)
 }
 
 // logical match functions operate on current and previous channel values,
@@ -174,12 +177,4 @@ function none(s,c,m){
   not: function(v, m) { return !v && m || !v}
 })
 
-export default function Match(app) {
-  return {
-    match: match,
-    all: all,
-    any: any,
-    one: one,
-    none: none
-  }
-}
+export default Match

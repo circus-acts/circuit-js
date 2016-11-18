@@ -1,4 +1,4 @@
-import Circus from '../src'
+import Circuit from '../src'
 import Signal from '../src/signal'
 import Match from '../src/match'
 import Utils from '../src/utils'
@@ -7,7 +7,7 @@ runTests('match', function(mock) {
 
     var app, inc = function(v){return v+1}
     setup(function(){
-        app = new Circus().bind(Match)
+        app = new Circuit().bind(Match)
     })
 
     test('match - pass truthy literal', function() {
@@ -332,8 +332,7 @@ runTests('match', function(mock) {
     test('join - all active', function() {
         var s1 = app.signal()
         var s2 = app.signal()
-        var r,j = app.jp.join({s1,s2}).all().tap(function(){r=true})
-        app.join({s1,s2}).all()
+        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
         s1.input(1)
         s2.input(2)
         return r
@@ -342,8 +341,7 @@ runTests('match', function(mock) {
     test('join - not all active', function() {
         var s1 = app.signal()
         var s2 = app.signal()
-        var r,j = app.jp.join({s1,s2}).all().tap(function(){r=true})
-        app.join({s1,s2}).all()
+        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
         s1.input(1)
         return r === undefined
     })
@@ -361,7 +359,7 @@ runTests('match', function(mock) {
         var s1 = app.signal()
         var s2 = app.signal()
         var s3 = app.signal()
-        var allSigs = app.signal().join({s2,s3}).all()
+        var allSigs = app.join({s2,s3}).all()
         var s = s1.sample({allSigs}).map(inc)
         s1.input(1)
         var r1 = s.value() // blocked

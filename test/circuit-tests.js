@@ -17,11 +17,6 @@ runTests('circuit', function(mock) {
 		app = new Circuit()
 	})
 
-    test('as signal - from app', function(){
-        var s = app.asSignal(app)
-        return s.isSignal
-    })
-
 	test('circuit - propagation', function() {
 		var s1 = app.signal()
 		var s2 = app.signal()
@@ -37,8 +32,8 @@ runTests('circuit', function(mock) {
 		var b=app.signal().map(seq(2))
 		var c=app.signal().map(seq(3))
 		var s1=app.merge({
-			c:app.jp.merge({
-				b:app.jp.merge({a}).map(b)
+			c:app.merge({
+				b:app.merge({a}).map(b)
 			}).map(c)
 		})
 		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
@@ -51,7 +46,7 @@ runTests('circuit', function(mock) {
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(function(){return fail(123)})
 		var j1 = app.join({s1})
-		var r,j = app.jp.join({j1}).fail(function(f){r=f})
+		var r,j = app.join({j1}).fail(function(f){r=f})
 		s1.input(2)
 		return r.message === 123
 	})
@@ -120,7 +115,7 @@ runTests('circuit', function(mock) {
 
 	test('prime - sample value', function(){
 		var a=app.signal()
-		var r = app.prime({sample: {sv: 123}, $value: 456}).sample({
+		var r = app.signal().prime({sample: {sv: 123}, $value: 456}).sample({
 			a: a
 		})
 		a.input(true)
@@ -228,17 +223,4 @@ runTests('circuit', function(mock) {
         return r1===s && r2===s
     })
 
-
-	test('channels - auto name spacing', function() {
-		var j = {
-			a: {
-				b: {
-					c: app.signal()
-				}
-			}
-		}
-		var s = app.join(j)
-		s.channels.a.b.c(123)
-		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
-	})
 })

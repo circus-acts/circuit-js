@@ -27,10 +27,23 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
+	test('channels - auto name spacing', function() {
+		var j = {
+			a: {
+				b: {
+					c: app.signal()
+				}
+			}
+		}
+		var s = app.join(j)
+		s.channels.a.b.c(123)
+		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
+	})
+
 	test('join - nested join points', function() {
 		var s1 = signal()
 		var s2 = signal()
-		var j = app.jp.join({
+		var j = app.join({
 			k1:app.join({
 				k2:s2
 			})
@@ -42,7 +55,7 @@ runTests('join', function(mock) {
 	})
 
 	test('join - join point auto binding', function() {
-		var join = app.jp.join
+		var join = app.join
 		var s1 = signal()
 		var s2 = signal()
 		var j = join({

@@ -1,4 +1,4 @@
-import Circus from '../src'
+import Circuit from '../src'
 import Composables from '../src/composables'
 import Utils from '../src/utils'
 
@@ -9,7 +9,7 @@ runTests('composables', function(mock) {
 
     var app
     setup(function(){
-        app = new Circus().extend(Composables)
+        app = new Circuit().bind(Composables)
     })
 
     test('always',function() {
