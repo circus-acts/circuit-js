@@ -8,7 +8,7 @@ runTests('circuit', function(mock) {
 	var sqr = function(v){return v*v}
 	var seq = function(s){
 		return function(a, v){
-			return [].concat(v || a, s)
+			return (a || v).concat(s)
 		}
 	}
 	var app
@@ -36,11 +36,9 @@ runTests('circuit', function(mock) {
 				b:app.merge({a}).map(b)
 			}).map(c)
 		})
-		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
 		s1.channels.c.b.a([])
-		s2.input([])
 
-		return s1.value().toString() === s2.value().toString()
+		return Utils.deepEqual(s1.value(), [1, 2, 3])
 	})
 
 	test('circuit - fail bubbling', function() {
@@ -205,7 +203,7 @@ runTests('circuit', function(mock) {
 			a: app.signal()
 		})
 		r.channels.a(123)
-		return Utils.deepEqual(r.getState(), {join: {join: true}, $value: {a: {$value: 123}}})
+		return Utils.deepEqual(r.getState(), r.$state)
 	})
 
     test('bind - app', function(){

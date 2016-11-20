@@ -332,7 +332,7 @@ function Signal(state) {
         }
       }
     })
-    return _this
+    return this
   }
 
   // Constructor function

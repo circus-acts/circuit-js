@@ -43,10 +43,11 @@ function overlay(s) {
 
 function input(s) {
   var _input = s.input
-  return function(v) {
+  s.input = function(v) {
     if (!(v instanceof halt)) s.prime(v)
     return _input(v)
   }
+  return s
 }
 
 function prime(s) {
@@ -207,7 +208,7 @@ function Circuit() {
       merge: merge,
       sample: sample,
       pure: pure(diff),
-      input: input(sig),
+//      input: input(sig),
       prime: prime(sig),
       overlay: overlay(sig),
       getState: getState(sig)
@@ -219,7 +220,7 @@ function Circuit() {
   })
 
   return {
-    circuit: function(cct) {return circuit.signal().join(cct)},
+    circuit: function(cct) {return input(circuit.signal().join(cct))},
     join: function(cct) {return circuit.signal().join(cct)},
     merge: function(cct) {return circuit.signal().merge(cct)},
     sample: function(cct) {return circuit.signal().sample(cct)},
