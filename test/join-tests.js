@@ -27,10 +27,23 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
+	test('channels - auto name spacing', function() {
+		var j = {
+			a: {
+				b: {
+					c: app.signal()
+				}
+			}
+		}
+		var s = app.join(j)
+		s.channels.a.b.c(123)
+		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
+	})
+
 	test('join - nested join points', function() {
 		var s1 = signal()
 		var s2 = signal()
-		var j = app.jp.join({
+		var j = app.join({
 			k1:app.join({
 				k2:s2
 			})
@@ -42,7 +55,7 @@ runTests('join', function(mock) {
 	})
 
 	test('join - join point auto binding', function() {
-		var join = app.jp.join
+		var join = app.join
 		var s1 = signal()
 		var s2 = signal()
 		var j = join({
@@ -84,30 +97,28 @@ runTests('join', function(mock) {
 
 	test('sample - block', function() {
 		var s1 = signal()
-		var s2 = signal().sample({s1})
-		s2.input(1)
-		return s2.value() === undefined
+		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		s2.channels.inc(1)
+		return s2.value() === 1
 	})
 
 	test('sample - pass', function() {
 		var s1 = signal()
-		var s2 = signal().sample({s1}).map(inc)
-		s2.input(1)
+		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		s2.channels.inc(1)
 		s1.input(true)
 		return s2.value() === 2
 	})
 
-	test('sample - successive', function() {
+	test('sample - jp value', function() {
 		var s1 = signal()
-		var s2 = signal().sample({s1}).map(inc)
-		s2.input(1)
+		var s2 = app.merge({inc}).sample({s1}).map(inc).prime(0)
+		s2.channels.inc(1)
 		var r1 = s2.value()
 		s1.input(true)
 		var r2 = s2.value()
-		s2.input(2)
-		var r3 = s2.value()
 		s1.input(true)
-		var r4 = s2.value()
-		return r1 === undefined && r2 === 2 && r3 === 2 && r4 === 3
+		var r3 = s2.value()
+		return r1 === 0 && r2 === 2 && r3 === 2
 	})
 })

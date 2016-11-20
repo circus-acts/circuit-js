@@ -33,7 +33,7 @@ export default function Composables(sig) {
       for (var i=args.length-1; i>=0; i--) {
         sig.map(args[i])
       }
-      return this
+      return sig
     },
 
     debounce: function(t){
@@ -76,7 +76,7 @@ export default function Composables(sig) {
       for (var i=0; i<arguments.length; i++) {
         sig.map(arguments[i])
       }
-      return this
+      return sig
     },
 
     // map object key values

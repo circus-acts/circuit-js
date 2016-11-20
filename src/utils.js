@@ -66,7 +66,7 @@ function lens(data,name,ns,def) {
 }
 
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=UNDEFINED, fmap=[]
+  var c = s.signals || s.isSignal && {s:s} || s, seed = acc!=UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
@@ -74,8 +74,8 @@ function traverse(s, fn, acc, tv) {
       var t = c[ck]
       var n = (t.isSignal && t.name) || ck
       var v = (sv||{})[n]
-      if (t.channels && t.channels !== s.channels) {
-        var a = stamp(t.channels,fn, v)
+      if (t.signals && t.signals !== s.signals) {
+        var a = stamp(t.signals,fn, v)
         obj[n] = a[0]
         acc = a[1]
       }

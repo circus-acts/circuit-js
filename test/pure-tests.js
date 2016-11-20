@@ -47,8 +47,8 @@ runTests('pure', function(mock) {
 
     test('Pure - circuit', function() {
         var r=0, s = new Circuit().join({a:Signal.id}).tap(function(){r++}).pure()
-        s.channels.a.input(1)
-        s.channels.a.input(1)
+        s.channels.a(1)
+        s.channels.a(1)
         return r === 1
     })
 

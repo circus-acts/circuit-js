@@ -9,11 +9,12 @@ export function Error(signal) {
     _failure = _failure || error.message
   })
   return {
-    active: function(s, c, m) {
+    active: function(msg) {
+      var signal = this.signal
       return signal.map(function(v) {
-        return Object.keys(signal.channels).filter(function(k){
-          return !signal.channels[k].value()
-        }).length ? fail(m) : v
+        return Object.keys(signal.signals).filter(function(k){
+          return !signal.signals[k].value()
+        }).length ? fail(msg) : v
       })
     },
     error: function() {

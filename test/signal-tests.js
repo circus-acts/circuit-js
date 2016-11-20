@@ -231,6 +231,7 @@ runTests('signal', function(mock) {
         })
         s.input(1)
     })
+
     test('filter', function(){
         var r=0, s = signal.filter(function(v){
             return v % 2
@@ -356,14 +357,14 @@ runTests('signal', function(mock) {
 
     test('getState', function() {
         var s = signal.prime(123).getState()
-        return Utils.deepEqual(s, {$value: 123})
+        return Utils.deepEqual(s, {$id: signal.$id, $value: 123})
     })
 
     test('bind', function(){
-        var r, ext = function(s) {
+        var r, ext = function() {
             return {
                 ext: function() {
-                    return s.map(function(v) {r = v})
+                    return this.signal.map(function(v) {r = v})
                 }
             }
         }
@@ -372,23 +373,20 @@ runTests('signal', function(mock) {
     })
 
     test('bind - ctx', function() {
-        var r, ext = function() {
-            return {
-                ext: function(s, ctx) {
-                    ctx.test = 123
-                    return s.tap(function() {})
-                }
-            }
+        var ext = function() {
+            return {ext: function(){
+                this.x = 123
+            }}
         }
-        signal.bind(ext).ext().input(1)
-        return Utils.deepEqual(signal.getState(), {ext: {test: 123}, $value: 1})
+        signal.bind(ext).ext()
+        return signal.getState().ext.x === 123
     })
 
     test('bind - inheritance', function(){
-        var r, ext = function(s) {
+        var r, ext = function(sig) {
             return {
                 ext: function() {
-                    return s.map(function(v) {r = v})
+                    return sig.map(function(v) {r = v})
                 }
             }
         }
@@ -398,10 +396,10 @@ runTests('signal', function(mock) {
     })
 
     test('bind - isolated inheritance', function(){
-        var r, ext = function(s) {
+        var r, ext = function(sig) {
             return {
                 ext: function() {
-                    return s.map(function(v) {r = v})
+                    return sig.map(function(v) {r = v})
                 }
             }
         }
@@ -412,10 +410,10 @@ runTests('signal', function(mock) {
     })
 
     test('bind - override', function(){
-        var r, ext = function(s) {
-            var _prime = s.prime.bind(s)
+        var r, ext = function(sig) {
+            var _prime = sig.prime.bind(sig)
             return {
-                prime: function(s,_, v) {
+                prime: function(v) {
                     return _prime(v + 1)
                 }
             }
@@ -424,18 +422,18 @@ runTests('signal', function(mock) {
     })
 
     test('bind - deep inherit override', function(){
-        var ext1 = function(s) {
-            var _prime = s.prime.bind(s)
+        var ext1 = function(sig) {
+            var _prime = sig.prime.bind(sig)
             return {
-                prime: function(s,_, v) {
+                prime: function(v) {
                     return _prime(v + 1)
                 }
             }
         }
-        var ext2 = function(s) {
-            var _prime = s.prime.bind(s)
+        var ext2 = function(sig) {
+            var _prime = sig.prime.bind(sig)
             return {
-                prime: function(s,_, v) {
+                prime: function(v) {
                     return _prime(v + 2)
                 }
             }

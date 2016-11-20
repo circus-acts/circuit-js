@@ -8,7 +8,7 @@ runTests('circuit', function(mock) {
 	var sqr = function(v){return v*v}
 	var seq = function(s){
 		return function(a, v){
-			return [].concat(v || a, s)
+			return (a || v).concat(s)
 		}
 	}
 	var app
@@ -16,11 +16,6 @@ runTests('circuit', function(mock) {
 	setup(function(){
 		app = new Circuit()
 	})
-
-    test('as signal - from app', function(){
-        var s = app.asSignal(app)
-        return s.isSignal
-    })
 
 	test('circuit - propagation', function() {
 		var s1 = app.signal()
@@ -37,32 +32,30 @@ runTests('circuit', function(mock) {
 		var b=app.signal().map(seq(2))
 		var c=app.signal().map(seq(3))
 		var s1=app.merge({
-			c:app.jp.merge({
-				b:app.jp.merge({a}).map(b)
+			c:app.merge({
+				b:app.merge({a}).map(b)
 			}).map(c)
 		})
-		var s2=app.signal().map(a.clone()).map(b.clone()).map(c.clone())
-		s1.channels.c.channels.b.channels.a.input([])
-		s2.input([])
+		s1.channels.c.b.a([])
 
-		return s1.value().toString() === s2.value().toString()
+		return Utils.deepEqual(s1.value(), [1, 2, 3])
 	})
 
 	test('circuit - fail bubbling', function() {
 		var s1 = app.signal().map(function(){return fail(123)})
 		var j1 = app.join({s1})
-		var r,j = app.jp.join({j1}).fail(function(f){r=f})
+		var r,j = app.join({j1}).fail(function(f){r=f})
 		s1.input(2)
 		return r.message === 123
 	})
 
-	test('channel - implied map', function(){
+	test('circuit - implied map', function(){
 		var s = app.join({
 			a: inc
 		})
-		s.channels.a.input(1)
+		s.signals.a.input(1)
 
-		return s.channels.a.value() === 2
+		return s.signals.a.value() === 2
 	})
 
 	test('channel - passive', function(){
@@ -86,7 +79,7 @@ runTests('circuit', function(mock) {
 		var s = app.join({
 			a: 123
 		})
-		s.channels.a.input(1)
+		s.channels.a(1)
 
 		return s.value().a === 123
 	})
@@ -95,7 +88,7 @@ runTests('circuit', function(mock) {
 		var s = app.join({
 			a: undefined
 		})
-		s.channels.a.input(1)
+		s.channels.a(1)
 
 		return s.value().a === undefined
 	})
@@ -120,7 +113,7 @@ runTests('circuit', function(mock) {
 
 	test('prime - sample value', function(){
 		var a=app.signal()
-		var r = app.prime({sample: {sv: 123}, $value: 456}).sample({
+		var r = app.signal().prime({sample: {sv: 123}, $value: 456}).sample({
 			a: a
 		})
 		a.input(true)
@@ -146,7 +139,7 @@ runTests('circuit', function(mock) {
 			})
 		})
 		r.input('abc')
-		r.channels.a.input(123)
+		r.channels.a(123)
 
 		return ctx==='abc' && r.value()===123
 	})
@@ -159,7 +152,7 @@ runTests('circuit', function(mock) {
 		}).map(function(v,channel) {
 			ctx = channel
 		})
-		r.channels.a.input(123)
+		r.channels.a(123)
 
 		return ctx==='a'
 	})
@@ -167,16 +160,16 @@ runTests('circuit', function(mock) {
 	test('overlay - placeholder', function(){
 		var o = {a:inc}
 		var c = app.join({a:Signal.id}).overlay(o)
-		c.channels.a.input(1)
-		return c.channels.a.value() === 2
+		c.channels.a(1)
+		return c.signals.a.value() === 2
 	})
 
 	test('overlay', function(){
 		var b = app.signal().map(dbl)
 		var o = {a:inc}
 		var c = app.join({a:b}).overlay(o)
-		c.channels.a.input(1)
-		return c.channels.a.value() === 3
+		c.channels.a(1)
+		return c.signals.a.value() === 3
 	})
 
 	test('overlay - sample', function(){
@@ -184,33 +177,33 @@ runTests('circuit', function(mock) {
 		var b = app.signal()
 		var o = {a:inc,b:inc}
 		var c = app.join({a:a}).sample({b:b}).overlay(o)
-		c.channels.a.input(1)
-		c.channels.b.input(1)
-		return c.channels.a.value() === 2 && c.channels.b.value() === 2
+		c.channels.a(1)
+		c.channels.b(1)
+		return c.signals.a.value() === 2 && c.signals.b.value() === 2
 	})
 
 	test('overlay - signal', function(){
 		var b = app.signal().map(dbl)
 		var o = {a:app.signal().map(inc)}
 		var c = app.join({a:b}).overlay(o)
-		c.channels.a.input(1)
-		return c.channels.a.value() === 3
+		c.channels.a(1)
+		return c.signals.a.value() === 3
 	})
 
 	test('overlay - deep', function(){
 		var b = app.signal()
 		var o = {a:{a:{a:inc}}}
 		var c = app.join({a:{a:{a:b}}}).overlay(o)
-		c.channels.a.channels.a.channels.a.input(1)
-		return c.channels.a.channels.a.channels.a.value() === 2
+		c.channels.a.a.a(1)
+		return c.signals.a.signals.a.signals.a.value() === 2
 	})
 
 	test('getState', function() {
 		var r = new Circuit().join({
 			a: app.signal()
 		})
-		r.channels.a.input(123)
-		return Utils.deepEqual(r.getState(), {join: {join: true}, $value: {a: {$value: 123}}})
+		r.channels.a(123)
+		return Utils.deepEqual(r.getState(), r.$state)
 	})
 
     test('bind - app', function(){
@@ -227,31 +220,5 @@ runTests('circuit', function(mock) {
         var s = circuit.signal()
         return r1===s && r2===s
     })
-
-
-	test('channels - auto name spacing', function() {
-		var j = {
-			a: {
-				b: {
-					c: app.signal()
-				}
-			}
-		}
-		var s = app.join(j)
-		s.a.b.c(123)
-		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
-	})
-
-	test('channels - name conflict', function() {
-		var j = {
-			map: app.signal()
-		}
-		try {
-			var s = app.join(j)
-		}
-		catch(e) {
-			return true
-		}
-	})
 
 })
