@@ -1,5 +1,4 @@
 import Circuit from '../src'
-import Signal from '../src/signal'
 import Match from '../src/match'
 import Utils from '../src/utils'
 

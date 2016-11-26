@@ -1,4 +1,4 @@
-import Signal, {halt} from './signal'
+import Signal, {halt, state} from './signal'
 import pure from './pure'
 
 'use strict'
@@ -41,21 +41,25 @@ function overlay(s) {
   }
 }
 
-function input(s) {
-  var _input = s.input
-  s.input = function(v) {
-    if (!(v instanceof halt)) s.prime(v)
+function input(cct) {
+  var _input = cct.input
+  cct.input = function(v) {
+    if (!(v instanceof halt)) cct.prime(v)
     return _input(v)
   }
-  return s
+  return cct
 }
 
 function prime(s) {
   var _prime = s.prime.bind(s)
   return function prime(v) {
-    if (v !== undefined && v.constructor === objConstructor && s.signals) {
-      Object.keys(v).forEach(function(k) {
-        s.signals[k] && s.signals[k].prime(v[k])
+    var pv = v instanceof state? v.state : v
+    if (pv !== undefined && pv.constructor === objConstructor && s.signals) {
+      Object.keys(pv).forEach(function(k) {
+        if (s.signals[k]) {
+          var cv = v instanceof state? state(pv[k]) : pv[k]
+          s.signals[k].prime(cv)
+        }
       })
     }
     return _prime(v)
@@ -208,15 +212,10 @@ function Circuit() {
       merge: merge,
       sample: sample,
       pure: pure(diff),
-//      input: input(sig),
       prime: prime(sig),
       overlay: overlay(sig),
       getState: getState(sig)
     }
-  })
-
-  var args = [].slice.call(arguments).forEach(function(module) {
-    circuit.bind(module)
   })
 
   return {

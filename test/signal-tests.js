@@ -1,5 +1,4 @@
-import Circus from '../src'
-import Signal, {halt, fail} from '../src/signal'
+import Signal, {halt, fail, state} from '../src/signal'
 import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
@@ -35,6 +34,16 @@ runTests('signal', function(mock) {
 
     test('new signal - from signal', function(){
         return signal.signal().isSignal
+    })
+
+    test('new signal - from state', function(){
+        var s = signal.signal(state({value: 123}))
+        return s.getState() === s.$state
+    })
+
+    test('new signal - from name', function(){
+        var s = signal.signal('xxx')
+        return s.name() === 'xxx'
     })
 
     test('as signal', function(){
@@ -242,20 +251,7 @@ runTests('signal', function(mock) {
 
     test('fold', function() {
         var e = 'xyz'
-        var s = signal.fold(function(a,v){
-            return a+v
-        }).tap(function(v){
-            e = v
-        })
-        s.input(1)
-        s.input(2)
-        s.input(3)
-        return e === 6
-    })
-
-    test('fold - accum', function() {
-        var e = 'xyz'
-        var s = signal.fold(function(a,v){
+        var s = signal.fold(function(a, v){
             return a+v
         },6).tap(function(v){
             e = v
@@ -318,7 +314,7 @@ runTests('signal', function(mock) {
     })
 
     test('prime - state', function() {
-        var s = signal.map(inc).prime({$value: 1})
+        var s = signal.map(inc).prime(state({$value: 1}))
         return s.value() === 1
     })
 
@@ -357,7 +353,7 @@ runTests('signal', function(mock) {
 
     test('getState', function() {
         var s = signal.prime(123).getState()
-        return Utils.deepEqual(s, {$id: signal.$id, $value: 123})
+        return Utils.deepEqual(s, signal.$state)
     })
 
     test('bind', function(){

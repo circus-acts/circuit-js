@@ -2,14 +2,16 @@
 
 var sId = 0;
 
-// immediate context operators - available through propagation
-
+// halt: () -> halt
+//       V  -> halt.value
+//       F  -> halt.thunk
+//       P  -> halt.promise
+//
 // Halt propagation.
 // - propagation is halted immediately.
-// - state is not updated by default.
 // - optionally return:
-//    value : state is immediately set to value.
-//    thunk : thunkor is immediately called with next() arg.
+//    value : state.value is immediately set to value.
+//    thunk : thunk is immediately called with next() arg.
 //    promise : propagation is tied to promise resolution.
 //
 // examples:
@@ -22,6 +24,9 @@ var halt = function(v, a) {
   else if (a || arguments.length === 1) this.$value =  v
 }
 
+// fail: () -> fail.message: true
+//       A  -> fail.message: A
+//
 // Fail propagation
 // - propagation is halted immediately.
 // - state is not updated.
@@ -37,6 +42,14 @@ var fail = function(m) {
 fail.prototype = Object.create(halt.prototype)
 
 
+// state: A -> state.A
+//
+// wrap a value in signal state to prime a signal
+var state = function(v) {
+  if (!(this instanceof state)) return new state(v)
+  this.state = v
+}
+
 // internal signalling tunnel (used for cloning etc)
 var _wrap = function(v) {
   var _this = this
@@ -44,22 +57,23 @@ var _wrap = function(v) {
 }
 
 // Signal - the object created and returned by Constructor
-function Signal(state) {
+function Signal() {
   var sid = ++sId
   var _this = this
-  var _feeds = [], _fails = []
+  var _feeds = [], _fails = [], _ext = []
+  var _name = sid, _mw, _step, _steps = []
+  var _state = {$value: undefined}, _pulse = Signal.id
 
   this.id = function(){return _this}
   this.id.isSignal = true
   this.isSignal = true
 
-  if (process.env.NODE_ENV==='development') {
-    this.$id = sid
-  }
-
-  var _mw, _step, _steps = state instanceof _wrap? state.steps : []
-  var _state = {$value: undefined}, _pulse = Signal.id
-  if (state && !(state instanceof _wrap)) Object.keys(state).forEach(function(k) {_state[k] = state[k]})
+  var value, args = [].slice.call(arguments)
+  args.forEach(function(a){
+    if (typeof a === 'string') _name = a
+    else if (a instanceof _wrap) _steps = a.steps
+    else if (a instanceof state) _state = a.state
+  })
 
   if (process.env.NODE_ENV==='development') {
     this.$state = _state
@@ -130,6 +144,13 @@ function Signal(state) {
 
   // Public API
 
+  // signal).name : () -> name
+  //
+  // Return the signal name
+  this.name = function() {
+    return _name
+  }
+
   // signal().input : (A) -> A
   //
   // Signal a new value.
@@ -156,7 +177,7 @@ function Signal(state) {
     return this
   }
 
-  // signal(A).bind : ((N, A) -> N(B)) -> Signal B
+  // signal(A).applyMW : ((A, B) -> A(B)) -> Signal A
   //
   // apply a middleware to a signal propagation.
   //
@@ -195,7 +216,7 @@ function Signal(state) {
   }
 
 
-  // signal(A).clone : () -> Signal A'
+  // signal(A).clone : () -> Signal B
   //
   // Clone a signal into a new context
   this.clone = function() {
@@ -204,12 +225,12 @@ function Signal(state) {
 
 
   // signal().prime : (A) -> Signal A
-  //                  ({$value: A}) -> Signal A
+  //                  (state(A)) -> Signal A
   //
   // Set signal value or state directly, bypassing any propagation steps
   this.prime = function(v) {
-    if (v !== undefined && v.hasOwnProperty('$value')) {
-      _state = v
+    if (v instanceof state) {
+      _state = v.state
       if (process.env.NODE_ENV==='development') {
         this.$state = _state
         _state.$id = sid
@@ -227,8 +248,7 @@ function Signal(state) {
   // - can short propagation by returning Signal.fail
   this.map = lift
 
-
-  // signal(A).fail : (F) -> Signal A
+  // signal(A).fail : (F) -> Signal A -> F(A)
   //
   // Register a fail handler.
   // The handler will be called after failed propagation.
@@ -239,7 +259,7 @@ function Signal(state) {
   }
 
 
-  // signal(A).feed : (A) -> Signal A
+  // signal(A).feed : (F) -> Signal A -> F(A)
   //
   // Register a feed handler.
   // The handler will be called after successful propagation.
@@ -250,7 +270,7 @@ function Signal(state) {
   }
 
 
-  // signal(A).filter : (A -> boolean) -> Signal A
+  // signal(A).filter : (A -> boolean) -> Signal A | HALT
   //
   // Filter the signal value.
   // - return truthy to continue propagation
@@ -261,20 +281,13 @@ function Signal(state) {
     })
   }
 
-  // signal(A).fold : ((A, A) -> B) -> Signal B
-  //                  ((A, B) -> C, B) -> Signal C
+  // signal(A).fold : ((A, B) -> A, A) -> Signal A
   //
   // Continuously fold incoming signal values into an accumulated outgoing value.
-  // - accumulator will be first signal value if not supplied.
-  this.fold = function(f,accum) {
+  this.fold = function(f, accum) {
     return this.map(function(v){
-      if (!accum) {
-        accum = v
-      }
-      else {
-        var args = [accum].concat([].slice.call(arguments))
-        accum = f.apply(null,args)
-      }
+      var args = [accum].concat([].slice.call(arguments))
+      accum = f.apply(null,args)
       return accum
     })
   }
@@ -313,9 +326,9 @@ function Signal(state) {
   //
   // bind a signal context to a custom step (or steps)
   // Note: chainable steps must return this.signal
-  var ext = []
+  var _ext = []
   this.bind = function(e) {
-    ext.push(e)
+    _ext.push(e)
     if (typeof e === 'function') e = e(_this)
     Object.keys(e).forEach(function(k){
       if (typeof e[k] ==='object') _this.bind(e[k])
@@ -335,17 +348,24 @@ function Signal(state) {
     return this
   }
 
+  // signal : (name, state) -> Signal
+  //
   // Constructor function
-  this.signal = function(v) {
-    var s = new Signal(v)
-    for (var i = 0; i < ext.length; i++) {
-      s.bind(ext[i])
+  // - optional name
+  // - optional initial state(v)
+  this.signal = function(name, state) {
+    var s = new Signal(name, state)
+    for (var i = 0; i < _ext.length; i++) {
+      s.bind(_ext[i])
     }
     return s
   }
 
 }
 
+// Signal.id: (A) -> A
+// Identity function
 Signal.id = function(v) {return v}
-export {halt, fail}
+
+export {halt, fail, state}
 export default Signal

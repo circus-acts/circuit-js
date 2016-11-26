@@ -1,4 +1,4 @@
-import Circuit, {Signal, fail} from '../src'
+import Circuit, {Signal, fail, state} from '../src'
 import Utils from '../src/utils'
 
 runTests('circuit', function(mock) {
@@ -93,15 +93,6 @@ runTests('circuit', function(mock) {
 		return s.value().a === undefined
 	})
 
-	test('prime - state', function(){
-		var a=app.signal()
-		var r = app.join({
-			a: a
-		}).prime({a: {$value: 123}})
-
-		return a.value()===123
-	})
-
 	test('prime - value', function(){
 		var a=app.signal()
 		var r = app.join({
@@ -111,9 +102,28 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('prime - sample value', function(){
+	test('prime - state', function(){
 		var a=app.signal()
-		var r = app.signal().prime({sample: {sv: 123}, $value: 456}).sample({
+		var r = app.join({
+			a: a
+		}).prime(state({a: {$value: 123}}))
+
+		return a.value()===123
+	})
+
+	test('prime - nested state', function(){
+		var a=app.signal()
+		var r = app.join({
+			b: app.signal()
+		}).prime(state({b: {$value: 123}}))
+
+		return r.signals.b.value()===123
+	})
+
+	test('prime - sample state', function(){
+		var a=app.signal()
+		// {name: value, steps: {sv: 123}} ?
+		var r = app.signal().prime(state({sample: {sv: 123}, $value: 456})).sample({
 			a: a
 		})
 		a.input(true)
