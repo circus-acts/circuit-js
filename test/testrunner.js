@@ -13,8 +13,8 @@
 			return assert('test'.length,0) // Assert failure 4 -> 0
 		})
 
-		test('test name with circus assert', function(){
-			return assert({x:y:z:1}}},{x:y:z:2}}}, circus.deepEqual) // Assert failure {x:y:z:1}}} -> {x:y:z:2}}}
+		test('test name with circuit assert', function(){
+			return assert({x:y:z:1}}},{x:y:z:2}}}, circuit.deepEqual) // Assert failure {x:y:z:1}}} -> {x:y:z:2}}}
 		})
 
 		test('test name with custom assert', function(){

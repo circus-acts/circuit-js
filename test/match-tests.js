@@ -1,5 +1,4 @@
 import Circuit from '../src'
-import Signal from '../src/signal'
 import Match from '../src/match'
 import Utils from '../src/utils'
 
@@ -7,7 +6,7 @@ runTests('match', function(mock) {
 
     var app, sig, inc = function(v){return v+1}
     setup(function(){
-        app = new Circuit().bind(Match)
+        app = new Circuit().bindAll(Match)
         sig = app.signal()
     })
 

@@ -1,4 +1,4 @@
-import Signal, {halt} from './signal'
+import Signal, {halt, state} from './signal'
 import pure from './pure'
 
 'use strict'
@@ -41,21 +41,25 @@ function overlay(s) {
   }
 }
 
-function input(s) {
-  var _input = s.input
-  s.input = function(v) {
-    if (!(v instanceof halt)) s.prime(v)
+function primeInput(cct) {
+  var _input = cct.input
+  cct.input = function(v) {
+    if (!(v instanceof halt)) cct.prime(v)
     return _input(v)
   }
-  return s
+  return cct
 }
 
 function prime(s) {
   var _prime = s.prime.bind(s)
   return function prime(v) {
-    if (v !== undefined && v.constructor === objConstructor && s.signals) {
-      Object.keys(v).forEach(function(k) {
-        s.signals[k] && s.signals[k].prime(v[k])
+    var pv = v instanceof state? v.state : v
+    if (pv !== undefined && pv.constructor === objConstructor && s.signals) {
+      Object.keys(pv).forEach(function(k) {
+        if (s.signals[k]) {
+          var cv = v instanceof state? state(pv[k]) : pv[k]
+          s.signals[k].prime(cv)
+        }
       })
     }
     return _prime(v)
@@ -76,11 +80,13 @@ function getState(s) {
 
 function joinPoint(ctx, sampleOnly, joinOnly, circuit) {
   var _jp = ctx.signal
+  ctx.step = (ctx.step || 0) + 1
   var channels=_jp.channels || {}, signals = _jp.signals || {}, joinPoints = [], _fail = _jp.input
   Object.keys(circuit).forEach(function(k){
     var signal = toSignal(_jp, circuit[k])
     if (signal.id) {
       signal.name = k
+      signal.step = ctx.step
       // map merged values onto a reducer
       if (!sampleOnly && ! joinOnly) {
         signal.applyMW(function(next, v1, v2, v3) {
@@ -201,31 +207,27 @@ function sample(circuit) {
 function Circuit() {
 
   // a circuit is a signal with join points
-  var circuit = new Signal().bind(function(sig){
+  var circuit = new Signal().bindAll(function(sig){
     return {
       circuit: join,
       join: join,
       merge: merge,
       sample: sample,
       pure: pure(diff),
-//      input: input(sig),
       prime: prime(sig),
       overlay: overlay(sig),
       getState: getState(sig)
     }
   })
 
-  var args = [].slice.call(arguments).forEach(function(module) {
-    circuit.bind(module)
-  })
-
   return {
-    circuit: function(cct) {return input(circuit.signal().join(cct))},
+    circuit: function(cct) {return primeInput(circuit.signal().join(cct))},
     join: function(cct) {return circuit.signal().join(cct)},
     merge: function(cct) {return circuit.signal().merge(cct)},
     sample: function(cct) {return circuit.signal().sample(cct)},
     signal: circuit.signal,
-    bind: circuit.bind
+    bind: circuit.bind,
+    bindAll: circuit.bindAll
   }
 }
 

@@ -1,4 +1,4 @@
-import Circus, { Circuit } from '../src'
+import Circuit, { Signal } from '../src'
 import Utils, {Error} from '../src/utils'
 
 runTests('issues', function() {

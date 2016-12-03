@@ -1,12 +1,11 @@
 {
-  "name": "circus-js",
-  "version": "0.0.0-alpha-maximus",
-  "description": "Functional JavaScript",
-  "main": "lib/circus.js",
+  "name": "circuit-js",
+  "version": "0.0.1-alpha",
+  "description": "Functional JavaScript in a hash",
+  "main": "lib/circuit.js",
   "directories": {
     "doc": "docs",
     "example": "examples",
-    "library": "libraries",
     "test": "test"
   },
   "dependencies": {},
@@ -21,21 +20,21 @@
     "webpack": "^1.13.1"
   },
   "engines": {
-    "node": ">=4"
+    "node": ">=6"
   },
   "scripts": {
     "build:test": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack test/index.js test/tests.js",
-    "build:dev": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack src/index.js lib/circus.js",
-    "build:prod": "cross-env BABEL_ENV=commonjs NODE_ENV=production webpack src/index.js lib/circus.js",
+    "build:dev": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack src/index.js lib/circuit.js",
+    "build:prod": "cross-env BABEL_ENV=commonjs NODE_ENV=production webpack src/index.js lib/circuit.js",
     "build": "npm run build:test && npm test && npm run build:prod",
-    "build:watch": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack --watch src/index.js lib/circus.js",
+    "build:watch": "cross-env BABEL_ENV=commonjs NODE_ENV=development webpack --watch src/index.js lib/circuit.js",
     "test": "node test/nodetest.js",
     "watch": "npm run build:test -- --watch",
     "watch:dev": "npm run build:dev -- --watch"
   },
   "repository": {
     "type": "git",
-    "url": "git@bitbucket.org:philtoms/circus.mvi.git"
+    "url": "git@bitbucket.org:philtoms/circuit-js.git"
   },
   "author": "philtoms",
   "license": "ISC"
