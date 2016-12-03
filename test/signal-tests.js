@@ -378,7 +378,7 @@ runTests('signal', function(mock) {
         return signal.getState().ext.x === 123
     })
 
-    test('bind - inheritance', function(){
+    test('bindAll - inheritance', function(){
         var r, ext = function(sig) {
             return {
                 ext: function() {
@@ -386,12 +386,12 @@ runTests('signal', function(mock) {
                 }
             }
         }
-        signal.bind(ext)
+        signal.bindAll(ext)
         signal.signal().signal().ext().input(1)
         return r === 1
     })
 
-    test('bind - isolated inheritance', function(){
+    test('bindAll - isolated inheritance', function(){
         var r, ext = function(sig) {
             return {
                 ext: function() {
@@ -399,7 +399,7 @@ runTests('signal', function(mock) {
                 }
             }
         }
-        var s1 = signal.signal().bind(ext)
+        var s1 = signal.signal().bindAll(ext)
         var s2 = signal.signal()
         s1.ext().input(1)
         return s2.ext === undefined && r === 1
@@ -417,7 +417,7 @@ runTests('signal', function(mock) {
         return signal.bind(ext).prime(1).value() === 2
     })
 
-    test('bind - deep inherit override', function(){
+    test('bindAll - deep inherit override', function(){
         var ext1 = function(sig) {
             var _prime = sig.prime.bind(sig)
             return {
@@ -434,6 +434,6 @@ runTests('signal', function(mock) {
                 }
             }
         }
-        return signal.bind(ext1).signal().bind(ext2).signal().prime(1).value() === 4
+        return signal.bindAll(ext1).signal().bind(ext2).prime(1).value() === 4
     })
 })

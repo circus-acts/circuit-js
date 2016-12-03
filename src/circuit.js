@@ -41,7 +41,7 @@ function overlay(s) {
   }
 }
 
-function input(cct) {
+function primeInput(cct) {
   var _input = cct.input
   cct.input = function(v) {
     if (!(v instanceof halt)) cct.prime(v)
@@ -80,11 +80,13 @@ function getState(s) {
 
 function joinPoint(ctx, sampleOnly, joinOnly, circuit) {
   var _jp = ctx.signal
+  ctx.step = (ctx.step || 0) + 1
   var channels=_jp.channels || {}, signals = _jp.signals || {}, joinPoints = [], _fail = _jp.input
   Object.keys(circuit).forEach(function(k){
     var signal = toSignal(_jp, circuit[k])
     if (signal.id) {
       signal.name = k
+      signal.step = ctx.step
       // map merged values onto a reducer
       if (!sampleOnly && ! joinOnly) {
         signal.applyMW(function(next, v1, v2, v3) {
@@ -205,7 +207,7 @@ function sample(circuit) {
 function Circuit() {
 
   // a circuit is a signal with join points
-  var circuit = new Signal().bind(function(sig){
+  var circuit = new Signal().bindAll(function(sig){
     return {
       circuit: join,
       join: join,
@@ -219,12 +221,13 @@ function Circuit() {
   })
 
   return {
-    circuit: function(cct) {return input(circuit.signal().join(cct))},
+    circuit: function(cct) {return primeInput(circuit.signal().join(cct))},
     join: function(cct) {return circuit.signal().join(cct)},
     merge: function(cct) {return circuit.signal().merge(cct)},
     sample: function(cct) {return circuit.signal().sample(cct)},
     signal: circuit.signal,
-    bind: circuit.bind
+    bind: circuit.bind,
+    bindAll: circuit.bindAll
   }
 }
 

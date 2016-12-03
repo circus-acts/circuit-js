@@ -326,9 +326,7 @@ function Signal() {
   //
   // bind a signal context to a custom step (or steps)
   // Note: chainable steps must return this.signal
-  var _ext = []
   this.bind = function(e) {
-    _ext.push(e)
     if (typeof e === 'function') e = e(_this)
     Object.keys(e).forEach(function(k){
       if (typeof e[k] ==='object') _this.bind(e[k])
@@ -345,7 +343,17 @@ function Signal() {
         }
       }
     })
-    return this
+    return _this
+  }
+
+
+  // signal().bindAll : (Signal -> {A}) -> Signal
+  //
+  // bind this signal and all of its derivatives
+  var _ext = []
+  this.bindAll = function(e) {
+    _ext.push(e)
+    return this.bind(e)
   }
 
   // signal : (name, state) -> Signal
@@ -356,7 +364,7 @@ function Signal() {
   this.signal = function(name, state) {
     var s = new Signal(name, state)
     for (var i = 0; i < _ext.length; i++) {
-      s.bind(_ext[i])
+      s.bindAll(_ext[i])
     }
     return s
   }

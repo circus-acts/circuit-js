@@ -6,7 +6,7 @@ runTests('match', function(mock) {
 
     var app, sig, inc = function(v){return v+1}
     setup(function(){
-        app = new Circuit().bind(Match)
+        app = new Circuit().bindAll(Match)
         sig = app.signal()
     })
 

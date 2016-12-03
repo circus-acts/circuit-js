@@ -220,13 +220,20 @@ runTests('circuit', function(mock) {
         var app1 = new Circuit().bind(function(){return {c:true}})
         var app2 = new Circuit()
 
+        return app1.c && !app2.signal().c
+    })
+
+    test('bindAll - app', function(){
+        var app1 = new Circuit().bindAll(function(){return {c:true}})
+        var app2 = new Circuit()
+
         return app1.signal().c && !app2.signal().c
     })
 
-    test('bind - app + signal', function(){
+    test('bindAll - app + signal context', function(){
         var r1,r2,circuit = new Circuit()
-        circuit.bind(function(c1){r1=c1;return {b:true}})
-        circuit.bind(function(c2){r2=c2;return {c:true}})
+        circuit.bindAll(function(c1){r1=c1;return {b:true}})
+        circuit.bindAll(function(c2){r2=c2;return {c:true}})
         var s = circuit.signal()
         return r1===s && r2===s
     })
