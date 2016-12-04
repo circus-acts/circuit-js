@@ -2,9 +2,55 @@ import Signal, {halt} from './signal'
 
 'use strict';
 
-var objConstructor = {}.constructor
-var vMatch={}, litKey = new Date().getTime()
-var Match = {}
+var vMatch = {}, Match = {}, litKey = {}
+
+function maskFn(sig, mf) {
+  var lv
+  return function(v) {
+    var r = mf.call(sig,v,lv)
+    lv=v
+    return r
+  }
+}
+
+function latest(signals) {
+  return Object.keys(signals || {}).reduce(function(a,k) {
+    var i = signals[k].step-1
+    a[i] = a[i] || {}
+    a[i][k] = vMatch
+    return a
+  }, []).pop() || false
+}
+
+function wildCard(keys) {
+  for (var i=0, l=keys.length; i<l; i++) {
+    var k = keys[i]
+    if (k === '*') return 0
+    if (k[0] === '*') return 1
+    if (k[k.length-1] === '*') return k.length-1
+  }
+  return false
+}
+
+function memo(mask, keys, v, m, wv, sig) {
+  keys.forEach(function(k){
+    if (mask[k] === undefined){
+      if (k === '*') {
+        memo(mask, Object.keys(v), v, m, m[k], sig)
+      }
+      else if (k[0] === '*') {
+        var wk = k.substr(1)
+        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) > 0}), v, m, m[k], sig)
+      }
+      else if (k[k.length-1] === '*') {
+        var wk = k.substr(0,k.length-1)
+        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) === 0}), v, m, m[k], sig)
+      }
+      else mask[k] = wv === undefined? m === v? vMatch : typeof m[k] === 'function'? maskFn(sig, m[k]) : m[k] : wv
+    }
+  })
+  return keys.length
+}
 
 // Pattern match a signal value to pass or block propagation
 //
@@ -59,58 +105,35 @@ function match(){
     else if (T === 'number' && lBound!==undefined) uBound=a
     else if (T === 'object' && !a.length) mask=a
   })
+
   fn = fn || Match.and
 
-  function maskFn(mf) {
-    var lv
-    return function(v) {
-      var r = mf.call(sig,v,lv)
-      lv=v
-      return r
-    }
-  }
-
-  var wcMask, wcKeys, isObject
-  function memo(keys,v,m,wv) {
-    keys.forEach(function(k){
-      if (wcMask[k] === undefined){
-        if (k === '*') {
-          memo(Object.keys(v), v, m, m[k])
-        }
-        else if (k[0] === '*') {
-          var wk = k.substr(1)
-          memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk) > 0}), v, m, m[k])
-        }
-        else if (k[k.length-1] === '*') {
-          var wk = k.substr(0,k.length-1)
-          memo(Object.keys(v).filter(function(vk) {return vk.indexOf(wk) === 0}), v, m, m[k])
-        }
-        else wcMask[k] = wv === undefined? m === v? vMatch : typeof m[k] === 'function'? maskFn(m[k]) : m[k] : wv
-      }
-    })
-    return keys.length
-  }
+  var m = mask || latest(sig.signals)
+  var wc = m && wildCard(Object.keys(m))
+  var wcMask = {}
+  if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined, sig)
+  var wcKeys = Object.keys(wcMask)
+  var lb = lBound === undefined? 1 : lBound === -1? wcKeys.length : lBound
+  var ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
 
   function matcher(v) {
-    var m = mask || v
-    if (!wcMask) {
-      isObject = m.constructor === objConstructor
+    if (wc!==false || !wcKeys.length) {
+      m = mask || v
       wcMask = {}
-      if (!isObject || !memo(Object.keys(m),v, m, undefined)) {
-        wcMask[litKey] = v
-      }
+      memo(wcMask,Object.keys(m), v, m, undefined, sig)
       wcKeys = Object.keys(wcMask)
-      if (lBound === undefined) lBound = 1
-      if (lBound === -1) lBound = wcKeys.length
-      if (uBound === undefined) uBound = wcKeys.length
-      if (uBound === -1) uBound = wcKeys.length
+      if (!wcKeys.length) {
+        wcMask[litKey] = v
+        wcKeys = [litKey]
+      }
+      lb = lBound === undefined? 1 : lBound === -1? wcKeys.length : lBound
+      ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
     }
-
     // b* = boolean...
     // v* = value...
     // m* = match...
     var count=0
-    var some = lBound===1 && uBound===2
+    var some = lb===1 && ub===2
     for (var i=0; i < wcKeys.length; i++) {
       var k = wcKeys[i]
       var hasK = typeof v ==='object' && v.hasOwnProperty(k)
@@ -125,7 +148,7 @@ function match(){
       // early exit for some
       if (some && count) break
     }
-    return count>=lBound && count<=uBound ? v : halt()
+    return count>=lb && count<=ub ? v : halt()
   }
   return sig.map(matcher)
 }

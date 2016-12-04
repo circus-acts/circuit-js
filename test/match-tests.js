@@ -359,7 +359,7 @@ runTests('match', function(mock) {
         var s1 = app.join({inc})
         var s2 = app.signal()
         var s3 = app.signal()
-        var allSigs = app.join({s2,s3}).all()
+        var allSigs = app.signal().join({s2,s3}).all()
         var s = s1.sample({allSigs})
         s1.channels.inc(1)
         var r1 = s.value() // blocked
