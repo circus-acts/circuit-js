@@ -30,13 +30,13 @@ runTests('match', function(mock) {
 
     test('match - pass object with some', function() {
         var r, v={a:false,b:2}
-        sig.match().tap(function(v){r=v}).input(v)
+        sig.match(1, -1).tap(function(v){r=v}).input(v)
         return Utils.equal(r, v)
     })
 
-    test('match - block object with every', function() {
+    test('match - block object with all', function() {
         var r, v={a:false,b:2}
-        sig.match(-1,-1).tap(function(v){r=v}).input(v)
+        sig.match().tap(function(v){r=v}).input(v)
         return r === undefined
     })
 
@@ -65,12 +65,6 @@ runTests('match', function(mock) {
         return Utils.equal(r, v)
     })
 
-    test('match - pass mask + fn', function() {
-        var r,v = {c1:1,c2:0,c3:3}
-        sig.match({c1:0},function(v,m){return v===m+1}).tap(function(v){r=v}).input(v)
-        return Utils.equal(r, v)
-    })
-
     test('match - fn mask', function() {
         var r, v = {ca1:1,cb2:2,cc3:0}
         sig.match({ca1:function(v,m){return v===1}}).tap(function(v){r=v}).input(v)
@@ -83,15 +77,6 @@ runTests('match', function(mock) {
         s.input(v)
         s.input(v)
         return r===1
-    })
-
-    test('match - fn mask + fn', function() {
-        var r, v = {ca1:1,cb2:2,cc3:0}
-        sig.match({ca1:function(v){
-            return v===1 && 2}},function(v,m){
-            return m===2})
-        .tap(function(v){r=v}).input(v)
-        return assert(r,v,Utils.equal)
     })
 
     test('match - pass wildcard', function() {
@@ -122,6 +107,27 @@ runTests('match', function(mock) {
         var r,v = {ca1:1,cb2:2,cc3:3}
         sig.match({'*1':1,'*':true}).tap(function(v){r=v}).input(v)
         return Utils.equal(r,v)
+    })
+
+    test('match - fn key match', function() {
+        var r,v = {c1:1,c2:2,c3:3}
+        var kmatch = function(v, k) {
+            return k==='x' && 'c1'
+        }
+        sig.match({'x':true, 'y': false}, kmatch).tap(function(v){r=v}).tap(function(v){r=v}).input(v)
+        return Utils.equal(r, v)
+    })
+
+    test('match - fn key match + fn mask', function() {
+        var r, v = {c1:1,c2:2,c3:0}
+        sig.match({x:function(v){
+            return v===1 && 2
+        }},
+        function(v, k){
+            return k==='x' && 'c1'
+        })
+        .tap(function(v){r=v}).input(v)
+        return assert(r,v,Utils.equal)
     })
 
     test('match - pass list', function() {
@@ -268,21 +274,44 @@ runTests('match', function(mock) {
         return r === undefined
     })
 
-    // boolean masks - mutate to boolean result
+    // boolean masks
 
-    test('or - restore dropped value', function() {
-        var r,s1 = sig.any({a:Match.or(function(v){r=v})})
+    test('boolean - function mask', function() {
+        var fn = function(v) {return v === 1}
+        var r=0, s1 = sig.any({a:Match.and(fn)}).tap(()=> r++)
         s1.input({a:1})
         s1.input({a:0})
-        return r===1
+        return s1.value().a === 1 && r === 1
     })
 
-    test('or - default to mask value', function() {
-        var r,mask = {
-            a:Match.or(2,function(v){r=v})
+    test('or - pass on dropped value', function() {
+        var r=0, s1 = sig.any({a:Match.or}).tap(()=> r++)
+        s1.input({a:1})
+        s1.input({a:0})
+        return s1.value().a === 0 && r === 2
+    })
+
+    test('or - block on successive dropped value', function() {
+        var r=0, s1 = sig.any({a:Match.or}).tap(()=> r++)
+        s1.input({a:1})
+        s1.input({a:0})
+        s1.input({a:0})
+        return r === 2
+    })
+
+    test('or - block on mask value', function() {
+        var s1 = sig.any({a:Match.or(false)})
+        s1.input({a:1})
+        s1.input({a:0})
+        return s1.value().a === 1
+    })
+
+    test('or - pass on mask value', function() {
+        var mask = {
+            a:Match.or(true)
         }
-        sig.any(mask).input({a:0})
-        return r===2
+        sig.any(mask).input({a:2})
+        return sig.value().a === 2
     })
 
     test('xor - pass new value', function() {
@@ -315,16 +344,23 @@ runTests('match', function(mock) {
 
     test('switch - match channel', function(){
         var sig=app.signal().map(inc)
-        var a = app.signal().any({a:Match.and(1,sig)})
+        var a = app.signal().any({a: sig})
         a.input({a:1})
         return sig.value()===2
     })
 
     test('switch - block channel', function(){
-        var sig=app.signal().map(inc)
-        var a = app.signal().any({a:Match.and(1,sig)})
-        a.input({a:0})
-        return sig.value() === undefined
+        var r, sig=app.signal().map(inc)
+        var a = app.signal().any({a:sig})
+        a.tap(function(){r=true}).input({a:-1})
+        return !r
+    })
+
+    test('switch - pass channel', function(){
+        var r, sig=app.signal().map(inc)
+        var a = app.signal().any({a:sig})
+        a.tap(function(){r=true}).input({a:0})
+        return r
     })
 
     // joinpoint - all
