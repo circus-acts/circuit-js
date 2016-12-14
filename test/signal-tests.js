@@ -76,9 +76,11 @@ runTests('signal', function(mock) {
     })
 
     test('input - arity',function() {
-        var s = signal
-        s.input(1,2,3)
-        return s.value() === 1
+        var s = signal, r
+        s.tap(function(x,y,z){
+            r = x===1 && y===2 && z===3
+        }).input(1,2,3)
+        return r
     })
 
     test('input - args',function() {

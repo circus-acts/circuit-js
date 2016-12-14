@@ -134,7 +134,7 @@ function Signal() {
   // propagation continues from this point
   function nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
-    return function(v){
+    return function(){
       _step = step
       return _mw && _step < _steps.length
         ? _mw.apply(null, arguments)

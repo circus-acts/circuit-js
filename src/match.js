@@ -4,11 +4,11 @@ import Signal, {halt} from './signal'
 
 var vMatch = {}, Match = {}, litKey = {}
 
-function maskFn(sig, mf) {
+function maskFn(mf) {
   var lv
-  return function(v) {
-    var r = mf.call(sig,v,lv)
-    lv=v
+  return function(v, vv, k) {
+    var r = mf(v, vv, lv, k)
+    lv=vv
     return r
   }
 }
@@ -32,21 +32,21 @@ function wildCard(keys) {
   return false
 }
 
-function memo(mask, keys, v, m, wv, sig) {
+function memo(mask, keys, v, m, wv) {
   keys.forEach(function(k){
     if (mask[k] === undefined){
       if (k === '*') {
-        memo(mask, Object.keys(v), v, m, m[k], sig)
+        memo(mask, Object.keys(v), v, m, m[k])
       }
       else if (k[0] === '*') {
         var wk = k.substr(1)
-        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) > 0}), v, m, m[k], sig)
+        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) > 0}), v, m, m[k])
       }
       else if (k[k.length-1] === '*') {
         var wk = k.substr(0,k.length-1)
-        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) === 0}), v, m, m[k], sig)
+        memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) === 0}), v, m, m[k])
       }
-      else mask[k] = wv === undefined? m === v? vMatch : typeof m[k] === 'function'? maskFn(sig, m[k]) : m[k] : wv
+      else mask[k] = wv === undefined? m === v? vMatch : typeof m[k] === 'function'? maskFn(m[k]) : m[k] : wv
     }
   })
   return keys.length
@@ -95,102 +95,104 @@ function memo(mask, keys, v, m, wv, sig) {
 function match(){
   var sig = this.signal
   var args = [].slice.call(arguments)
-  var mask, fn, lBound, uBound
+  var mask, keyFn, lBound, uBound
 
   args.forEach(function(a){
     var T=typeof a
     if (T === 'string') {if (!mask) {mask={}}; mask[a]=vMatch}
-    else if (T === 'function' && !fn) fn=a
+    else if (T === 'function' && !keyFn) keyFn=a
     else if (T === 'number' && lBound===undefined) lBound=a
     else if (T === 'number' && lBound!==undefined) uBound=a
     else if (T === 'object' && !a.length) mask=a
   })
 
-  fn = fn || Match.and
-
   var m = mask || latest(sig.signals)
   var wc = m && wildCard(Object.keys(m))
   var wcMask = {}
-  if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined, sig)
+  if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined)
   var wcKeys = Object.keys(wcMask)
-  var lb = lBound === undefined? 1 : lBound === -1? wcKeys.length : lBound
+  var lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
   var ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
 
   function matcher(v) {
     if (wc!==false || !wcKeys.length) {
       m = mask || v
       wcMask = {}
-      memo(wcMask,Object.keys(m), v, m, undefined, sig)
+      memo(wcMask,Object.keys(m), v, m, undefined)
       wcKeys = Object.keys(wcMask)
       if (!wcKeys.length) {
         wcMask[litKey] = v
         wcKeys = [litKey]
       }
-      lb = lBound === undefined? 1 : lBound === -1? wcKeys.length : lBound
+      lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
       ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
     }
     // b* = boolean...
     // v* = value...
-    // m* = match...
+    // m* = mask...
     var count=0
-    var some = lb===1 && ub===2
+    var any = lBound===1 && uBound===-1
+    var block = lBound===0 && uBound===undefined
     for (var i=0; i < wcKeys.length; i++) {
-      var k = wcKeys[i]
-      var hasK = typeof v ==='object' && v.hasOwnProperty(k)
-      var bv = hasK && wcMask[k] === undefined
+      var mk = wcKeys[i]
+      var vk = keyFn && keyFn(v, mk) || mk
+      var hasK = typeof v ==='object' && v.hasOwnProperty(vk)
+      var bv = hasK && wcMask[mk] === undefined
       if (!bv) {
-        var vv = hasK? v[k] : mask? undefined : v
-        var mv = wcMask[k] === vMatch? vv : wcMask[k]
-        bv = typeof mv === 'function'? mv.call(sig,vv) : mv
-        if (bv===mv) bv = fn.call(sig, vv, mv)
+        var vv = hasK? v[vk] : mask? undefined : v
+        var mv = wcMask[mk] === vMatch? vv : wcMask[mk].isSignal? wcMask[mk].input : wcMask[mk]
+        bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
       }
       count += bv ? 1 : 0
-      // early exit for some
-      if (some && count) break
+      // early exit for any
+      if (any && count) break
     }
-    return count>=lb && count<=ub ? v : halt()
+    return !block && count>=lb && count<=ub ? v : halt()
   }
   return sig.map(matcher)
 }
 
 Match.match = match
 
-// signal every or block
-Match.all = function all(m){
-  return match.call(this, m, Match.and, -1)
+// signal all or block
+Match.all = function(m){
+  return match.call(this, m, undefined, undefined)
+}
+
+// signal any or block
+Match.any = function(m){
+  return match.call(this, m, 1, -1)
 }
 
 // signal some or block
-Match.any = function any(m){
-  return match.call(this, m, Match.and, 1, 2)
+Match.some = function(m){
+  return match.call(this, m, 1, undefined)
 }
 
 // signal one or block
-Match.one = function one(m){
-  return match.call(this, m, Match.and, 1, 1)
+Match.one = function(m){
+  return match.call(this, m, 1, 1)
 }
 
 // signal none or block
-Match.none = function none(m){
-  return match.call(this, m, Match.and, 0, 0)
+Match.none = function(m){
+  return match.call(this, m, 0, 0)
 }
 
-// logical match functions operate on current and previous channel values,
-// or current value and mask if provided: Match.and(mvalue)
-// or switch on current value and mask: Match.and(mvalue, Signal)
+// always block
+Match.switch = function(m) {
+  return match.call(this, m, 0, undefined)
+}
+
+// logical match functions operate on current and previous channel values
+// or current value and mask
 ;(function(ops){
   Object.keys(ops).forEach(function(op){
-    Match[op] = function(v, m){
-      if (arguments.length===1) m = v
-      var f = m, s = f && f.isSignal || typeof f === 'function'
-      if (s) m = arguments.length===2? v : undefined
-      if (arguments.length===1 || s){
-        return function(v,lv) {
-          v = Match[op](v, m===undefined? lv : m)
-          return s && v? this.asSignal(f).input(v) : v
-        }
+    Match[op] = function(m, v, lv){
+      return arguments.length === 1 && function(a, v, lv) {
+        return ops[op](v, m===undefined? lv : typeof m === 'function'? m(v) :  m)
       }
-      return ops[op](v,m)
+      || ops[op](v, lv)
     }
   })
 })({

@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@bitbucket.org:philtoms/circuit-js.git"
+    "url" : "http://github.com/circus-acts/circuit-js.git"
   },
   "author": "philtoms",
   "license": "ISC"

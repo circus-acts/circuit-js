@@ -4,6 +4,7 @@ var webpack = require('webpack')
 
 var env = process.env.NODE_ENV
 var config = {
+  devtool: 'source-map',
   module: {
     loaders: [
       {
