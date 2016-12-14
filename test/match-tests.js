@@ -67,7 +67,7 @@ runTests('match', function(mock) {
 
     test('match - fn mask', function() {
         var r, v = {ca1:1,cb2:2,cc3:0}
-        sig.match({ca1:function(v,m){return v===1}}).tap(function(v){r=v}).input(v)
+        sig.match({ca1:function(a, v, k){return v===1}}).tap(function(v){r=v}).input(v)
         return Utils.equal(r,v)
     })
 
@@ -77,6 +77,13 @@ runTests('match', function(mock) {
         s.input(v)
         s.input(v)
         return r===1
+    })
+
+    test('match - signal mask', function() {
+        var r, v = {ca1:1,cb2:2,cc3:0}
+        var sm = app.signal()
+        sig.match({ca1: sm}).tap(function(v){r=v}).input(v)
+        return Utils.equal(r,v)
     })
 
     test('match - pass wildcard', function() {
@@ -111,8 +118,8 @@ runTests('match', function(mock) {
 
     test('match - fn key match', function() {
         var r,v = {c1:1,c2:2,c3:3}
-        var kmatch = function(v, k) {
-            return k==='x' && 'c1'
+        var kmatch = function(a, k) {
+            return a === v && k==='x' && 'c1'
         }
         sig.match({'x':true, 'y': false}, kmatch).tap(function(v){r=v}).tap(function(v){r=v}).input(v)
         return Utils.equal(r, v)
@@ -120,10 +127,10 @@ runTests('match', function(mock) {
 
     test('match - fn key match + fn mask', function() {
         var r, v = {c1:1,c2:2,c3:0}
-        sig.match({x:function(v){
-            return v===1 && 2
+        sig.match({x:function(a, c){
+            return a === v && c===1 && 2
         }},
-        function(v, k){
+        function(a, k){
             return k==='x' && 'c1'
         })
         .tap(function(v){r=v}).input(v)
@@ -253,6 +260,24 @@ runTests('match', function(mock) {
         return r === undefined
     })
 
+    test('any - pass on first value', function() {
+        var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
+        app.any({a,b,c}).input(true)
+        return r === 1
+    })
+
+    test('some - pass on matched values', function() {
+        var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
+        app.some({a,b,c}).input(true)
+        return r === 2
+    })
+
+    test('switch - block on passed value', function() {
+        var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
+        app.switch({a,b,c}).tap(() => r = 3).input(true)
+        return r === 2
+    })
+
     test('one - pass on only one', function() {
         var r, s1 = app.signal()
         var s2 = app.signal()
@@ -338,29 +363,6 @@ runTests('match', function(mock) {
         var p, s = sig.any({a:Match.not}).tap(function(v){p=v})
         s.input({a:1})
         return p === undefined
-    })
-
-    // switch:: fn(channel value -> signal)
-
-    test('switch - match channel', function(){
-        var sig=app.signal().map(inc)
-        var a = app.signal().any({a: sig})
-        a.input({a:1})
-        return sig.value()===2
-    })
-
-    test('switch - block channel', function(){
-        var r, sig=app.signal().map(inc)
-        var a = app.signal().any({a:sig})
-        a.tap(function(){r=true}).input({a:-1})
-        return !r
-    })
-
-    test('switch - pass channel', function(){
-        var r, sig=app.signal().map(inc)
-        var a = app.signal().any({a:sig})
-        a.tap(function(){r=true}).input({a:0})
-        return r
     })
 
     // joinpoint - all
