@@ -1,24 +1,30 @@
-import Signal, {halt} from './signal'
+import Signal, {halt} from './channel'
 
-function idTest(v1, v2) {
+function idDiff(v1, v2) {
   return v1 !== v2
 }
 
-export default function pure(sig) {
-  var diff = sig.isSignal && idTest || sig
-  return {
-    pure: function(_diff) {
-      diff = _diff || diff
-      var ctx = this
-      ctx.value = undefined
-      return this.signal.applyMW(function(next, v){
-        if (diff(ctx.value, v)) {
-          var nv = next.apply(null, [].slice.call(arguments,1))
-          if (!(nv instanceof halt)) {
-            ctx.value = v
-          }
-        }
-      })
+function test(ctx, diff) {
+  return function test(v) {
+    if (diff(ctx.value, v)) {
+      ctx.value = v
+      return ctx.next.apply(null, [].slice.call(arguments))
     }
   }
+}
+
+function pure(ctx) {
+  if (!ctx.channel) {
+    var diff = ctx
+    return function(ctx) {
+      return test(ctx, diff)
+    }
+  }
+  return test(ctx, idDiff)
+}
+
+export {pure}
+export default function Pure(channel) {
+  var diff = channel.isSignal? idDiff : channel
+  return {pure: function() {return this.bind(pure(diff))}}
 }

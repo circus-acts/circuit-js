@@ -1,19 +1,19 @@
-import Signal, {fail} from './signal'
+import {fail} from './channel'
 import thunkor from './thunkor'
 
 'use strict';
 
-export function Error(signal) {
+export function Error(channel) {
   var _failure
-  signal.fail(function(error) {
+  channel.fail(function(error) {
     _failure = _failure || error.message
   })
   return {
     active: function(msg) {
-      var signal = this.signal
-      return signal.map(function(v) {
-        return Object.keys(signal.signals).filter(function(k){
-          return !signal.signals[k].value()
+      var channel = this
+      return channel.map(function(v) {
+        return Object.keys(channel.channels).filter(function(k){
+          return !channel.channels[k].value()
         }).length ? fail(msg) : v
       })
     },
@@ -30,8 +30,8 @@ export function Error(signal) {
 
 export function test(f, m) {
   return function(v) {
-    return thunkor(f.apply(null,arguments), function(j) {
-      return j? (j===true? v : j) : fail(m)
+    return thunkor(f.apply(null,arguments), function(r) {
+      return r? (r===true? v : r) : fail(m)
     })
   }
 }

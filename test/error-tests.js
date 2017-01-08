@@ -7,7 +7,7 @@ runTests('error', function(mock) {
 
     var app
     setup(function(){
-        app = new Circuit().bind(error.Error)
+        app = new Circuit().extend(error.Error)
     })
 
     test('test - true', function() {
@@ -33,21 +33,21 @@ runTests('error', function(mock) {
     test('error - circuit valid', function() {
         var m = error.test(function(_, v){return !!v && v},'error!')
         var s = app.merge({m}).map(inc)
-        s.channels.m(1)
+        s.signals.m(1)
         return s.error() === '' && s.value() === 2
     })
 
     test('error - circuit error', function() {
         var m = error.test(function(_, v){return !!v && v})
         var s = app.merge({m}).map(inc)
-        s.channels.m(0)
+        s.signals.m(0)
         return s.error() === true && s.value() === undefined
     })
 
     test('error - circuit error msg', function() {
         var m = error.test(function(_, v){return !!v && v},'error!')
         var s = app.merge({m}).map(inc)
-        s.channels.m(0)
+        s.signals.m(0)
         return s.error() === 'error!'
     })
 
@@ -55,15 +55,15 @@ runTests('error', function(mock) {
         var m1 = error.test(function(_, v){return !!v && v},1)
         var m2 = error.test(function(_, v){return !!v && v},2)
         var s = app.merge({m1, m2}).map(inc)
-        s.channels.m1(0)
-        s.channels.m2(0)
+        s.signals.m1(0)
+        s.signals.m2(0)
         return s.error() === 1 && s.value() === undefined
     })
 
     test('error - circuit error clear', function() {
         var m = error.test(function(_, v){return !!v && v})
         var s = app.merge({m}).map(inc)
-        s.channels.m(0)
+        s.signals.m(0)
         return s.error() === true && s.error() === ''
     })
 })

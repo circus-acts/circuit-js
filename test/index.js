@@ -1,4 +1,4 @@
-require('./signal-tests')
+require('./channel-tests')
 require('./circuit-tests')
 require('./join-tests')
 require('./error-tests')

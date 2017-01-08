@@ -1,4 +1,4 @@
-import Circuit, {Signal} from '../src'
+import Circuit, {Channel} from '../src'
 import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
@@ -11,11 +11,11 @@ runTests('utils', function(mock) {
         app = new Circuit()
 
         sigBlock = {
-            i1:app.signal(),
-            i2:app.signal(),
+            i1:app.channel(),
+            i2:app.channel(),
             i3: {
-                i4:app.signal(),
-                i5:app.signal()
+                i4:app.channel(),
+                i5:app.channel()
             }
         }
 

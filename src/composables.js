@@ -1,4 +1,4 @@
-import Signal, {halt} from './signal'
+import {halt} from './channel'
 import Utils from './utils'
 
 'use strict';
@@ -65,12 +65,12 @@ export default function Composables(sig) {
       })
     },
 
-    // pipe : (A -> B, B -> C) -> Signal C
-    //        (A -> B, Signal C) -> Signal B ? C
-    //        (A -> B -> B (C), C -> D) -> Signal D
+    // pipe : (A -> B, B -> C) -> Channel C
+    //        (A -> B, Channel C) -> Channel B ? C
+    //        (A -> B -> B (C), C -> D) -> Channel D
     //
     // Convenient compose functor that maps from left to right.
-    // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Signal 'ABC'
+    // eg : pipe(v => v + 'B', v ==> v + 'C').input('A') -> Channel 'ABC'
     //
     pipe: function(){
       for (var i=0; i<arguments.length; i++) {

@@ -1,5 +1,3 @@
-import Signal, {halt} from './signal'
-
 'use strict';
 
 var vMatch = {}, Match = {}, litKey = {}
@@ -93,7 +91,6 @@ function memo(mask, keys, v, m, wv) {
 //    - the match function is provided by Match.and
 //
 function match(){
-  var sig = this.signal
   var args = [].slice.call(arguments)
   var mask, keyFn, lBound, uBound
 
@@ -106,82 +103,85 @@ function match(){
     else if (T === 'object' && !a.length) mask=a
   })
 
-  var m = mask || latest(sig.signals)
-  var wc = m && wildCard(Object.keys(m))
-  var wcMask = {}
-  if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined)
-  var wcKeys = Object.keys(wcMask)
-  var lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
-  var ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
+  return function(ctx) {
+    var m = mask || latest(ctx.channel.channels)
+    var wc = m && wildCard(Object.keys(m))
+    var wcMask = {}
+    if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined)
+    var wcKeys = Object.keys(wcMask)
+    var lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
+    var ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
 
-  function matcher(v) {
-    if (wc!==false || !wcKeys.length) {
-      m = mask || v
-      wcMask = {}
-      memo(wcMask,Object.keys(m), v, m, undefined)
-      wcKeys = Object.keys(wcMask)
-      if (!wcKeys.length) {
-        wcMask[litKey] = v
-        wcKeys = [litKey]
+    return function matcher(v) {
+      if (wc!==false || !wcKeys.length) {
+        m = mask || v
+        wcMask = {}
+        memo(wcMask,Object.keys(m), v, m, undefined)
+        wcKeys = Object.keys(wcMask)
+        if (!wcKeys.length) {
+          wcMask[litKey] = v
+          wcKeys = [litKey]
+        }
+        lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
+        ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
       }
-      lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
-      ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
-    }
-    // b* = boolean...
-    // v* = value...
-    // m* = mask...
-    var count=0
-    var any = lBound===1 && uBound===-1
-    var block = lBound===0 && uBound===undefined
-    for (var i=0; i < wcKeys.length; i++) {
-      var mk = wcKeys[i]
-      var vk = keyFn && keyFn(v, mk) || mk
-      var hasK = typeof v ==='object' && v.hasOwnProperty(vk)
-      var bv = hasK && wcMask[mk] === undefined
-      if (!bv) {
-        var vv = hasK? v[vk] : mask? undefined : v
-        var mv = wcMask[mk] === vMatch? vv : wcMask[mk].isSignal? wcMask[mk].input : wcMask[mk]
-        bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
+      // b* = boolean...
+      // v* = value...
+      // m* = mask...
+      var count=0
+      var any = lBound===1 && uBound===-1
+      var block = lBound===0 && uBound===undefined
+      for (var i=0; i < wcKeys.length; i++) {
+        var mk = wcKeys[i]
+        var vk = keyFn && keyFn(v, mk) || mk
+        var hasK = typeof v ==='object' && v.hasOwnProperty(vk)
+        var bv = hasK && wcMask[mk] === undefined
+        if (!bv) {
+          var vv = hasK? v[vk] : mask? undefined : v
+          var mv = wcMask[mk] === vMatch? vv : wcMask[mk].isSignal? wcMask[mk].signal : wcMask[mk]
+          bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
+        }
+        count += bv ? 1 : 0
+        // early exit for any
+        if (any && count) break
       }
-      count += bv ? 1 : 0
-      // early exit for any
-      if (any && count) break
+      if (!block && count>=lb && count<=ub) ctx.next(v)
     }
-    return !block && count>=lb && count<=ub ? v : halt()
   }
-  return sig.map(matcher)
 }
 
-Match.match = match
+Match.match = function(m){
+  return this.bind(match.apply(null,arguments))
+}
 
 // signal all or block
 Match.all = function(m){
-  return match.call(this, m, undefined, undefined)
+  return this.bind(match(m, undefined, undefined))
 }
 
 // signal any or block
 Match.any = function(m){
-  return match.call(this, m, 1, -1)
+  return this.bind(match(m, 1, -1))
 }
 
 // signal some or block
 Match.some = function(m){
-  return match.call(this, m, 1, undefined)
+  return this.bind(match(m, 1, undefined))
 }
 
 // signal one or block
 Match.one = function(m){
-  return match.call(this, m, 1, 1)
+  return this.bind(match(m, 1, 1))
 }
 
 // signal none or block
 Match.none = function(m){
-  return match.call(this, m, 0, 0)
+  return this.bind(match(m, 0, 0))
 }
 
 // always block
 Match.switch = function(m) {
-  return match.call(this, m, 0, undefined)
+  return this.bind(match(m, 0, undefined))
 }
 
 // logical match functions operate on current and previous channel values
