@@ -18,7 +18,7 @@ function diff(v1,v2) {
 }
 
 function toSignal(app, s) {
-  if (!s || !s.isSignal) {
+  if (!s || !s.signal) {
     var v = s, fmap = typeof s === 'object' ? 'join' : 'map'
     if (typeof s !== 'function' && fmap==='map') s = function() {return v}
     s = app.channel()[fmap](s)
@@ -31,7 +31,7 @@ function overlay(s) {
   return function overlay (g) {
     Object.keys(g).forEach(function(k) {
       var o = g[k]
-      if (o.isSignal || typeof o === 'function') {
+      if (o.signal || typeof o === 'function') {
         s.channels[k].map(o)
       }
       else if (o) s.channels[k].overlay(o)
@@ -218,7 +218,7 @@ function sample(circuit) {
 }
 
 // Construct a new circuit builder
-function Circuit() {
+function Circuit(cct) {
 
   // a circuit is a channel with join points
   var circuit = new Channal().extend(function(sig){

@@ -2,6 +2,7 @@
 
 var sId = 0;
 
+// remove these: map with halt semantics is same as bind, so use bind
 // halt: () -> halt
 //       V  -> halt.value
 //       F  -> halt.thunk
@@ -54,17 +55,15 @@ function Channel() {
   var sid = ++sId
   var _this = this
   var _feeds = [], _fails = [], _ext = []
-  var _name = sid, _step, _steps = []
+  var _step, _steps = []
   var _state = {$value: undefined}, _pulse = Channel.id
 
   this.id = function(){return _this}
-  this.id.isSignal = true
-  this.isSignal = true
+  this.id.signal = true
 
   var value, args = [].slice.call(arguments)
   args.forEach(function(a){
-    if (typeof a === 'string') _name = a
-    else if (a instanceof _wrap) _steps = a.steps
+    if (a instanceof _wrap) _steps = a.steps
   })
 
   if (process.env.NODE_ENV==='development') {
@@ -111,14 +110,13 @@ function Channel() {
     return v
   }
 
-  // lift a function or channel into functor scope
+  // lift a function or signal into functor scope
   function lift(f) {
     _steps.push(f.signal || f)
     return _this
   }
 
-  // allow values to be injected into the channel at arbitrary step points.
-  // propagation continues from this point
+  // capture the next propagation step
   function nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
     return function(){
@@ -129,14 +127,7 @@ function Channel() {
 
   // Public API
 
-  // channel).name : () -> name
-  //
-  // Return the channel name
-  this.name = function() {
-    return _name
-  }
-
-  // channel().signal : (A) -> A
+  // channel .signal : (A) -> Channel A
   //
   // Signal a new value.
   //
@@ -145,16 +136,7 @@ function Channel() {
   this.signal = nextStep(0)
 
 
-  // Channel(A).next : (A) -> A
-  //
-  // Signal a new value at the next step point
-  //
-  // Push a new signal value into a channel at the next point in the propagation chain.
-  // The signal will propagate onwards.
-  // eg : channel.map(v=>v.forEach(i=>this.next(i)).signal([1,2,3]) -> Channel 1 : 2 : 3
-  this.next = nextStep.bind(_this, undefined)
-
-  // channel().pulse : (A) -> A
+  // channel .pulse : (A) -> A
   //
   // reset channel value after propagation
   this.pulse = function(v) {
@@ -163,18 +145,18 @@ function Channel() {
   }
 
 
-  // channel(A).asSignal : (A) -> Channel A
-  //                        (A -> B) -> Channel B
+  // channel .asSignal : (A) -> Channel A
+  //                    (A -> B) -> Channel B
   //
   // return a value, a function or a channel in signal context
   this.asSignal = function(t) {
-    if ((t || this).isSignal) return t || this
+    if ((t || this).signal) return t || this
     var s = this.channel()
     return (typeof t === 'function'? s.map(t) : s)
   }
 
 
-  // channel(A).value : () -> A
+  // Channel A .value : () -> A
   //
   // Return the current signal value.
   this.value = function() {
@@ -182,7 +164,7 @@ function Channel() {
   }
 
 
-  // channel(A).clone : () -> Channel B
+  // Channel A .clone : () -> Channel A'
   //
   // Clone a channel into a new context
   this.clone = function() {
@@ -190,7 +172,7 @@ function Channel() {
   }
 
 
-  // channel().prime : (A) -> Channel A
+  // channel .prime : A -> Channel A
   //
   // Set signal value directly, bypassing any propagation steps
   this.prime = function(v) {
@@ -199,7 +181,7 @@ function Channel() {
   }
 
 
-  // channel().setState : (state(A)) -> Channel A
+  // channel .setState : A -> Channel A
   //
   // Set signal state directly, bypassing any propagation steps
   this.setState = function(s) {
@@ -212,12 +194,13 @@ function Channel() {
   }
 
 
-  // channel(A).map : (A -> B) -> Channel B
+  // Channel A .map : (A -> B) -> Channel B
   //
   // Map over the current signal value
   this.map = lift
 
-  // channel(A).fail : (F) -> Channel A -> F(A)
+
+  // Channel A .fail : (F -> F(M)) -> Channel A
   //
   // Register a fail handler.
   // The handler will be called after failed propagation.
@@ -228,7 +211,7 @@ function Channel() {
   }
 
 
-  // channel(A).feed : (F) -> Channel A -> F(A)
+  // Channel A .feed : (F) -> Channel A -> F(A)
   //
   // Register a feed handler.
   // The handler will be called after successful propagation.
@@ -239,7 +222,7 @@ function Channel() {
   }
 
 
-  // channel(A).filter : (A -> boolean) -> channel A | HALT
+  // Channel A .filter : (A -> boolean) -> channel A | HALT
   //
   // Filter the channel value.
   // - return truthy to continue propagation
@@ -250,9 +233,9 @@ function Channel() {
     })
   }
 
-  // channel(A).fold : ((A, B) -> A, A) -> Channel A
+  // channel .fold : ((A, B) -> A, A) -> Channel A
   //
-  // Continuously fold incoming channel values into an accumulated outgoing value.
+  // Continuously fold incoming signal values into an accumulated state value.
   this.fold = function(f, accum) {
     return lift(function(v){
       var args = [accum].concat([].slice.call(arguments))
@@ -261,7 +244,7 @@ function Channel() {
     })
   }
 
-  // channel(A).tap : (A) -> Channel A
+  // channel A .tap : F(A) -> Channel A
   //
   // Tap the current signal value.
   // - tap ignores any value returned from the tap function.
@@ -274,7 +257,7 @@ function Channel() {
     })
   }
 
-  // channel(A).getState : () -> {value: A}
+  // channel A .getState : () -> {value: A}
   //
   // Return the current channel state which minimally includes the current signal value.
   //
@@ -286,11 +269,12 @@ function Channel() {
   // example with context:
   //  channel.signal(true)
   //  channel.getState() // -> {$value: true}
-  this.getState = function(raw) {
+  this.getState = function() {
     return _state
   }
 
-  // bind a function to signal context and propagate if function yields value
+  // channel .bind : (A -> B)
+  // bind a function to signal context with optional propagation
   this.bind = function(f, id) {
     id = id || _steps.length
     const ctx = _state[id] = _state[id] || {}
@@ -298,19 +282,20 @@ function Channel() {
     ctx.channel = _this
     ctx.next = nextStep()
     // bind f must return a channel or a channel functor
-    var b = f(ctx);
+    var b = f(ctx)
+    var bf = b.signal || b
     return lift(function(v1, v2, v3) {
       switch (arguments.length) {
-        case 1: b(v1); break
-        case 2: b(v1, v2); break
-        case 3: b(v1, v2, v3); break
-        default: b.apply(null, arguments)
+        case 1: bf(v1); break
+        case 2: bf(v1, v2); break
+        case 3: bf(v1, v2, v3); break
+        default: bf.apply(null, arguments)
       }
       return _halt
     })
   }
 
-  // channel().extend : (Channel -> {A}) -> Channel
+  // channel.extend : (Channel -> {A}) -> Channel
   //
   // extend a channel with a custom step (or steps)
   // Note: chainable steps must return channel
@@ -327,13 +312,11 @@ function Channel() {
     return _this
   }
 
-  // channel : (name, state) -> Channel
+  // channel : () -> Channel
   //
   // Constructor function
-  // - optional name
-  // - optional initial state(v)
-  this.channel = function(name, state) {
-    var s = new Channel(name, state)
+  this.channel = function() {
+    var s = new Channel()
     for (var i = 0; i < _ext.length; i++) {
       s.extend(_ext[i])
     }
@@ -342,7 +325,7 @@ function Channel() {
 
 }
 
-// Channel.id: (A) -> A
+// Channel.id: A -> A
 // Identity function
 Channel.id = function(v) {return v}
 

@@ -11,16 +11,6 @@ var seq = function(s){
     }
 }
 
-// var Promise = function(cb){
-//  var thenR, thenF,
-//      resolve = function(v) {thenR(v)},
-//      reject = function(v) {thenF(v)}
-//  cb(resolve,reject)
-//  return {
-//      then: function(r,f) {thenR=r,thenF=f}
-//  }
-// }
-
 runTests('channel', function(mock) {
 
     var channel
@@ -29,21 +19,16 @@ runTests('channel', function(mock) {
     })
 
     test('new channel', function(){
-        return channel.isSignal
+        return channel.signal
     })
 
     test('new channel - from channel', function(){
-        return channel.channel().isSignal
-    })
-
-    test('new channel - from name', function(){
-        var s = channel.channel('xxx')
-        return s.name() === 'xxx'
+        return channel.channel().signal
     })
 
     test('as channel', function(){
         var s = channel.asSignal()
-        return s.isSignal
+        return s.signal
     })
 
     test('as channel - from this', function(){

@@ -25,6 +25,6 @@ function pure(ctx) {
 
 export {pure}
 export default function Pure(channel) {
-  var diff = channel.isSignal? idDiff : channel
+  var diff = channel.signal? idDiff : channel
   return {pure: function() {return this.bind(pure(diff))}}
 }

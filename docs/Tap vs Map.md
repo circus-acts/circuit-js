@@ -1,29 +1,29 @@
 # Tap vs Map
 
-Signal.tap and Signal.map are very similar functions - they both receive and process signalled values. The only difference between the two is that map propagates its return value and tap does not. Small difference, potentially huge consequences.
+Channel.tap and Channel.map are very similar functions - they both receive and process signalled values. The only difference between the two is that map propagates its return value and tap does not. Small difference, potentially huge consequences.
 
-Traditionally tap is seen as a bit of a debugging aide. Tapping a signal will safely expose its current value (its state) every time it's signalled.
+Traditionally tap is seen as a bit of a debugging aid. Tapping a channel will safely expose its current value (its state) every time it's signalled.
 
 ```
 log = v => console.log({v})
 
-signal = Signal().tap(log)
+signal = Channel().tap(log)
 
-signal.input(1) // => {1}
-signal.input(2) // => {2}
-signal.input('ho') // => {ho: 'ho'}
+channel.signal(1) // => {1}
+channel.signal(2) // => {2}
+channel.signal('ho') // => {ho: 'ho'}
 ```
 
-Moreover, the value will depend on where the signal is tapped. Lets try to propagate a value to demonstrate the built in safety that tap provides:
+Moreover, the value will depend on where the channel is tapped. Lets try to propagate a value to demonstrate the built in safety that tap provides:
 ```
 dbl = v => v + v
 log = v => console.log({v}) || dbl(v) // this won't have any effect
 
-signal = Signal().tap(log).map(dbl).tap(log)
+channel = Channel().tap(log).map(dbl).tap(log)
 
-signal.input(1) // => {1}, {2}
-signal.input(2) // => {2}, {4}
-signal.input('ho') // => {ho: 'ho'}, {hoho: 'hoho'} -- see how it works?
+channel.signal(1) // => {1}, {2}
+channel.signal(2) // => {2}, {4}
+channel.signal('ho') // => {ho: 'ho'}, {hoho: 'hoho'} -- see how it works?
 ```
 
 And now let's replace all the taps in the last example with maps:
@@ -32,11 +32,11 @@ And now let's replace all the taps in the last example with maps:
 dbl = v => v + v
 log = v => console.log({v}) || dbl(v)
 
-signal = Signal().map(log).map(dbl).map(log)
+channel = Channel().map(log).map(dbl).map(log)
 
-signal.input(1) // => {1}, {4}
-signal.input(2) // => {2}, {8}
-signal.input('he') // => {he: 'he'}, {hehehehe: 'hehehehe'} -- just not funny!
+channel.signal(1) // => {1}, {4}
+channel.signal(2) // => {2}, {8}
+channel.signal('he') // => {he: 'he'}, {hehehehe: 'hehehehe'} -- just not funny!
 ```
 
 Big difference, of course. Map is the function for manipulating circuit state as values are signalled and propagated through it. Tap is the function for responding to state changes without disturbing any of the values that are actually circulating.
@@ -49,9 +49,9 @@ Normally, as with all of the examples so far, circuits are created complete with
 Late binding allows a tap or a map function to respond to the current circuit state when it is added to the circuit. The function is immediately called with the latest value as if it had just been propagated. This behaviour is very useful for setting or resetting an application by bringing it in line with circuit state without having to run through the state changes one by one:
 ```
 // as if all those inputs had been replayed..
-signal = Signal().prime('ho')
+channel = Channel().prime('ho')
 
-signal.tap(log) // => {ho: 'ho'}
+channel.tap(log) // => {ho: 'ho'}
 ```
 
 Most circuits are designed to be complete with values continuously propagating between models and views. These circuits can be difficult to start up. They can be primed, but priming does not propagate and a view lifted into a circuit will not be displayed. Values can be signalled through channel inputs, but what values, and which channels? Should channels be explicitly exposed just to boot up an application? No. Late binding solves the problem elegantly by allowing a circuit to be set up and primed before selectively kick starting it with a single mapping function: the last piece of the puzzle, the last domino:
@@ -60,7 +60,7 @@ inc = v => v + 1
 stop = window.confirm(`submit`)
 log = v => console.log({v})
 
-looper = Signal().filter(stop).map(inc).tap(log).prime(0)
+looper = Channel().filter(stop).map(inc).tap(log).prime(0)
 
 // start
 looper.map(looper)

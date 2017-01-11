@@ -18,7 +18,7 @@ _type.LITERAL = LITERAL
 
 function diff(v1,v2, recurse) {
   var T = _type(v1)
-  if (~_type.LITERAL.indexOf(T) || T === _type.FUNCTION || v1 === undefined || v2 === undefined || v1.isSignal) {
+  if (~_type.LITERAL.indexOf(T) || T === _type.FUNCTION || v1 === undefined || v2 === undefined || v1.signal) {
     return v1!==v2
   }
   else {
@@ -64,13 +64,13 @@ function lens(data,name,ns,def) {
 }
 
 function traverse(s, fn, acc, tv) {
-  var c = s.channels || s.isSignal && {s:s} || s, seed = acc!=UNDEFINED, fmap=[]
+  var c = s.channels || s.signal && {s:s} || s, seed = acc!=UNDEFINED, fmap=[]
   fn = fn || function id(s){return s}
   function stamp(c, fn, sv){
     var obj = {}
     Object.keys(c).forEach (function(ck){
       var t = c[ck]
-      var n = (t.isSignal && t.name) || ck
+      var n = (t.signal && t.name) || ck
       var v = (sv||{})[n]
       if (t.channels && t.channels !== s.channels) {
         var a = stamp(t.channels,fn, v)

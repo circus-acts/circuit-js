@@ -138,7 +138,7 @@ function match(){
         var bv = hasK && wcMask[mk] === undefined
         if (!bv) {
           var vv = hasK? v[vk] : mask? undefined : v
-          var mv = wcMask[mk] === vMatch? vv : wcMask[mk].isSignal? wcMask[mk].signal : wcMask[mk]
+          var mv = wcMask[mk] === vMatch? vv : wcMask[mk].signal? wcMask[mk].signal : wcMask[mk]
           bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
         }
         count += bv ? 1 : 0
