@@ -113,7 +113,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         // be taken not to overwrite existing channels with the same name.
         // So, duplicate signals are lifted, upstream, into the existing channel.
         if (!channels[k]) {
-          channels[k] = channel.feed(merge(k)).fail(_jp.signal)
+          channels[k] = channel.feed(merge(k)).fail(ctx.fail)
           signals[k] = _jp.signal[k] = signal
           Object.keys(channel.signal).forEach(function(k) {
             if (typeof channel.signal[k] === 'function') signal[k] = channel.signal[k]

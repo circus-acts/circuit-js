@@ -1,4 +1,4 @@
-import {fail} from './channel'
+import Channel from './channel'
 import thunkor from './thunkor'
 
 'use strict';
@@ -6,15 +6,16 @@ import thunkor from './thunkor'
 export function Error(channel) {
   var _failure
   channel.fail(function(error) {
-    _failure = _failure || error.message
+    _failure = _failure || error
   })
   return {
     active: function(msg) {
-      var channel = this
-      return channel.map(function(v) {
-        return Object.keys(channel.channels).filter(function(k){
-          return !channel.channels[k].value()
-        }).length ? fail(msg) : v
+      return channel.bind(function(ctx) {
+        return function(v) {
+          return Object.keys(channel.channels).filter(function(k){
+            return !channel.channels[k].value()
+          }).length ? ctx.fail(msg) : ctx.next(v)
+        }
       })
     },
     error: function() {
@@ -29,9 +30,11 @@ export function Error(channel) {
 }
 
 export function test(f, m) {
-  return function(v) {
-    return thunkor(f.apply(null,arguments), function(r) {
-      return r? (r===true? v : r) : fail(m)
-    })
-  }
+  return new Channel().bind(function(ctx) {
+    return function(v) {
+      return thunkor(f.apply(null, arguments), function(r) {
+        return r? ctx.next(r===true? v : r) : ctx.fail(m)
+      })
+    }
+  })
 }

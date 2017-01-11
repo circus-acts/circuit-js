@@ -11,22 +11,26 @@ runTests('error', function(mock) {
     })
 
     test('test - true', function() {
-        var m = error.test(function(v){return true})(1)
+        var m
+        error.test(function(v){return true}).tap(function(e){m=e}).signal(1)
         return m === 1
     })
 
     test('test - value', function() {
-        var m = error.test(function(v){return v+1})(1)
+        var m
+        error.test(function(v){return v+1}).tap(function(e){m=e}).signal(1)
         return m === 2
     })
 
     test('test - fail', function() {
-        var m = error.test(function(v){return !!v && v})(0).message
+        var m
+        error.test(function(v){return !!v && v}).fail(function(e){m=e}).signal(0)
         return m === true
     })
 
     test('test - fail with reason', function() {
-        var m = error.test(function(v){return !!v && v},'xyz')(0).message
+        var m
+        error.test(function(v){return !!v && v}, 'xyz').fail(function(e){m=e}).signal(0)
         return m === 'xyz'
     })
 

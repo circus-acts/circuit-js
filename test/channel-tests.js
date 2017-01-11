@@ -1,4 +1,4 @@
-import Channel, {fail} from '../src/channel'
+import Channel from '../src/channel'
 import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
@@ -95,19 +95,6 @@ runTests('channel', function(mock) {
         return s1.value() === 3
     })
 
-    test('fail',function() {
-        var s = channel.map(function(v){return fail()}).map(inc)
-        s.signal(1)
-        return s.value() === undefined
-    })
-
-    test('signal - fail', function() {
-        var s1 = channel.map(inc)
-        var s2 = channel.channel().feed(s1)
-        s2.signal(2)
-        return s1.value() === 3
-    })
-
     test('tap',function() {
         var e = 'xyz'
         var s = channel.tap(function(v){
@@ -196,14 +183,20 @@ runTests('channel', function(mock) {
         return s.value() === 1
     })
 
+    test('fail',function() {
+        var r
+        channel.fail(function(v){r = v}).bind(function(ctx){return function(){return ctx.fail()}}).signal('x')
+        return r
+    })
+
     test('fail - message', function() {
         var r
-        channel.fail(function(v){r = v}).map(function(){return fail(123)}).signal('x')
-        return r.message === 123
+        channel.fail(function(v){r = v}).bind(function(ctx){return function(){return ctx.fail(123)}}).signal('x')
+        return r === 123
     })
 
     test('fail - fifo', function() {
-        var r = [], s = channel.map(function(){return fail()})
+        var r = [], s = channel.bind(function(ctx){return function(){return ctx.fail()}})
         s.fail(function(v){r.push(2)})
         s.fail(function(v){r.push(1)})
         s.signal('x')

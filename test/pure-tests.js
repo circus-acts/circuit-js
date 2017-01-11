@@ -1,4 +1,4 @@
-import Circuit, {Channel, fail} from '../src'
+import Circuit, {Channel} from '../src'
 import Pure, {pure} from '../src/pure'
 
 runTests('pure', function(mock) {
@@ -29,10 +29,12 @@ runTests('pure', function(mock) {
     })
 
     test('pure after fail',function() {
-        var _fail = function(v) {
-            return v===1? v : fail()
+        var _fail = function(ctx) {
+            return function(v) {
+                return v===1? ctx.next(v) : ctx.fail()
+            }
         }
-        var r=0, s = channel.map(_fail).bind(pure).tap(function(){r++})
+        var r=0, s = channel.bind(_fail).bind(pure).tap(function(){r++})
         s.signal(1)
         s.signal(2)
         s.signal(1)

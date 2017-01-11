@@ -1,4 +1,4 @@
-import Circuit, {Channel, fail} from '../src'
+import Circuit, {Channel} from '../src'
 import Utils from '../src/utils'
 
 runTests('circuit', function(mock) {
@@ -42,11 +42,11 @@ runTests('circuit', function(mock) {
 	})
 
 	test('circuit - fail bubbling', function() {
-		var s1 = app.channel().map(function(){return fail(123)})
+		var s1 = app.channel().bind(function(ctx) {return function(){return ctx.fail(123)}})
 		var j1 = app.join({s1})
 		var r,j = app.join({j1}).fail(function(f){r=f})
 		s1.signal(2)
-		return r.message === 123
+		return r === 123
 	})
 
 	test('circuit - implied map', function(){

@@ -1,30 +1,7 @@
 'use strict'
 
-var sId = 0;
-
-// remove these: map with halt semantics is same as bind, so use bind
-var halt = function(v, a) {
-  if (!(this instanceof halt)) return new halt(v, !!arguments.length)
-}
-var _halt = halt()
-
-// fail: () -> fail.message: true
-//       A  -> fail.message: A
-//
-// Fail propagation
-// - propagation is halted immediately.
-// - state is not updated.
-// - optionally return failure message
-//    NB: failure is not a state - it must be captured to be processed
-//
-// example:
-//  channel(A).map(v => fail('boo!')).fail(f => console.log(f.message)) // boo!
-var fail = function(m) {
-  if (!(this instanceof fail)) return new fail(m)
-  this.message = m || true
-}
-fail.prototype = Object.create(halt.prototype)
-
+var sId = 0
+var halt = {}
 
 // internal signalling tunnel (used for cloning etc)
 var _wrap = function(v) {
@@ -56,7 +33,7 @@ function Channel() {
   // propagate signal value + signal context
   function propagate(v, c1, c2) {
     var args = arguments.length
-    for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
+    for (var i = _step; i < _steps.length && v !== halt; i++) {
       switch(args) {
         case 1: v = _steps[i](v); break
         case 2: v = _steps[i](v, c1); break
@@ -65,12 +42,7 @@ function Channel() {
       }
     }
 
-    if (v instanceof halt) {
-      if (v instanceof fail) {
-        for (var t = 0; t < _fails.length; t++) {
-          _fails[t](v)
-        }
-      }
+    if (v === halt) {
       return undefined
     }
     _state.$value = v
@@ -103,6 +75,11 @@ function Channel() {
     }
   }
 
+  function short(message) {
+    for (var t = 0; t < _fails.length; t++) {
+      _fails[t](message || true)
+    }
+  }
 
   // Public API
 
@@ -208,7 +185,7 @@ function Channel() {
   // - return falsey to halt propagation
   this.filter = function(f) {
     return lift(function (v) {
-      return f.apply(null, arguments)? v: _halt
+      return f.apply(null, arguments)? v: halt
     })
   }
 
@@ -260,6 +237,7 @@ function Channel() {
     ctx.id = id
     ctx.channel = _this
     ctx.next = nextStep()
+    ctx.fail = short
     // bind f must return a channel or a channel functor
     var b = f(ctx)
     var bf = b.signal || b
@@ -270,7 +248,7 @@ function Channel() {
         case 3: bf(v1, v2, v3); break
         default: bf.apply(null, arguments)
       }
-      return _halt
+      return halt
     })
   }
 
@@ -308,5 +286,4 @@ function Channel() {
 // Identity function
 Channel.id = function(v) {return v}
 
-export {fail}
 export default Channel
