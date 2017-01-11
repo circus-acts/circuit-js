@@ -1,4 +1,3 @@
-import {halt} from './channel'
 import Utils from './utils'
 
 'use strict';
@@ -17,15 +16,16 @@ export default function Composables(sig) {
 
     // Batch values into chunks of size w
     batch: function(w) {
-      var b = [], batch = function(v){
-        b.push(v)
-        if (b.length === w) {
-          v = b, b = []
-          return v
+      return sig.bind(function(ctx) {
+        ctx.batch = []
+        return function batch(v){
+          ctx.batch.push(v)
+          if (ctx.batch.length === w) {
+            v = ctx.batch, ctx.batch = []
+            return ctx.next(v)
+          }
         }
-        return halt()
-      }
-      return sig.map(batch)
+      })
     },
 
     compose: function(){
@@ -49,19 +49,15 @@ export default function Composables(sig) {
     },
 
     flatten: function(f) {
-      return sig.map(function(v) {
-        return halt(function(next){
-          function flatten(v) {
-            if (Utils.typeOf(v) === Utils.type.ARRAY) {
-              v.forEach(flatten)
-            }
-            else {
-              next(f? f(v) : v)
-            }
-            return undefined
+      return sig.bind(function(ctx){
+        return function flatten(v) {
+          if (Utils.typeOf(v) === Utils.type.ARRAY) {
+            v.forEach(flatten)
           }
-          return flatten(v)
-        })
+          else {
+            ctx.next(f? f(v) : v)
+          }
+        }
       })
     },
 
@@ -107,57 +103,66 @@ export default function Composables(sig) {
     //  h == 0 or undefined - keep all
     //  h >= 1         - keep n
     keep: function(h) {
-      var accum = []
-      var keep = h || MAXDEPTH
-      sig.toArray = function() {
-        return accum
-      }
-      return sig.map(function(v) {
-        if (accum.length===keep) accum.shift()
-        accum.push(v)
-        return v
+      return sig.bind(function(ctx) {
+        ctx.accum = []
+        ctx.keep = h || MAXDEPTH
+        sig.keep.toArray = function() {
+          return ctx.accum
+        }
+        return function keep(v) {
+          if (ctx.accum.length===ctx.keep) ctx.accum.shift()
+          ctx.accum.push(v)
+          return ctx.next(v)
+        }
       })
     },
 
     // Skip the first n values from the signal
     // The signal will not propagate until n + 1
     skip: function (n) {
-      return sig.map(function (v) {
-        return (n-- > 0)? halt() : v
+      return sig.bind(function(ctx) {
+        return function skip(v) {
+          if (n-- <= 0) return ctx.next(v)
+        }
       })
     },
 
     // Take the first n values from the signal
     // The signal will not propagate after n
     take: function (n) {
-      return sig.map(function (v) {
-        return (n-- > 0)? v: halt()
+      return sig.bind(function(ctx) {
+        return function take(v) {
+          if (n-- > 0) return ctx.next(v)
+        }
       })
     },
 
     // Batch values into sliding window of size w
     window: function(w) {
-      var b = [], window = function(v){
-        b.push(v)
-        if (--w < 0) {
-          b.shift()
-          return b
+      return sig.bind(function(ctx) {
+        ctx.window = []
+        return function window(v) {
+          ctx.window.push(v)
+          if (ctx.window.length > w) {
+            ctx.window.shift()
+            return ctx.next(ctx.window)
+          }
         }
-      }
-      return sig.map(window)
+      })
     },
 
     // Zip signal channel values into a true array.
     zip: function(keys) {
-      var i = 0
-      var zip = function(v) {
-        keys = keys || Object.keys(v)
-        var kl = keys.length
-        return ++i % kl === 0 ? keys.map(function(k){
-          return v[k]
-        }) : halt()
-      }
-      return sig.map(zip)
+      return sig.bind(function(ctx){
+        ctx.i = 0
+        return function zip(v) {
+          keys = keys || Object.keys(v)
+          var kl = keys.length
+          return ++ctx.i % kl === 0 && ctx.next(keys.map(function(k){
+            return v[k]
+          }))
+        }
+      })
     }
 
   }
