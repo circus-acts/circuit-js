@@ -1,4 +1,4 @@
-import Signal, {halt} from './channel'
+import Signal from './channel'
 
 function idDiff(v1, v2) {
   return v1 !== v2
@@ -25,6 +25,6 @@ function pure(ctx) {
 
 export {pure}
 export default function Pure(channel) {
-  var diff = channel.signal? idDiff : channel
-  return {pure: function() {return this.bind(pure(diff))}}
+  var diff1 = channel.signal? idDiff : channel
+  return {pure: function(diff2) {return this.bind(pure(diff2 || diff1))}}
 }

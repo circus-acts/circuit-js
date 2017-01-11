@@ -1,4 +1,4 @@
-import Channel, {halt, fail} from '../src/channel'
+import Channel, {fail} from '../src/channel'
 import Utils from '../src/utils'
 
 var inc = function(v){return v+1}
@@ -95,55 +95,10 @@ runTests('channel', function(mock) {
         return s1.value() === 3
     })
 
-    test('halt',function() {
-        var s = channel.map(function(v){return halt()}).map(inc)
-        s.signal(1)
-        return s.value() === undefined
-    })
-
-    test('halt - at value',function() {
-        var s = channel.map(function(v){return halt(123)}).map(inc)
-        s.signal(1)
-        return s.value() === 123
-    })
-
     test('fail',function() {
         var s = channel.map(function(v){return fail()}).map(inc)
         s.signal(1)
         return s.value() === undefined
-    })
-
-    test('halt - next',function(done) {
-        function async(v) {
-            return halt(function(next) {
-                setTimeout(function(){
-                    next(v+1)
-                })
-            })
-        }
-        channel.map(async).tap(function(v){done(v===2)}).signal(1)
-    })
-
-    test('halt - next flow',function(done) {
-        function async(v) {
-            return halt(function(next) {
-                setTimeout(function(){
-                    next(v+1)
-                })
-            })
-        }
-        channel.map(inc).map(async).map(async).tap(function(v){done(v===4)}).signal(1)
-    })
-
-    test('halt - next fail',function(done) {
-        function async(v) {
-            return halt(function(next) {
-                setTimeout(() => next(fail()))
-            })
-        }
-        channel.map(async).fail(function(f){
-            done(true)
-        }).signal(1)
     })
 
     test('signal - fail', function() {
@@ -192,35 +147,6 @@ runTests('channel', function(mock) {
         var b = new Channel().map(dbl)
         channel.map(a).map(b).map(mul3).signal(1)
         return channel.value() === 12
-    })
-
-
-    test('map - promise',function(done) {
-        function async(v) {
-            return halt(new Promise(function(resolve){
-                setTimeout(function(){
-                    resolve(v+1)
-                })
-            }))
-        }
-        var s = channel.map(async).tap(function(v){
-            done(v===2)
-        })
-        s.signal(1)
-    })
-
-    test('map - promise reject',function(done) {
-        function async(v) {
-            return halt(new Promise(function(_, reject){
-                setTimeout(function(){
-                    reject('error')
-                })
-            }))
-        }
-        var s = channel.map(async).fail(function(f){
-            done(true)
-        })
-        s.signal(1)
     })
 
     test('filter', function(){

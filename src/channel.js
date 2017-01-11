@@ -3,26 +3,8 @@
 var sId = 0;
 
 // remove these: map with halt semantics is same as bind, so use bind
-// halt: () -> halt
-//       V  -> halt.value
-//       F  -> halt.thunk
-//       P  -> halt.promise
-//
-// Halt propagation.
-// - propagation is halted immediately.
-// - optionally return:
-//    value : state.value is immediately set to value.
-//    thunk : thunk is immediately called with next() arg.
-//    promise : propagation is tied to promise resolution.
-//
-// examples:
-//  channel(A).map(v => halt(B)).map(v => v) // -> Channel B
-//  channel(A).map(v => halt(next => setTimeout(() => next(B)))) -> Channel A...B
 var halt = function(v, a) {
   if (!(this instanceof halt)) return new halt(v, !!arguments.length)
-  if (typeof v === 'function') this.thunk = v
-  else if (typeof v === 'object' && typeof v.then === 'function') this.promise = v
-  else if (a || arguments.length === 1) this.$value =  v
 }
 var _halt = halt()
 
@@ -63,7 +45,7 @@ function Channel() {
 
   var value, args = [].slice.call(arguments)
   args.forEach(function(a){
-    if (a instanceof _wrap) _steps = a.steps
+    if (a instanceof _wrap && a.steps) _steps = a.steps
   })
 
   if (process.env.NODE_ENV==='development') {
@@ -71,6 +53,7 @@ function Channel() {
     _state.$id = sid
   }
 
+  // propagate signal value + signal context
   function propagate(v, c1, c2) {
     var args = arguments.length
     for (var i = _step; i < _steps.length && !(v instanceof halt); i++) {
@@ -83,21 +66,11 @@ function Channel() {
     }
 
     if (v instanceof halt) {
-      // handle thunks and promises in lieu of generators..
-      if (v.thunk) {
-        return v.thunk.call(null, nextStep(i))
-      }
-      else if (v.promise) {
-        var next = nextStep(i)
-        return v.promise.then(next, function(m) {next(new fail(m))})
-      }
-      else if (v instanceof fail) {
+      if (v instanceof fail) {
         for (var t = 0; t < _fails.length; t++) {
           _fails[t](v)
         }
       }
-      else if (v.hasOwnProperty('$value')) _state.$value = v.$value
-
       return undefined
     }
     _state.$value = v
@@ -119,11 +92,17 @@ function Channel() {
   // capture the next propagation step
   function nextStep(step) {
     step = step !== undefined? step : _steps.length + 1
-    return function(){
+    return function(v, c1, c2){
       _step = step
+      switch (arguments.length) {
+        case 1: return propagate(v)
+        case 2: return propagate(v, c1)
+        case 3: return propagate(v, c1, c2)
+      }
       return propagate.apply(null, arguments)
     }
   }
+
 
   // Public API
 
@@ -329,5 +308,5 @@ function Channel() {
 // Identity function
 Channel.id = function(v) {return v}
 
-export {halt, fail}
+export {fail}
 export default Channel
