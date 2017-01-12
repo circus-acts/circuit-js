@@ -34,6 +34,47 @@ runTests('error', function(mock) {
         return m === 'xyz'
     })
 
+    test('test - arity', function() {
+        var m
+        error.test(function(v1, v2){return v2 === 2}).tap(function(e){m=e}).signal(1, 2)
+        return m === 1
+    })
+
+    test('async - true', function(done) {
+        var m, async = (v, next) => {
+            setTimeout(next(true))
+        }
+        error.test(async).tap(function(v) {done(v === 123)}).signal(123)
+    })
+
+    test('async - value', function(done) {
+        var m, async = (v, next) => {
+            setTimeout(next(123))
+        }
+        error.test(async).tap(function(v) {done(v === 123)}).signal(1)
+    })
+
+    test('async - fail', function(done) {
+        var m, async = (v, next) => {
+            setTimeout(next(false))
+        }
+        error.test(async).fail(done).signal(0)
+    })
+
+    test('async - fail message', function(done) {
+        var m, async = (v, next) => {
+            setTimeout(next(false))
+        }
+        error.test(async, 'xyz').fail(function(v) {done(v==='xyz')}).signal(0)
+    })
+
+    test('async - arity', function(done) {
+        var m, async = (v1, v2, next) => {
+            setTimeout(next(v2 === 456))
+        }
+        error.test(async).tap(function(v) {done(v === 123)}).signal(123, 456)
+    })
+
     test('error - circuit valid', function() {
         var m = error.test(function(_, v){return !!v && v},'error!')
         var s = app.merge({m}).map(inc)
@@ -69,5 +110,12 @@ runTests('error', function(mock) {
         var s = app.merge({m}).map(inc)
         s.signals.m(0)
         return s.error() === true && s.error() === ''
+    })
+
+    test('error - peek', function() {
+        var m = error.test(function(_, v){return !!v && v})
+        var s = app.merge({m}).map(inc)
+        s.signals.m(0)
+        return s.error(true) === true && s.error() === true
     })
 })

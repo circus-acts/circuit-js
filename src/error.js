@@ -1,5 +1,4 @@
 import Channel from './channel'
-import thunkor from './thunkor'
 
 'use strict';
 
@@ -18,10 +17,10 @@ export function Error(channel) {
         }
       })
     },
-    error: function() {
+    error: function(peek) {
       if (_failure) {
         var v = _failure
-        _failure = false
+        if (!peek) _failure = false
         return v
       }
       return ''
@@ -32,9 +31,12 @@ export function Error(channel) {
 export function test(f, m) {
   return new Channel().bind(function(ctx) {
     return function(v) {
-      return thunkor(f.apply(null, arguments), function(r) {
+      function resolve(r) {
         return r? ctx.next(r===true? v : r) : ctx.fail(m)
-      })
+      }
+      var args = [].slice.call(arguments).concat(resolve)
+      var r = f.apply(null,args)
+      if (r !== undefined) resolve(r, v)
     }
   })
 }

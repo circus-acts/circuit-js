@@ -106,7 +106,7 @@ export default function Composables(sig) {
       return sig.bind(function(ctx) {
         ctx.accum = []
         ctx.keep = h || MAXDEPTH
-        sig.keep.toArray = function() {
+        sig.keep.value = function() {
           return ctx.accum
         }
         return function keep(v) {

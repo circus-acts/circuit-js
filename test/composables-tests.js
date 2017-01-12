@@ -60,7 +60,7 @@ runTests('composables', function(mock) {
         s.signal([1,2])
         s.signal([3,[4,5]])
         s.signal(6)
-        return Utils.deepEqual(s.keep.toArray(), [1,2,3,4,5,6])
+        return Utils.deepEqual(s.keep.value(), [1,2,3,4,5,6])
     })
 
     test('flatten - flatmap', function(){
@@ -69,7 +69,7 @@ runTests('composables', function(mock) {
         }).keep()
         s.signal([1,2])
         s.signal(3)
-        return Utils.deepEqual(s.keep.toArray(), [2,3,4])
+        return Utils.deepEqual(s.keep.value(), [2,3,4])
     })
 
     test('pluck - 1 key', function() {
@@ -91,9 +91,9 @@ runTests('composables', function(mock) {
     })
 
     test('project', function() {
-        var s = app.channel().project({a:'a.a1',b:'b.b1[1]'})
+        var s = app.channel().project({x:'a.a1',y:'b.b1[1]'})
         s.signal({a:{a1:1},b:{b1:[2,3]}})
-        return Utils.deepEqual(s.value(), {a:1,b:3})
+        return Utils.deepEqual(s.value(), {x:1,y:3})
     })
 
     test('keep - depth', function() {
@@ -101,7 +101,7 @@ runTests('composables', function(mock) {
         s.signal(1)
         s.signal(2)
         s.signal(3)
-        var v = s.keep.toArray()
+        var v = s.keep.value()
         return Utils.deepEqual(v, [2,3])
     })
 
@@ -110,7 +110,7 @@ runTests('composables', function(mock) {
         s.signal(1)
         s.signal(2)
         s.signal(3)
-        return Utils.deepEqual(s.keep.toArray(),[1,2,3])
+        return Utils.deepEqual(s.keep.value(),[1,2,3])
     })
 
     test('skip', function() {
