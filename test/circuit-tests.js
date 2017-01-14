@@ -7,8 +7,8 @@ runTests('circuit', function(mock) {
 	var dbl = function(v){return v+v}
 	var sqr = function(v){return v*v}
 	var seq = function(s){
-		return function(a, v){
-			return (a || v).concat(s)
+		return function(a){
+			return (a || []).concat(s)
 		}
 	}
 	var app

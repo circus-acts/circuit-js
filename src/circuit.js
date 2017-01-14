@@ -235,6 +235,8 @@ function Circuit(cct) {
     }
   })
 
+  // but return something more useful: an API that can create new circuits through
+  // any of the following (wrapped) verbs
   return {
     circuit: function(cct) {return primeInput(circuit.channel().join(cct))},
     join: function(cct) {return circuit.channel().join(cct)},
