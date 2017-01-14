@@ -1,26 +1,26 @@
-import Signal, {fail} from './signal'
-import thunkor from './thunkor'
+import Channel from './channel'
 
 'use strict';
 
-export function Error(signal) {
+export function Error(channel) {
   var _failure
-  signal.fail(function(error) {
-    _failure = _failure || error.message
+  channel.fail(function(error) {
+    _failure = _failure || error
   })
   return {
     active: function(msg) {
-      var signal = this.signal
-      return signal.map(function(v) {
-        return Object.keys(signal.signals).filter(function(k){
-          return !signal.signals[k].value()
-        }).length ? fail(msg) : v
+      return channel.bind(function(ctx) {
+        return function(v) {
+          return Object.keys(channel.channels).filter(function(k){
+            return !channel.channels[k].value()
+          }).length ? ctx.fail(msg) : ctx.next(v)
+        }
       })
     },
-    error: function() {
+    error: function(peek) {
       if (_failure) {
         var v = _failure
-        _failure = false
+        if (!peek) _failure = false
         return v
       }
       return ''
@@ -29,9 +29,14 @@ export function Error(signal) {
 }
 
 export function test(f, m) {
-  return function(v) {
-    return thunkor(f.apply(null,arguments), function(j) {
-      return j? (j===true? v : j) : fail(m)
-    })
-  }
+  return new Channel().bind(function(ctx) {
+    return function(v) {
+      function resolve(r) {
+        return r? ctx.next(r===true? v : r) : ctx.fail(m)
+      }
+      var args = [].slice.call(arguments).concat(resolve)
+      var r = f.apply(null,args)
+      if (r !== undefined) resolve(r, v)
+    }
+  })
 }
