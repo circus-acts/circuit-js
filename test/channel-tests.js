@@ -43,12 +43,6 @@ runTests('channel', function(mock) {
         return s.value() === 2
     })
 
-    test('clone', function(){
-        var c = channel.map(inc).clone()
-        c.signal(1)
-        return c.value() === 2
-    })
-
     test('signal ',function() {
         var s = channel
         s.signal(2)
@@ -201,20 +195,6 @@ runTests('channel', function(mock) {
         s.fail(function(v){r.push(1)})
         s.signal('x')
         return r[0] === 2 && r[1] === 1
-    })
-
-    test('propagation order', function(){
-        var a=new Channel().map(seq(1))
-        var b=new Channel().map(seq(2))
-        var c=new Channel().map(seq(3))
-
-        var s1=new Channel().map(a).map(b).map(c)
-        s1.signal([])
-
-        var s2=new Channel().map(a.clone().map(b.clone().map(c.clone())))
-        s2.signal([])
-
-        return s1.value().toString() === s2.value().toString()
     })
 
     test('getState', function() {

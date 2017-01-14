@@ -101,11 +101,11 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         channel.name = k
         channel.step = ctx.step
         // expose joins and sample channels directly, but reduce merged channels into circuit
-        var signal = sampleOnly || joinOnly? channel.signal : function(v1, v2, v3) {
+        var signal = sampleOnly || joinOnly? channel.signal : function(v, c1, c2) {
           switch (arguments.length) {
-            case 1: return channel.signal(_jp.value(), v1)
-            case 2: return channel.signal(_jp.value(), v1, v2)
-            case 3: return channel.signal(_jp.value(), v1, v2, v3)
+            case 1: return channel.signal(_jp.value(), v)
+            case 2: return channel.signal(_jp.value(), v, c1)
+            case 3: return channel.signal(_jp.value(), v, c1, c2)
           }
           return channel.signal.apply(null, [_jp.value()].concat([].slice.call(arguments)))
         }

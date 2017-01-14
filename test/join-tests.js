@@ -83,15 +83,32 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
-	test('merge', function() {
-		var s1 = channel()
-		var s2 = channel()
-		var m = app.merge({s1,s2})
-		s1.signal(1)
-		var r1 = m.value()
-		s2.signal(2)
-		var r2 = m.value()
-		return r1 === 1 && r2 === 2
+	test('merge - reduce', function(){
+		function r(cv, v) {
+			return cv + v
+		}
+		var m = app.merge({
+			a: r,
+			b: r
+		})
+		m.signal(1)
+		m.signals.a(2)
+		m.signals.b(2)
+
+		return m.value() === 5
+	})
+
+	test('merge - context', function(){
+		var ctx,m = app.merge({
+			a: function(cv, v) {
+				ctx=cv
+				return v
+			}
+		})
+		m.signal('abc')
+		m.signals.a(123)
+
+		return ctx === 'abc' && m.value() === 123
 	})
 
 	test('sample - block', function() {

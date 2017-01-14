@@ -141,19 +141,6 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
-	test('merge - reduce', function(){
-		var ctx,r = app.merge({
-			a: function(cv, v) {
-				ctx=cv
-				return v
-			}
-		})
-		r.signal('abc')
-		r.signals.a(123)
-
-		return ctx==='abc' && r.value()===123
-	})
-
 	test('join - channel identity', function(){
 		var ctx,r = app.join({
 			a: inc

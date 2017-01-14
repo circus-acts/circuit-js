@@ -3,12 +3,6 @@
 var sId = 0
 var halt = {}
 
-// internal signalling tunnel (used for cloning etc)
-var _wrap = function(v) {
-  var _this = this
-  Object.keys(v).forEach(function(k){ _this[k] = v[k]})
-}
-
 // Channel - the object created and returned by Constructor
 function Channel() {
   var sid = ++sId
@@ -19,12 +13,6 @@ function Channel() {
 
   this.id = function(){return _this}
   this.id.signal = true
-
-  var value, args = [].slice.call(arguments)
-  args.forEach(function(a){
-    if (a instanceof _wrap && a.steps) _steps = a.steps
-  })
-
   if (process.env.NODE_ENV==='development') {
     this.$state = _state
     _state.$id = sid
@@ -118,15 +106,6 @@ function Channel() {
   this.value = function() {
     return _state.$value
   }
-
-
-  // Channel A .clone : () -> Channel A'
-  //
-  // Clone a channel into a new context
-  this.clone = function() {
-    return new Channel(new _wrap({steps: _steps}))
-  }
-
 
   // channel .prime : A -> Channel A
   //
@@ -241,11 +220,11 @@ function Channel() {
     // bind f must return a channel or a channel functor
     var b = f(ctx)
     var bf = b.signal || b
-    return lift(function(v1, v2, v3) {
+    return lift(function(v, c1, c2) {
       switch (arguments.length) {
-        case 1: bf(v1); break
-        case 2: bf(v1, v2); break
-        case 3: bf(v1, v2, v3); break
+        case 1: bf(v); break
+        case 2: bf(v, c1); break
+        case 3: bf(v, c1, c2); break
         default: bf.apply(null, arguments)
       }
       return halt
