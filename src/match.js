@@ -1,6 +1,6 @@
 'use strict';
 
-var vMatch = {}, Match = {}, litKey = {}
+var Match = {}, litKey = {}
 
 function maskFn(mf) {
   var lv
@@ -11,11 +11,11 @@ function maskFn(mf) {
   }
 }
 
-function latest(signals) {
-  return Object.keys(signals || {}).reduce(function(a,k) {
-    var i = signals[k].step-1
+function latest(channels) {
+  return Object.keys(channels || {}).reduce(function(a,k) {
+    var i = channels[k].step-1
     a[i] = a[i] || {}
-    a[i][k] = vMatch
+    a[i][k] = true
     return a
   }, []).pop() || false
 }
@@ -30,10 +30,13 @@ function wildCard(keys) {
   return false
 }
 
-function memo(mask, keys, v, m, wv) {
+function memo(mask, keys, v, m, wv, fn) {
   keys.forEach(function(k){
     if (mask[k] === undefined){
-      if (k === '*') {
+      if (fn) {
+        mask[k] = wv === undefined? m === v? true : typeof m[k] === 'function'? maskFn(m[k]) : m[k] : wv
+      }
+      else if (k === '*') {
         memo(mask, Object.keys(v), v, m, m[k])
       }
       else if (k[0] === '*') {
@@ -44,7 +47,7 @@ function memo(mask, keys, v, m, wv) {
         var wk = k.substr(0,k.length-1)
         memo(mask, Object.keys(v).filter(function(vk) {return vk.indexOf(wk) === 0}), v, m, m[k])
       }
-      else mask[k] = wv === undefined? m === v? vMatch : typeof m[k] === 'function'? maskFn(m[k]) : m[k] : wv
+      else mask[k] = wv === undefined? m === v? true : typeof m[k] === 'function'? maskFn(m[k]) : m[k] : wv
     }
   })
   return keys.length
@@ -96,27 +99,31 @@ function match(){
 
   args.forEach(function(a){
     var T=typeof a
-    if (T === 'string') {if (!mask) {mask={}}; mask[a]=vMatch}
+    if (T === 'string') {if (!mask) {mask={}}; mask[a]=true}
     else if (T === 'function' && !keyFn) keyFn=a
     else if (T === 'number' && lBound===undefined) lBound=a
     else if (T === 'number' && lBound!==undefined) uBound=a
     else if (T === 'object' && !a.length) mask=a
   })
 
+  var any = lBound===1 && uBound===-1
+  var block = lBound===1 && uBound===0
+
   return function(ctx) {
     var m = mask || latest(ctx.channel.channels)
     var wc = m && wildCard(Object.keys(m))
     var wcMask = {}
-    if (wc===false) memo(wcMask,Object.keys(m), vMatch, m, undefined)
+    if (wc===false) memo(wcMask,Object.keys(m), {}, m, undefined, !!keyFn)
     var wcKeys = Object.keys(wcMask)
     var lb = lBound === undefined || lBound === -1? wcKeys.length : lBound
     var ub = uBound === undefined || uBound === -1? wcKeys.length : uBound
 
-    return function matcher(v) {
+    return function matcher(v, c1, c2) {
+      var isObj = typeof v ==='object'
       if (wc!==false || !wcKeys.length) {
         m = mask || v
         wcMask = {}
-        memo(wcMask,Object.keys(m), v, m, undefined)
+        memo(wcMask,Object.keys(m), v, m, undefined, !!keyFn)
         wcKeys = Object.keys(wcMask)
         if (!wcKeys.length) {
           wcMask[litKey] = v
@@ -129,23 +136,20 @@ function match(){
       // v* = value...
       // m* = mask...
       var count=0
-      var any = lBound===1 && uBound===-1
-      var block = lBound===0 && uBound===undefined
       for (var i=0; i < wcKeys.length; i++) {
         var mk = wcKeys[i]
-        var vk = keyFn && keyFn(v, mk) || mk
-        var hasK = typeof v ==='object' && v.hasOwnProperty(vk)
-        var bv = hasK && wcMask[mk] === undefined
-        if (!bv) {
-          var vv = hasK? v[vk] : mask? undefined : v
-          var mv = wcMask[mk] === vMatch? vv : wcMask[mk].signal? wcMask[mk].signal : wcMask[mk]
-          bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
+        var vk = typeof v === 'object' && v.hasOwnProperty(mk)
+        var vv = keyFn ? keyFn(mk, vk ? v[mk] : v) : vk ? v[mk] : undefined
+        if (vk || vv !== undefined) {
+          var mv = wcMask[mk] === undefined ? vv : wcMask[mk].signal || wcMask[mk]
+          var bv = typeof mv === 'function'? mv(v, vv, mk) : maskFn(Match.and(mv))(v, vv, mk)
+          count += bv ? 1 : 0
+          // early exit?
+          if (count && (any || block)) break
         }
-        count += bv ? 1 : 0
-        // early exit for any
-        if (any && count) break
       }
-      if (!block && count>=lb && count<=ub) ctx.next(v)
+      if (block && count===0) ctx.next(v)
+      else if (count>=lb && count<=ub) ctx.next(v)
     }
   }
 }
@@ -180,8 +184,8 @@ Match.none = function(m){
 }
 
 // always block
-Match.switch = function(m) {
-  return this.bind(match(m, 0, undefined))
+Match.switch = function(m, fn) {
+  return this.bind(match(m, 1, 0, fn))
 }
 
 // logical match functions operate on current and previous channel values
@@ -196,7 +200,7 @@ Match.switch = function(m) {
     }
   })
 })({
-  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? v === undefined? true : v : false },
+  and: function(v, m) { return v && (m === v || m === true) || !v && m === false? true : false },
   or:  function(v, m) { return v || m },
   xor: function(v, m) { return v && m!==v?  v : !v && m },
   not: function(v, m) { return !v && m || !v}

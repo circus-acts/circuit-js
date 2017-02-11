@@ -10,3 +10,4 @@ require('./composables-tests')
 
 require('./spikes/validation')
 require('./issues')
+require('./examples')

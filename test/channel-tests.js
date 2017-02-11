@@ -232,7 +232,7 @@ runTests('channel', function(mock) {
         return r=== 2
     })
 
-    test('extend', function(){
+    test('import', function(){
         var r, ext = function(sig) {
             return {
                 ext: function() {
@@ -240,11 +240,11 @@ runTests('channel', function(mock) {
                 }
             }
         }
-        channel.extend(ext).ext().signal(1)
+        channel.import(ext).ext().signal(1)
         return r === 1
     })
 
-    test('extend - inheritance', function(){
+    test('import - inheritance', function(){
         var r, ext = function(sig) {
             return {
                 ext: function() {
@@ -252,12 +252,12 @@ runTests('channel', function(mock) {
                 }
             }
         }
-        channel.extend(ext)
+        channel.import(ext)
         channel.channel().channel().ext().signal(1)
         return r === 1
     })
 
-    test('extend - isolated inheritance', function(){
+    test('import - isolated inheritance', function(){
         var r, ext = function(sig) {
             return {
                 ext: function() {
@@ -265,13 +265,13 @@ runTests('channel', function(mock) {
                 }
             }
         }
-        var s1 = channel.channel().extend(ext)
+        var s1 = channel.channel().import(ext)
         var s2 = channel.channel()
         s1.ext().signal(1)
         return s2.ext === undefined && r === 1
     })
 
-    test('extend - override', function(){
+    test('import - override', function(){
         var r, ext = function(sig) {
             var _prime = sig.prime.bind(sig)
             return {
@@ -280,10 +280,10 @@ runTests('channel', function(mock) {
                 }
             }
         }
-        return channel.extend(ext).prime(1).value() === 2
+        return channel.import(ext).prime(1).value() === 2
     })
 
-    test('extend - deep inherit override', function(){
+    test('import - deep inherit override', function(){
         var ext1 = function(sig) {
             var _prime = sig.prime.bind(sig)
             return {
@@ -300,6 +300,6 @@ runTests('channel', function(mock) {
                 }
             }
         }
-        return channel.extend(ext1).channel().extend(ext2).prime(1).value() === 4
+        return channel.import(ext1).channel().import(ext2).prime(1).value() === 4
     })
 })

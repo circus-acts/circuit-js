@@ -19,7 +19,7 @@ runTests('validation', function() {
             email: error.test( email, `please enter a valid email` ),
             password: error.test( required, `please enter your password` )
         })
-        .extend(error.Error)
+        .import(error.Error)
         .sample({login: _ })
         .active('required!')
     })
