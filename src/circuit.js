@@ -1,4 +1,4 @@
-import Channal from './channel'
+import Channel from './channel'
 import Pure from './pure'
 
 'use strict'
@@ -160,7 +160,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
 
 // Circuit API
 
-// signal().merge : ({A}) -> Channal A
+// signal().merge : ({A}) -> Channel A
 //
 // Merge 1 or more input signals into 1 output signal
 // The output signal value will be the latest input signal value
@@ -179,7 +179,7 @@ function merge(circuit) {
 }
 
 
-// circuit().join : ({A}) -> Channal {A}
+// circuit().join : ({A}) -> Channel {A}
 //
 // Join 1 or more input signals into 1 output signal
 // - input signal values will be mapped onto output signal channels
@@ -199,7 +199,7 @@ function join(circuit) {
 }
 
 
-// circuit(A).sample : ({Channal B}) -> Channal {A}
+// circuit(A).sample : ({Channel B}) -> Channel {A}
 //
 // Hold signal propagation until sample input signal(s) raised
 //
@@ -221,7 +221,7 @@ function sample(circuit) {
 function Circuit(cct) {
 
   // a circuit is a channel with join points
-  var circuit = new Channal().extend(function(sig){
+  var circuit = new Channel().import(function(sig){
     return {
       circuit: join,
       join: join,
@@ -241,7 +241,8 @@ function Circuit(cct) {
     merge: function(cct) {return circuit.channel().merge(cct)},
     sample: function(cct) {return circuit.channel().sample(cct)},
     channel: circuit.channel,
-    extend: circuit.extend
+    import: circuit.import,
+    bind: circuit.bind
   }
 }
 

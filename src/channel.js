@@ -219,28 +219,31 @@ function Channel() {
     ctx.fail = short
     // bind f must return a channel or a channel functor
     var b = f(ctx)
-    var bf = b.signal || b
-    return lift(function(v, c1, c2) {
-      switch (arguments.length) {
-        case 1: bf(v); break
-        case 2: bf(v, c1); break
-        case 3: bf(v, c1, c2); break
-        default: bf.apply(null, arguments)
-      }
-      return halt
-    })
+    if (b) {
+      var bf = b.signal || b
+      lift(function(v, c1, c2) {
+        switch (arguments.length) {
+          case 1: bf(v); break
+          case 2: bf(v, c1); break
+          case 3: bf(v, c1, c2); break
+          default: bf.apply(null, arguments)
+        }
+        return halt
+      })
+    }
+    return _this
   }
 
-  // channel.extend : (Channel -> {A}) -> Channel
+  // channel.import : (Channel -> {A}) -> Channel
   //
-  // extend a channel with a custom step (or steps)
+  // import custom steps into channel context
   // Note: chainable steps must return channel
   var _ext = []
-  this.extend = function(e) {
+  this.import = function(e) {
     _ext.push(e)
     if (typeof e === 'function') e = e(_this)
     Object.keys(e).forEach(function(k){
-      if (typeof e[k] ==='object') _this.extend(e[k])
+      if (typeof e[k] ==='object') _this.import(e[k])
       else {
         _this[k] = e[k]
       }
@@ -254,7 +257,7 @@ function Channel() {
   this.channel = function() {
     var s = new Channel()
     for (var i = 0; i < _ext.length; i++) {
-      s.extend(_ext[i])
+      s.import(_ext[i])
     }
     return s
   }

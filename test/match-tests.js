@@ -6,14 +6,14 @@ runTests('match', function(mock) {
 
     var app, sig, inc = function(v){return v+1}
     setup(function(){
-        app = new Circuit().extend(Match)
+        app = new Circuit().import(Match)
         sig = app.channel()
     })
 
-    test('match - pass truthy literal', function() {
+    test('match - block truthy literal', function() {
         var r, v=1
         sig.match().tap(function(v){r=v}).signal(v)
-        return r === v
+        return r !== v
     })
 
     test('match - block falsey literal', function() {
@@ -28,16 +28,32 @@ runTests('match', function(mock) {
         return Utils.equal(r, v)
     })
 
+    test('match - block falsey object', function() {
+        var r, v={a:false,b:2}
+        sig.match().tap(function(v){r=v}).signal(v)
+        return r === undefined
+    })
+
+    test('match - pass truthy key value', function() {
+        var r, kv=function(k, v) {
+            return k === 'a' && v
+        }
+        sig.match({a:1}, kv).tap(function(v){r=1}).signal(1)
+        return r === 1
+    })
+
+    test('match - block falsey key value', function() {
+        var r, kv=function(k, v) {
+            return k === 'a' && v
+        }
+        sig.match({a:2}, kv).tap(function(v){r=1}).signal(1)
+        return r === undefined
+    })
+
     test('match - pass object with some', function() {
         var r, v={a:false,b:2}
         sig.match(1, -1).tap(function(v){r=v}).signal(v)
         return Utils.equal(r, v)
-    })
-
-    test('match - block object with all', function() {
-        var r, v={a:false,b:2}
-        sig.match().tap(function(v){r=v}).signal(v)
-        return r === undefined
     })
 
     test('match - pass mask', function() {
@@ -117,11 +133,11 @@ runTests('match', function(mock) {
     })
 
     test('match - fn key match', function() {
-        var r,v = {c1:1,c2:2,c3:3}
-        var kmatch = function(a, k) {
-            return a === v && k==='x' && 'c1'
+        var r,v = {c1:1,c2:2,c3:0}
+        var kmatch = function(k, mv) {
+            return k==='x' && mv.c1 || k==='y' && mv.c3
         }
-        sig.match({'x':true, 'y': false}, kmatch).tap(function(v){r=v}).tap(function(v){r=v}).signal(v)
+        sig.match({'x':true, 'y': false}, kmatch).tap(function(v){r=v}).signal(v)
         return Utils.equal(r, v)
     })
 
@@ -130,8 +146,8 @@ runTests('match', function(mock) {
         sig.match({x:function(a, c){
             return a === v && c===1 && 2
         }},
-        function(a, k){
-            return k==='x' && 'c1'
+        function(k, mv){
+            return k==='x' && mv.c1
         })
         .tap(function(v){r=v}).signal(v)
         return assert(r,v,Utils.equal)
@@ -262,20 +278,26 @@ runTests('match', function(mock) {
 
     test('any - pass on first value', function() {
         var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
-        app.any({a,b,c}).signal(true)
+        app.any({a,b,c}).signal({a: true, b: true, c: true})
         return r === 1
     })
 
     test('some - pass on matched values', function() {
         var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
-        app.some({a,b,c}).signal(true)
+        app.some({a,b,c}).signal({a: true, b: true, c: true})
         return r === 2
     })
 
-    test('switch - block on passed value', function() {
+    test('switch - block on matched key value', function() {
         var r, a = () => r = 0, b = () => r = 1, c = () => r = 2
-        app.switch({a,b,c}).tap(() => r = 3).signal(true)
+        app.switch({a,b,c}).tap(() => r = 3).signal({c:true})
         return r === 2
+    })
+
+    test('switch - pass on unmatched key value', function() {
+        var r, a = () => r = 0, b = () => r = 0, c = () => r = 0
+        app.switch({a,b,c}).tap(() => r = 3).signal({c:false})
+        return r === 3
     })
 
     test('one - pass on only one', function() {
@@ -305,7 +327,7 @@ runTests('match', function(mock) {
         var fn = function(v) {return v === 1}
         var r=0, s1 = sig.any({a:Match.and(fn)}).tap(()=> r++)
         s1.signal({a:1})
-        s1.signal({a:0})
+        s1.signal({a:2})
         return s1.value().a === 1 && r === 1
     })
 

@@ -203,17 +203,17 @@ runTests('circuit', function(mock) {
 		return Utils.deepEqual(r.getState(), r.$state)
 	})
 
-    test('extend - app', function(){
-        var app1 = new Circuit().extend(function(){return {c:true}})
+    test('import - app', function(){
+        var app1 = new Circuit().import(function(){return {c:true}})
         var app2 = new Circuit()
 
         return app1.channel().c && !app2.channel().c
     })
 
-    test('extend - app + signal context', function(){
+    test('import - app + signal context', function(){
         var r1,r2,circuit = new Circuit()
-        circuit.extend(function(c1){r1=c1;return {b:true}})
-        circuit.extend(function(c2){r2=c2;return {c:true}})
+        circuit.import(function(c1){r1=c1;return {b:true}})
+        circuit.import(function(c2){r2=c2;return {c:true}})
         var s = circuit.channel()
         return r1===s && r2===s
     })

@@ -10,26 +10,26 @@ npm install --save circuit-js
 ```
 
 ## The basics
-Circuit-js uses standard object syntax to define connectible signal channels that propagate data state changes though a circuit. What this means is that functions can be connected together by lifting them into channels which in turn are connected together to create circuits.
+Circuit-js uses standard object syntax to define connectible signal channels that propagate data state changes though a circuit. What this means is that functions can be connected together by lifting them into channels which in turn are connected together to create circuits. When values are signalled on a circuit, they are propagated through to the functions lifted into them.
 
 ### Signals, channels and circuits
-Lets create a couple of robust functions called *dbl* and *log*:
+Lets create a couple of simple functions called *dbl* and *log*...
 
 `dbl = v => v + v`<br/>
-`log = v = > console.log(v)`
+`log = v => console.log(v)`
 
-and lift them both into a channel, one after the other...
+...and lift them both into a channel, one after the other...
 
-`channel1 = new Channel().map(inc).tap(log)`
+`channel1 = new Channel().map(dbl).tap(log)`
 
 When the channel is signalled, the signal value is propagated through the functions...
 
-`channel1.signal('ho') // logs => "hehe"`
+`channel1.signal('ho') // maps 'ho' onto 'hoho' (by doubling it) and then logs => hoho`
 
 This channel can be connected to other channels to create a circuit...
 
 ```
-channel2 = new Channel().map(inc).tap(log)
+channel2 = new Channel().map(dbl).tap(log)
 
 circuit = new Circuit().join({
   channel1,
@@ -41,71 +41,38 @@ This circuit is also a channel. Functions can be lifted into it just as before..
 
 `circuit.tap(log)`
 
-Now, when either of the channels is signalled, the circuit will output two logs!
+When channels are added to a circuit, they are bound to a circuit context and should no longer be accessed directly. To signal a channel in a circuit use the following syntax:
 
 ```
-channel2.signal('he') // logs..
- => 'hehe'
- => {channel1: undefined, channel2: 'hehe'}
-
+circuit.signals.channel2('he') // logs..
+ => hehe
+ => {channel1: 'hoho', channel2: 'hehe'}
 ```
-
-### State
-An important feature of circuits is that they preserve state. So, signalling channel1 again...
-
-```
-channel1.signal('ho') // logs..
- => 'hoho'
- => {channel1: 'hoho, channel2: 'hehe'}
-```
-
-...adds the new signalled value to the current circuit state.
+Now, when either of the channels is signalled, the circuit will output two logs - one for the channel and one for the circuit!
 
 ### Join-points
-When channels are connected together they form a joinpoint. The ***join*** join-point used above preserves the channel structure when signals propagate through it.
+When channels are connected together in a circuit they form a joinpoint. The ***join*** join-point used above preserves the channel structure when signals propagate through it. This is why the structure of the value logged by the circuit reflects the structure of the joinpoint connected to it.
 
-Another kind of join-point is called ***merge***. When channels are merged together, propagated values lose their channel structure and instead, are reduced into the parent channel. Functions lifted into a merged channel will receive the parent channel value as well as the signalled value, so a new signature is required.
+Another kind of join-point is called ***merge***. When channels are merged together, propagated values lose their channel structure and instead, are folded into the parent channel. To facilite this behaviour, functions lifted into a merged channel receive the parent channel value which acts as an accumulator, as well as the signalled value. So a new signature is required:
 
 ```
-// new signature takes parent value and original signalled value
-dbl = (pv = '', v) => pv + v + v
+// new signature takes parent value and signalled value
+dblUp = (pv = '', sv) => pv + dbl(sv)
 
-channel1 = new Channel().map(dbl)
-channel2 = new Channel().map(dbl)
+channel1 = new Channel().map(dblUp)
+channel2 = new Channel().map(dblUp)
 
 circuit = new Circuit().merge({
   channel1,
   channel2
-}).map(log)
+}).tap(log)
 ```
-
-Signalling channel1, and then channel 2, produces a different output. The structure preserved by the ***join*** has been replaced by the merged values returned by most recent channel signal...
-
-```
-channel1.signal('ho') // logs => 'hoho'
-channel2.signal('he') // logs => 'hohohehe'
-```
-
-Notice that the lifted function is still being mapped over the signal value. This is because in a merged channel, the parent value is now the propagating signal and the originating signal value is purely contextual. A new channel will help to explain this behaviour:
+Signalling `channel1`, and then `channel2`, produces a different output. The structure preserved by the join has been replaced by the merged values returned by most recent channel.
 
 ```
-circuit = new Circuit().merge({
-  channel1,
-  channel2,
-  channel3: new Channel().map(dbl).map(dbl).tap(log) // 2 maps!
-}).map(log)
-
-channel1.signal('ho') // logs => 'hoho'
-channel2.signal('he') // logs => 'hohohehe'
-channel3.signal('ha') // logs => 'hohohehehahahaha'
+circuit.signals.channel1('ho') // logs => hoho
+circuit.signals.channel2('he') // logs => hohohehe
 ```
-
-The first mapping in channel3 takes the parent signal value ```hohohee``` and adds ```ha + ha```. The second mapping takes the propagated value  ```hohohehehaha``` and again applies ```ha + ha```.
-
-All circuit lift functions share this behaviour; they all have the same signature ``` (v, ...context)```, and any context values are preserved through propagation.
-
-This is *serious* stuff - there's nothing funny about it at all!
-
 
 ## A working app
 
@@ -141,8 +108,8 @@ const view = ({items}) => {
 const app = component => render(component, document.querySelector('#todo'))
 
 // A circuit to pull it all together.
-const {circuit, merge} = new Circuit()
-const todos = circuit.join({
+const {join, merge} = new Circuit()
+const todos = join({
   items: merge({add, remove})
 })
 
@@ -157,7 +124,7 @@ todos.signal({items: ['first entry']})
 There are three channels, and consequently three signals in this app: *add*, *remove* and *items*, each correlating to a function on the object passed in to the circuit:
 
 ```javascript
-const todos = circuit.join({
+const todos = join({
   items: merge({
     add,
     remove
@@ -165,7 +132,7 @@ const todos = circuit.join({
 })
 ```
 
-Channels hold values in their state, and signals *change* the state of channel values. An application therefore binds to a circuit's signals to add values, and maps or taps into the channels to read off the latest signal values.
+Channels hold values in their state, and signals *change* the state of channel values. An application signals a circuit channel to add or change values, and maps or taps into a channelsto read off its latest signal values.
 
 Looking to the view, for a user to enter a new todo, the input field has been bound to the ***add*** signal:
 
@@ -175,10 +142,11 @@ Similarly, to remove an item the button is bound to the ***remove*** signal:
 
 ```<button onClick={() => remove(i)}>x</button>```
 
-The circuit is activated when either of these signals is raised. When this happens the circuit delivers the bound values to the channelled functions and *these* return their values back into the circuit!
+The circuit is activated when either of these signals is raised. When this happens the circuit delivers the signalled values to the channelled functions and *these* return their values back into the circuit.
 
 The circuit ***todos*** maps these values over the view, and taps *this* output (a React component) into the app. React takes control here...
 
+### Signal propagation
 Where do propagating values end up? They bubble up through the circuit. The ***add*** channel value is merged into the ***items***  channel. The items channel value is joined to the ***circuit***, and the circuit channel value is mapped and tapped over the view and app functions respectively.
 
 A signal propagation diagram shows what is happening in this circuit:

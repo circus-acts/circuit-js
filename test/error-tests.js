@@ -7,7 +7,7 @@ runTests('error', function(mock) {
 
     var app
     setup(function(){
-        app = new Circuit().extend(error.Error)
+        app = new Circuit().import(error.Error)
     })
 
     test('test - true', function() {

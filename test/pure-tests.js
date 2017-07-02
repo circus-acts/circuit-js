@@ -49,16 +49,16 @@ runTests('pure', function(mock) {
         return r === 1
     })
 
-    test('extend Pure',function() {
-        var r=0, s = channel.extend(Pure).pure().tap(function(){r++})
+    test('import Pure',function() {
+        var r=0, s = channel.import(Pure).pure().tap(function(){r++})
         s.signal(1)
         s.signal(1)
         return r===1
     })
 
-    test('extend Pure - diff', function() {
+    test('import Pure - diff', function() {
         var r=0, diff = function(v1, v2) {return v1 !== v2 - 1}
-        var s = channel.extend(Pure(diff)).pure().tap(function(){r++})
+        var s = channel.import(Pure(diff)).pure().tap(function(){r++})
         s.signal(1)
         s.signal(2)
         return r === 1

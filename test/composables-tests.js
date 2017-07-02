@@ -9,7 +9,7 @@ runTests('composables', function(mock) {
 
     var app
     setup(function(){
-        app = new Circuit().extend(Composables)
+        app = new Circuit().import(Composables)
     })
 
     test('always',function() {
