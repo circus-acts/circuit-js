@@ -141,6 +141,18 @@ runTests('circuit', function(mock) {
 		return a.value()===123
 	})
 
+	test('prime - signal', function(){
+		var r, a=app.channel().feed(function(v) {r=v})
+		app.join({
+			b: {
+				a: a
+			}
+		}).prime({b:{a:123}})
+		a.signal()
+
+		return r===123
+	})
+
 	test('join - channel identity', function(){
 		var ctx,r = app.join({
 			a: inc

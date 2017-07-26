@@ -22,30 +22,34 @@ function Channel() {
   function propagate(v, c1, c2) {
     var args = arguments.length
     for (var i = _step; i < _steps.length && v !== halt; i++) {
+      var s =  _steps[i].signal, f = s || _steps[i]
       switch(args) {
-        case 1: v = _steps[i](v); break
-        case 2: v = _steps[i](v, c1); break
-        case 3: v = _steps[i](v, c1, c2); break
-        default: v = _steps[i].apply(null, [v].concat([].slice.call(arguments, 1)))
+        case 0: s && s(); break
+        case 1: v = f(v); break
+        case 2: v = f(v, c1); break
+        case 3: v = f(v, c1, c2); break
+        default: v = f.apply(null, [v].concat([].slice.call(arguments, 1)))
       }
     }
 
     if (v === halt) {
       return undefined
     }
-    _state.$value = v
+    if (args) {
+      _state.$value = v
+    }
     for (var t = 0; t < _feeds.length; t++) {
-      _feeds[t](v)
+      _feeds[t](_state.$value)
     }
     if (_pulse !== Channel.id) {
       _state.$value = _pulse
     }
-    return v
+    return _state.$value
   }
 
   // lift a function or signal into functor scope
   function lift(f) {
-    _steps.push(f.signal || f)
+    _steps.push(f)
     return _this
   }
 
