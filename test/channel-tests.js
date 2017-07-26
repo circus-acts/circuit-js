@@ -69,6 +69,18 @@ runTests('channel', function(mock) {
         return s.value() === undefined
     })
 
+    test('signal - propagate',function() {
+        var r, s = channel.tap(function(){r=true})
+        s.signal(1)
+        return r
+    })
+
+    test('signal - dont propagate ',function() {
+        var r, s = channel.tap(function(){r=true})
+        s.signal()
+        return !r
+    })
+
     test('signal - impure',function() {
         var r=0, s = channel.tap(function(){r++})
         s.signal(1)
@@ -87,6 +99,25 @@ runTests('channel', function(mock) {
         var s2 = channel.channel().feed(s1)
         s2.signal(2)
         return s1.value() === 3
+    })
+
+    test('feed - empty signal', function() {
+        var r, s2 = channel.channel().feed(function() {r=true})
+        s2.signal()
+        return r
+    })
+
+    test('feed - empty signal, state value', function() {
+        var r, s2 = channel.channel().prime(1).feed(function(v) {r=v})
+        s2.signal()
+        return r === 1
+    })
+
+    test('feed - empty signal, nested signal', function() {
+        var r, s1 = channel.prime(1).feed(function(v) {r=v})
+        var s2 = channel.channel().map(s1)
+        s2.signal()
+        return r === 1
     })
 
     test('tap',function() {
@@ -227,8 +258,8 @@ runTests('channel', function(mock) {
             }
         }
         var s = channel.bind(b).tap(v => r=v)
-        s.signal()
-        s.signal()
+        s.signal(1)
+        s.signal(1)
         return r=== 2
     })
 
