@@ -47,6 +47,22 @@ function Channel() {
     return _state.$value
   }
 
+  function fanOut(bf) {
+    return function (v, c1, c2) {
+      var args = arguments.length
+      return Object.keys(bf).reduce(function(a, k) {
+        var f = bf[k].signal || bf[k]
+        switch(args) {
+          case 1: a[k] = f(v); break
+          case 2: a[k] = f(v, c1); break
+          case 3: a[k] = f(v, c1, c2); break
+          default: a[k] = f.apply(null, [v].concat([].slice.call(arguments, 1)))
+        }
+        return a
+      }, {})
+    }
+  }
+
   // lift a function or signal into functor scope
   function lift(f) {
     _steps.push(f)
@@ -133,12 +149,6 @@ function Channel() {
   }
 
 
-  // Channel A .map : (A -> B) -> Channel B
-  //
-  // Map over the current signal value
-  this.map = lift
-
-
   // Channel A .fail : (F -> F(M)) -> Channel A
   //
   // Register a fail handler.
@@ -160,6 +170,16 @@ function Channel() {
     return this
   }
 
+
+  // Channel A .map : (A -> B) -> Channel B
+  //
+  // Map over the current signal value
+  this.map = function(f) {
+    if (typeof f === 'object' && !f.signal) {
+      f = fanOut(f)
+    }
+    return lift(f)
+  }
 
   // Channel A .filter : (A -> boolean) -> channel A | HALT
   //

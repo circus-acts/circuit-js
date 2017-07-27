@@ -161,6 +161,15 @@ runTests('channel', function(mock) {
         return channel.value() === 12
     })
 
+    test ('map - fanout', function() {
+        var s = channel.map({
+            c1: inc,
+            c2: mul3
+        }).signal(1)
+
+        return Utils.deepEqual(s, {c1: 2, c2: 3})
+    })
+
     test('filter', function(){
         var r=0, s = channel.filter(function(v){
             return v % 2
