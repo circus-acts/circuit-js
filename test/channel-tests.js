@@ -169,9 +169,9 @@ runTests('channel', function(mock) {
         return r === 2
     })
 
-    test('fold', function() {
+    test('reduce', function() {
         var e = 'xyz'
-        var s = channel.fold(function(a, v){
+        var s = channel.reduce(function(a, v){
             return a+v
         },6).tap(function(v){
             e = v

@@ -172,10 +172,10 @@ function Channel() {
     })
   }
 
-  // channel .fold : ((A, B) -> A, A) -> Channel A
+  // channel .reduce : ((A, B) -> A, A) -> Channel A
   //
-  // Continuously fold incoming signal values into an accumulated state value.
-  this.fold = function(f, accum) {
+  // Continuously reduce incoming signal values into an accumulated state value.
+  this.reduce = function(f, accum) {
     return lift(function(v){
       var args = [accum].concat([].slice.call(arguments))
       accum = f.apply(null,args)
