@@ -90,7 +90,7 @@ function getState(s) {
   }
 }
 
-function joinPoint(sampleOnly, assignOnly, latch, circuit) {
+function joinPoint(sampleOnly, assignOnly, latch, merge, circuit) {
   return function (ctx) {
     var _jp = ctx.channel
     ctx.step = (ctx.step || 0) + 1
@@ -114,7 +114,7 @@ function joinPoint(sampleOnly, assignOnly, latch, circuit) {
         // be taken not to overwrite existing channels with the same name.
         // So, duplicate signals are lifted, upstream, into the existing channel.
         if (!channels[k]) {
-          channels[k] = channel.feed(merge(k)).fail(ctx.fail)
+          channels[k] = channel.feed(into(k)).fail(ctx.fail)
           signals[k] = _jp.signal[k] = signal
           Object.keys(channel.signal).forEach(function(k) {
             if (typeof channel.signal[k] === 'function') signal[k] = channel.signal[k]
@@ -131,12 +131,12 @@ function joinPoint(sampleOnly, assignOnly, latch, circuit) {
       joinPoints.push(channel)
     })
 
-    function merge(k) {
+    function into(k) {
       return function(v) {
         var jv = assignOnly && joinPoints.reduce(function(jv, s) {
           jv[s.name] = s.value()
           return jv
-        }, {}) || v
+        }, merge? _jp.value() : {}) || v
         // need to take the value when no primary state available. Worth warning about..
         // todo: re-evaluate after priming has been fixed to state
         if (process.env.NODE_ENV==='development') {
@@ -181,7 +181,7 @@ function joinPoint(sampleOnly, assignOnly, latch, circuit) {
 //    channelB.signal(20)
 //
 function fold(circuit) {
-  return this.bind(joinPoint(false, false, false, circuit))
+  return this.bind(joinPoint(false, false, false, false, circuit))
 }
 
 // channel().latch : ({A}) -> Channel A
@@ -200,7 +200,7 @@ function fold(circuit) {
 //    circuit.signal()
 //
 function latch(circuit) {
-  return this.bind(joinPoint(false, false, true, circuit))
+  return this.bind(joinPoint(false, false, true, false, circuit))
 }
 
 
@@ -220,7 +220,28 @@ function latch(circuit) {
 //    channelB.signal(20)
 //
 function assign(circuit) {
-  return this.bind(joinPoint(false, true, false, circuit))
+  return this.bind(joinPoint(false, true, false, false, circuit))
+}
+
+// circuit().merge : ({A}) -> Channel {A}
+//
+// merge 1 or more input signals into 1 output signal
+// - input signal values will be mapped onto output signal channels
+// - duplicate channels will be folded
+// - existing channels will be preserved or folded
+//
+// example:
+//    circuit.assign({
+//      A: channelA
+//      B: channelB
+//    }).tap(log) // -> {A: 10, B, 20, C: 30}
+//
+//    circuit.signal({C: 30})
+//    channelA.signal(10)
+//    channelB.signal(20)
+//
+function merge(circuit) {
+  return this.bind(joinPoint(false, true, false, true, circuit))
 }
 
 
@@ -239,7 +260,7 @@ function assign(circuit) {
 //    channelB.signal(true)
 //
 function sample(circuit) {
-  return this.bind(joinPoint(true, false, false, circuit))
+  return this.bind(joinPoint(true, false, false, false, circuit))
 }
 
 // Construct a new circuit builder
@@ -250,6 +271,7 @@ function Circuit(cct) {
     return {
       circuit: assign,
       assign: assign,
+      merge: merge,
       fold: fold,
       latch: latch,
       sample: sample,
@@ -264,6 +286,7 @@ function Circuit(cct) {
   return {
     circuit: function(cct) {return primeInput(circuit.channel().assign(cct))},
     assign: function(cct) {return circuit.channel().assign(cct)},
+    merge: function(cct) {return circuit.channel().merge(cct)},
     fold: function(cct) {return circuit.channel().fold(cct)},
     latch: function(cct) {return circuit.channel().latch(cct)},
     sample: function(cct) {return circuit.channel().sample(cct)},

@@ -26,6 +26,20 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:2})
 	})
 
+	test('merge - channels', function() {
+		var s1 = channel()
+		var s2 = channel()
+		var j = app.merge({
+			k1:s1,
+			k2:s2
+		})
+		j.signal({k3: 3})
+		s1.signal(1)
+		s2.signal(2)
+		var r = j.value()
+		return Utils.deepEqual(r,{k1:1,k2:2, k3:3})
+	})
+
 	test('signals - auto name spacing', function() {
 		var j = {
 			a: {
