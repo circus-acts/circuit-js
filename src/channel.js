@@ -166,7 +166,10 @@ function Channel() {
   // The handler will be called after successful propagation.
   // The value passed to the handler will be the state value.
   this.feed = function(f) {
-    _feeds.push(f.signal || f)
+     if (typeof f === 'object' && !f.signal) {
+      f = fanOut(f)
+    }
+   _feeds.push(f.signal || f)
     return this
   }
 

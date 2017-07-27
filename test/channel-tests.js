@@ -120,6 +120,17 @@ runTests('channel', function(mock) {
         return r === 1
     })
 
+    test ('feed - fanout', function() {
+        var c1 = channel.channel()
+        var c2 = channel.channel()
+        var s = channel.feed({
+            c1,
+            c2
+        }).signal(1)
+
+        return c1.value() === 1 && c2.value() === 1
+    })
+
     test('tap',function() {
         var e = 'xyz'
         var s = channel.tap(function(v){
