@@ -29,15 +29,15 @@ function toSignal(app, s) {
 // overlay circuit behaviour aligned on channel inputs
 function overlay(s) {
   return function overlay (g) {
-    Object.keys(g).forEach(function(k) {
+    return s.channel().assign(Object.keys(g).reduce(function(a, k) {
       var o = g[k]
       if (o.signal || typeof o === 'function') {
-        s.channels[k].map(o)
+        a[k] = toSignal(s, o)
+        s.channels[k].feed(a[k])
       }
-      else if (o) s.channels[k].overlay(o)
-
-    })
-    return s
+      else if (o) a[k] = s.channels[k].overlay(o)
+      return a
+    }, {}))
   }
 }
 

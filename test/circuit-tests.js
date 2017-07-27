@@ -167,44 +167,67 @@ runTests('circuit', function(mock) {
 	})
 
 	test('overlay - placeholder', function(){
-		var o = {a:inc}
-		var c = app.assign({a:Channel.id}).overlay(o)
+		var s = {a:inc}
+		var c = app.assign({a:Channel.id})
+		var o = c.overlay(s)
 		c.signals.a(1)
-		return c.channels.a.value() === 2
+		return o.channels.a.value() === 2
 	})
 
 	test('overlay', function(){
 		var b = app.channel().map(dbl)
-		var o = {a:inc}
-		var c = app.assign({a:b}).overlay(o)
+		var s = {a:inc}
+		var c = app.assign({a:b})
+		var o = c.overlay(s)
 		c.signals.a(1)
-		return c.channels.a.value() === 3
+		return o.channels.a.value() === 3
 	})
 
 	test('overlay - sample', function(){
 		var a = app.channel()
 		var b = app.channel()
-		var o = {a:inc,b:inc}
-		var c = app.assign({a:a}).sample({b:b}).overlay(o)
+		var s = {a:inc,b:inc}
+		var c = app.assign({a:a}).sample({b:b})
+		var o = c.overlay(s)
 		c.signals.a(1)
 		c.signals.b(1)
-		return c.channels.a.value() === 2 && c.channels.b.value() === 2
+		return o.channels.a.value() === 2 && o.channels.b.value() === 2
 	})
 
 	test('overlay - signal', function(){
 		var b = app.channel().map(dbl)
-		var o = {a:app.channel().map(inc)}
-		var c = app.assign({a:b}).overlay(o)
+		var s = {a:app.channel().map(inc)}
+		var c = app.assign({a:b})
+		var o = c.overlay(s)
 		c.signals.a(1)
-		return c.channels.a.value() === 3
+		return o.channels.a.value() === 3
+	})
+
+	test('overlay - map', function(){
+		var b = app.channel().map(dbl)
+		var s = {a:inc}
+		var c = app.assign({a:b})
+		var o = c.overlay(s)
+		c.signals.a(1)
+		return Utils.deepEqual(o.value(), {a: 3})
 	})
 
 	test('overlay - deep', function(){
 		var b = app.channel()
-		var o = {a:{a:{a:inc}}}
-		var c = app.assign({a:{a:{a:b}}}).overlay(o)
+		var s = {a:{a:{a:inc}}}
+		var c = app.assign({a:{a:{a:b}}})
+		var o = c.overlay(s)
 		c.signals.a.a.a(1)
-		return c.channels.a.channels.a.channels.a.value() === 2
+		return o.channels.a.channels.a.channels.a.value() === 2
+	})
+
+	test('overlay - deep map', function(){
+		var b = app.channel()
+		var s = {a:{a:{a:inc}}}
+		var c = app.assign({a:{a:{a:b}}})
+		var o = c.overlay(s)
+		c.signals.a.a.a(1)
+		return Utils.deepEqual(o.value(), {a: {a: {a: 2}}})
 	})
 
 	test('getState', function() {
