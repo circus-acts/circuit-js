@@ -15,7 +15,7 @@ runTests('validation', function() {
     setup(function(){
 
         // export a circuit
-        circuit = new Circuit().join({
+        circuit = new Circuit().assign({
             email: error.test( email, `please enter a valid email` ),
             password: error.test( required, `please enter your password` )
         })

@@ -19,7 +19,7 @@ function diff(v1,v2) {
 
 function toSignal(app, s) {
   if (!s || !s.signal) {
-    var v = s, fmap = typeof s === 'object' ? 'join' : 'map'
+    var v = s, fmap = typeof s === 'object' ? 'assign' : 'map'
     if (typeof s !== 'function' && fmap==='map') s = function() {return v}
     s = app.channel()[fmap](s)
   }
@@ -82,7 +82,7 @@ function getState(s) {
   var _getState = s.getState.bind(s)
   return function getState(raw) {
     var state = _getState(raw)
-    if (state.join && !raw) state.$value = Object.keys(s.channels).reduce(function(v, k) {
+    if (state.assign && !raw) state.$value = Object.keys(s.channels).reduce(function(v, k) {
       v[k] = s.channels[k].getState()
       return v
     }, {})
@@ -90,7 +90,7 @@ function getState(s) {
   }
 }
 
-function joinPoint(sampleOnly, joinOnly, circuit) {
+function joinPoint(sampleOnly, assignOnly, circuit) {
   return function (ctx) {
     var _jp = ctx.channel
     ctx.step = (ctx.step || 0) + 1
@@ -101,7 +101,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         channel.name = k
         channel.step = ctx.step
         // expose joins and sample channels directly, but reduce folded channels into circuit
-        var signal = sampleOnly || joinOnly? channel.signal : function(v, c1, c2) {
+        var signal = sampleOnly || assignOnly? channel.signal : function(v, c1, c2) {
           switch (arguments.length) {
             case 1: return channel.signal(_jp.value(), v)
             case 2: return channel.signal(_jp.value(), v, c1)
@@ -124,7 +124,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         }
       }
       // channel is just a signal identity and is only useful as a passive channel.
-      else if (joinOnly) {
+      else if (assignOnly) {
         channel = {name: k, value: channel().value}
       }
       joinPoints.push(channel)
@@ -132,7 +132,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
 
     function fold(signal) {
       return function(v) {
-        var jv = joinOnly && joinPoints.reduce(function(jv, s) {
+        var jv = assignOnly && joinPoints.reduce(function(jv, s) {
           jv[s.name] = s.value()
           return jv
         }, {}) || v
@@ -179,14 +179,14 @@ function fold(circuit) {
 }
 
 
-// circuit().join : ({A}) -> Channel {A}
+// circuit().assign : ({A}) -> Channel {A}
 //
-// Join 1 or more input signals into 1 output signal
+// assign 1 or more input signals into 1 output signal
 // - input signal values will be mapped onto output signal channels
 // - duplicate channels will be folded
 //
 // example:
-//    join({
+//    assign({
 //      A: signalA
 //      B: signalB
 //    }).tap(log) // -> {A: 10, B, 20}
@@ -194,7 +194,7 @@ function fold(circuit) {
 //    signalA.signal(10)
 //    signalB.signal(20)
 //
-function join(circuit) {
+function assign(circuit) {
   return this.bind(joinPoint(false, true, circuit))
 }
 
@@ -223,8 +223,8 @@ function Circuit(cct) {
   // a circuit is a channel with join points
   var circuit = new Channel().import(function(sig){
     return {
-      circuit: join,
-      join: join,
+      circuit: assign,
+      assign: assign,
       fold: fold,
       sample: sample,
       pure: Pure(diff),
@@ -236,8 +236,8 @@ function Circuit(cct) {
   })
 
   return {
-    circuit: function(cct) {return primeInput(circuit.channel().join(cct))},
-    join: function(cct) {return circuit.channel().join(cct)},
+    circuit: function(cct) {return primeInput(circuit.channel().assign(cct))},
+    assign: function(cct) {return circuit.channel().assign(cct)},
     fold: function(cct) {return circuit.channel().fold(cct)},
     sample: function(cct) {return circuit.channel().sample(cct)},
     channel: circuit.channel,

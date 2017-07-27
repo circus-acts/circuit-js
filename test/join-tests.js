@@ -13,10 +13,10 @@ runTests('join', function(mock) {
 		channel = app.channel
 	})
 
-	test('join - channels', function() {
+	test('assign - channels', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
+		var j = app.assign({
 			k1:s1,
 			k2:s2
 		})
@@ -34,16 +34,16 @@ runTests('join', function(mock) {
 				}
 			}
 		}
-		var s = app.join(j)
+		var s = app.assign(j)
 		s.signals.a.b.c(123)
 		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
 	})
 
-	test('join - nested join points', function() {
+	test('assign - nested join points', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
-			k1:app.join({
+		var j = app.assign({
+			k1:app.assign({
 				k2:s2
 			})
 		})
@@ -53,12 +53,12 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:{k2:2}})
 	})
 
-	test('join - join point auto binding', function() {
-		var join = app.join
+	test('assign - join point auto binding', function() {
+		var assign = app.assign
 		var s1 = channel()
 		var s2 = channel()
-		var j = join({
-			k1:join({
+		var j = assign({
+			k1:assign({
 				k2:s2
 			})
 		})
@@ -71,7 +71,7 @@ runTests('join', function(mock) {
 	test('join - object hash syntax', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
+		var j = app.assign({
 			k1:s1,
 			k2:{
 				k3:s2

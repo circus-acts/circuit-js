@@ -12,7 +12,7 @@ runTests('exaples', function() {
 
 		const channel2 = new Channel().map(dbl).tap(log)
 
-		const circuit = new Circuit().join({
+		const circuit = new Circuit().assign({
 			channel1,
 			channel2
 		})

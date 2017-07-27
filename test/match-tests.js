@@ -183,7 +183,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).all(mask).tap(function(v){r=v})
+        app.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s1.signal(1)
         return Utils.equal(r, {s1:1, s2:undefined})
     })
@@ -194,7 +194,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).all(mask).tap(function(v){r=v})
+        app.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s1.signal(1)
         return Utils.equal(r, {s1:1,s2:undefined})
     })
@@ -206,7 +206,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).all(mask).tap(function(v){r=v})
+        app.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s1.signal(1)
         s2.signal(0)
         return Utils.equal(r, undefined)
@@ -218,7 +218,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).all(mask).tap(function(v){r=v})
+        app.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s2.signal(1)
         s1.signal(1)
         return Utils.equal(r, {s1:1, s2:1})
@@ -231,7 +231,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        sig.join({s1,s2}).all(mask).tap(function(v){r=v})
+        sig.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s2.signal(1)
         s1.signal(1)
         return Utils.equal(r, undefined)
@@ -244,7 +244,7 @@ runTests('match', function(mock) {
         }
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).all(mask).tap(function(v){r=v})
+        app.assign({s1,s2}).all(mask).tap(function(v){r=v})
         s2.signal(1)
         s1.signal(1)
         return Utils.equal(r, {s1:1,s2:1})
@@ -253,7 +253,7 @@ runTests('match', function(mock) {
     test('any - signal values', function() {
         var s1 = app.channel()
         var s2 = app.channel()
-        var jp = app.join({s1,s2}).any()
+        var jp = app.assign({s1,s2}).any()
         s1.signal(1)
         s2.signal(1)
         return Utils.equal(jp.value(), {s1:1,s2:1})
@@ -262,7 +262,7 @@ runTests('match', function(mock) {
     test('any - any signal values', function() {
         var s1 = app.channel()
         var s2 = app.channel()
-        var jp = app.join({s1,s2}).any()
+        var jp = app.assign({s1,s2}).any()
         s2.signal(1)
         return Utils.equal(jp.value(), {s1:undefined,s2:1})
     })
@@ -270,7 +270,7 @@ runTests('match', function(mock) {
     test('any - block on no values', function() {
         var r, s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).any().tap(function(v){r=v})
+        app.assign({s1,s2}).any().tap(function(v){r=v})
         s1.signal(0)
         s2.signal(0)
         return r === undefined
@@ -303,21 +303,21 @@ runTests('match', function(mock) {
     test('one - pass on only one', function() {
         var r, s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).one().tap(function(v){r=v}).signal({s1:0,s2:2})
+        app.assign({s1,s2}).one().tap(function(v){r=v}).signal({s1:0,s2:2})
         return Utils.equal(r, {s1:0,s2:2})
     })
 
     test('one - block on more than one', function() {
         var r, s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).one().tap(function(v){r=v}).signal({s1:1,s2:2})
+        app.assign({s1,s2}).one().tap(function(v){r=v}).signal({s1:1,s2:2})
         return r === undefined
     })
 
     test('none - block on any value', function() {
         var r, s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).none().tap(function(v){r=v}).signal({s1:1})
+        app.assign({s1,s2}).none().tap(function(v){r=v}).signal({s1:1})
         return r === undefined
     })
 
@@ -389,37 +389,37 @@ runTests('match', function(mock) {
 
     // joinpoint - all
 
-    test('join - all active', function() {
+    test('assign - all active', function() {
         var s1 = app.channel()
         var s2 = app.channel()
-        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
+        var r,j = app.assign({s1,s2}).all().tap(function(){r=true})
         s1.signal(1)
         s2.signal(2)
         return r
     })
 
-    test('join - not all active', function() {
+    test('assign - not all active', function() {
         var s1 = app.channel()
         var s2 = app.channel()
-        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
+        var r,j = app.assign({s1,s2}).all().tap(function(){r=true})
         s1.signal(1)
         return r === undefined
     })
 
-    test('join - already active', function() {
+    test('assign - already active', function() {
         var s1 = app.channel()
         var s2 = app.channel()
         s2.signal(2)
-        var r,j = app.join({s1,s2}).all().tap(function(){r=true})
+        var r,j = app.assign({s1,s2}).all().tap(function(){r=true})
         s1.signal(1)
         return r
     })
 
     test('sample - all', function() {
-        var s1 = app.join({inc})
+        var s1 = app.assign({inc})
         var s2 = app.channel()
         var s3 = app.channel()
-        var allSigs = app.channel().join({s2,s3}).all()
+        var allSigs = app.channel().assign({s2,s3}).all()
         var s = s1.sample({allSigs})
         s1.signals.inc(1)
         var r1 = s.value() // blocked

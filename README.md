@@ -31,7 +31,7 @@ This channel can be connected to other channels to create a circuit...
 ```
 channel2 = new Channel().map(dbl).tap(log)
 
-circuit = new Circuit().join({
+circuit = new Circuit().assign({
   channel1,
   channel2
 })
@@ -51,7 +51,7 @@ circuit.signals.channel2('he') // logs..
 Now, when either of the channels is signalled, the circuit will output two logs - one for the channel and one for the circuit!
 
 ### Join-points
-When channels are connected together in a circuit they form a joinpoint. The ***join*** join-point used above preserves the channel structure when signals propagate through it. This is why the structure of the value logged by the circuit reflects the structure of the joinpoint connected to it.
+When channels are connected together in a circuit they form a joinpoint. The ***assign*** join-point used above preserves the channel structure when signals propagate through it. This is why the structure of the value logged by the circuit reflects the structure of the join-point connected to it.
 
 Another kind of join-point is called ***fold***. When channels are folded together, propagated values lose their channel structure and instead, are folded into the parent channel. To facilite this behaviour, functions lifted into a folded channel receive the parent channel value which acts as an accumulator, as well as the signalled value. So a new signature is required:
 
@@ -67,7 +67,7 @@ circuit = new Circuit().fold({
   channel2
 }).tap(log)
 ```
-Signalling `channel1`, and then `channel2`, produces a different output. The structure preserved by the join has been replaced by the folded values returned by most recent channel.
+Signalling `channel1`, and then `channel2`, produces a different output. The structure preserved by the assign join has been replaced by the folded values returned by most recent channel.
 
 ```
 circuit.signals.channel1('ho') // logs => hoho
@@ -108,8 +108,8 @@ const view = ({items}) => {
 const app = component => render(component, document.querySelector('#todo'))
 
 // A circuit to pull it all together.
-const {join, fold} = new Circuit()
-const todos = join({
+const {assign, fold} = new Circuit()
+const todos = assign({
   items: fold({add, remove})
 })
 
@@ -124,7 +124,7 @@ todos.signal({items: ['first entry']})
 There are three channels, and consequently three signals in this app: *add*, *remove* and *items*, each correlating to a function on the object passed in to the circuit:
 
 ```javascript
-const todos = join({
+const todos = assign({
   items: fold({
     add,
     remove
