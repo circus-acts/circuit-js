@@ -111,6 +111,22 @@ runTests('join', function(mock) {
 		return ctx === 'abc' && m.value() === 123
 	})
 
+	test('latch', function(){
+		function r(cv, v) {
+			return cv + v
+		}
+		var m = app.latch({
+			a: r,
+			b: r
+		})
+		m.signal(1)
+		m.signals.a(2)
+		m.signal(1)
+
+		return m.value() === 3
+	})
+
+
 	test('sample - block', function() {
 		var s1 = channel()
 		var s2 = app.fold({inc}).sample({s1}).prime(1)

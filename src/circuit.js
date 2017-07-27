@@ -90,7 +90,7 @@ function getState(s) {
   }
 }
 
-function joinPoint(sampleOnly, assignOnly, circuit) {
+function joinPoint(sampleOnly, assignOnly, latch, circuit) {
   return function (ctx) {
     var _jp = ctx.channel
     ctx.step = (ctx.step || 0) + 1
@@ -102,6 +102,7 @@ function joinPoint(sampleOnly, assignOnly, circuit) {
         channel.step = ctx.step
         // expose joins and sample channels directly, but reduce folded channels into circuit
         var signal = sampleOnly || assignOnly? channel.signal : function(v, c1, c2) {
+          if (latch) ctx.latch = {signal: channels[k].signal, value: v}
           switch (arguments.length) {
             case 1: return channel.signal(_jp.value(), v)
             case 2: return channel.signal(_jp.value(), v, c1)
@@ -113,7 +114,7 @@ function joinPoint(sampleOnly, assignOnly, circuit) {
         // be taken not to overwrite existing channels with the same name.
         // So, duplicate signals are lifted, upstream, into the existing channel.
         if (!channels[k]) {
-          channels[k] = channel.feed(fold(k)).fail(ctx.fail)
+          channels[k] = channel.feed(merge(k)).fail(ctx.fail)
           signals[k] = _jp.signal[k] = signal
           Object.keys(channel.signal).forEach(function(k) {
             if (typeof channel.signal[k] === 'function') signal[k] = channel.signal[k]
@@ -130,7 +131,7 @@ function joinPoint(sampleOnly, assignOnly, circuit) {
       joinPoints.push(channel)
     })
 
-    function fold(signal) {
+    function merge(k) {
       return function(v) {
         var jv = assignOnly && joinPoints.reduce(function(jv, s) {
           jv[s.name] = s.value()
@@ -143,7 +144,7 @@ function joinPoint(sampleOnly, assignOnly, circuit) {
             console.warn('jp value substituted for primary state')
           }
         }
-        ctx.next(sampleOnly? ctx.sv || _jp.value() : jv, signal)
+        ctx.next(sampleOnly? ctx.sv || _jp.value() : jv, k)
       }
     }
 
@@ -153,29 +154,53 @@ function joinPoint(sampleOnly, assignOnly, circuit) {
     // filter out sampled signals at this step
     return function(v) {
       if (sampleOnly) ctx.sv = v
-      else ctx.next(v)
+      else {
+        if (ctx.latch) ctx.latch.signal(v, ctx.latch.value)
+        else {
+          ctx.next(v)
+        }
+      }
     }
   }
 }
 
 // Circuit API
 
-// signal().fold : ({A}) -> Channel A
+// channel().fold : ({A}) -> Channel A
 //
 // fold 1 or more input signals into 1 output signal
 // The output signal value will be the latest input signal value
 //
 // example:
 //    fold({
-//      A: signalA
-//      B: signalB
+//      A: channelA
+//      B: channelB
 //    }).tap(log) // -> 20
 //
-//    signalA.input(10)
-//    signalB.input(20)
+//    channelA.signal(10)
+//    channelB.signal(20)
 //
 function fold(circuit) {
-  return this.bind(joinPoint(false, false, circuit))
+  return this.bind(joinPoint(false, false, false, circuit))
+}
+
+// channel().latch : ({A}) -> Channel A
+//
+// fold and hold 1 or more input signals into 1 output signal
+// The output signal value will be the latest input signal value.
+// The input signal value will be latched.
+//
+// example:
+//    circuit.latch({
+//      A: channelA
+//      B: channelB
+//    }).tap(log) // -> 10
+//
+//    channelA.signal(10)
+//    circuit.signal()
+//
+function latch(circuit) {
+  return this.bind(joinPoint(false, false, true, circuit))
 }
 
 
@@ -187,15 +212,15 @@ function fold(circuit) {
 //
 // example:
 //    assign({
-//      A: signalA
-//      B: signalB
+//      A: channelA
+//      B: channelB
 //    }).tap(log) // -> {A: 10, B, 20}
 //
-//    signalA.signal(10)
-//    signalB.signal(20)
+//    channelA.signal(10)
+//    channelB.signal(20)
 //
 function assign(circuit) {
-  return this.bind(joinPoint(false, true, circuit))
+  return this.bind(joinPoint(false, true, false, circuit))
 }
 
 
@@ -214,7 +239,7 @@ function assign(circuit) {
 //    channelB.signal(true)
 //
 function sample(circuit) {
-  return this.bind(joinPoint(true, false, circuit))
+  return this.bind(joinPoint(true, false, false, circuit))
 }
 
 // Construct a new circuit builder
@@ -226,6 +251,7 @@ function Circuit(cct) {
       circuit: assign,
       assign: assign,
       fold: fold,
+      latch: latch,
       sample: sample,
       pure: Pure(diff),
       overlay: overlay(sig),
@@ -239,6 +265,7 @@ function Circuit(cct) {
     circuit: function(cct) {return primeInput(circuit.channel().assign(cct))},
     assign: function(cct) {return circuit.channel().assign(cct)},
     fold: function(cct) {return circuit.channel().fold(cct)},
+    latch: function(cct) {return circuit.channel().latch(cct)},
     sample: function(cct) {return circuit.channel().sample(cct)},
     channel: circuit.channel,
     import: circuit.import,
