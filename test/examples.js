@@ -33,7 +33,7 @@ runTests('exaples', function() {
 		const channel1 = new Channel().map(dblUp)
 		const channel2 = new Channel().map(dblUp)
 
-		const circuit = new Circuit().merge({
+		const circuit = new Circuit().fold({
 			channel1,
 			channel2
 		}).tap(log)

@@ -77,21 +77,21 @@ runTests('error', function(mock) {
 
     test('error - circuit valid', function() {
         var m = error.test(function(_, v){return !!v && v},'error!')
-        var s = app.merge({m}).map(inc)
+        var s = app.fold({m}).map(inc)
         s.signals.m(1)
         return s.error() === '' && s.value() === 2
     })
 
     test('error - circuit error', function() {
         var m = error.test(function(_, v){return !!v && v})
-        var s = app.merge({m}).map(inc)
+        var s = app.fold({m}).map(inc)
         s.signals.m(0)
         return s.error() === true && s.value() === undefined
     })
 
     test('error - circuit error msg', function() {
         var m = error.test(function(_, v){return !!v && v},'error!')
-        var s = app.merge({m}).map(inc)
+        var s = app.fold({m}).map(inc)
         s.signals.m(0)
         return s.error() === 'error!'
     })
@@ -99,7 +99,7 @@ runTests('error', function(mock) {
     test('error - first error only', function() {
         var m1 = error.test(function(_, v){return !!v && v},1)
         var m2 = error.test(function(_, v){return !!v && v},2)
-        var s = app.merge({m1, m2}).map(inc)
+        var s = app.fold({m1, m2}).map(inc)
         s.signals.m1(0)
         s.signals.m2(0)
         return s.error() === 1 && s.value() === undefined
@@ -107,14 +107,14 @@ runTests('error', function(mock) {
 
     test('error - circuit error clear', function() {
         var m = error.test(function(_, v){return !!v && v})
-        var s = app.merge({m}).map(inc)
+        var s = app.fold({m}).map(inc)
         s.signals.m(0)
         return s.error() === true && s.error() === ''
     })
 
     test('error - peek', function() {
         var m = error.test(function(_, v){return !!v && v})
-        var s = app.merge({m}).map(inc)
+        var s = app.fold({m}).map(inc)
         s.signals.m(0)
         return s.error(true) === true && s.error() === true
     })

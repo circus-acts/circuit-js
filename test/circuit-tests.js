@@ -31,9 +31,9 @@ runTests('circuit', function(mock) {
 		var a=app.channel().map(seq(1))
 		var b=app.channel().map(seq(2))
 		var c=app.channel().map(seq(3))
-		var s1=app.merge({
-			c:app.merge({
-				b:app.merge({a}).map(b)
+		var s1=app.fold({
+			c:app.fold({
+				b:app.fold({a}).map(b)
 			}).map(c)
 		})
 		s1.signals.c.b.a([])

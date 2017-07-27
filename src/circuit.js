@@ -100,7 +100,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       if (channel.id) {
         channel.name = k
         channel.step = ctx.step
-        // expose joins and sample channels directly, but reduce merged channels into circuit
+        // expose joins and sample channels directly, but reduce folded channels into circuit
         var signal = sampleOnly || joinOnly? channel.signal : function(v, c1, c2) {
           switch (arguments.length) {
             case 1: return channel.signal(_jp.value(), v)
@@ -113,7 +113,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
         // be taken not to overwrite existing channels with the same name.
         // So, duplicate signals are lifted, upstream, into the existing channel.
         if (!channels[k]) {
-          channels[k] = channel.feed(merge(k)).fail(ctx.fail)
+          channels[k] = channel.feed(fold(k)).fail(ctx.fail)
           signals[k] = _jp.signal[k] = signal
           Object.keys(channel.signal).forEach(function(k) {
             if (typeof channel.signal[k] === 'function') signal[k] = channel.signal[k]
@@ -130,7 +130,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
       joinPoints.push(channel)
     })
 
-    function merge(signal) {
+    function fold(signal) {
       return function(v) {
         var jv = joinOnly && joinPoints.reduce(function(jv, s) {
           jv[s.name] = s.value()
@@ -160,13 +160,13 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
 
 // Circuit API
 
-// signal().merge : ({A}) -> Channel A
+// signal().fold : ({A}) -> Channel A
 //
-// Merge 1 or more input signals into 1 output signal
+// fold 1 or more input signals into 1 output signal
 // The output signal value will be the latest input signal value
 //
 // example:
-//    merge({
+//    fold({
 //      A: signalA
 //      B: signalB
 //    }).tap(log) // -> 20
@@ -174,7 +174,7 @@ function joinPoint(sampleOnly, joinOnly, circuit) {
 //    signalA.input(10)
 //    signalB.input(20)
 //
-function merge(circuit) {
+function fold(circuit) {
   return this.bind(joinPoint(false, false, circuit))
 }
 
@@ -183,7 +183,7 @@ function merge(circuit) {
 //
 // Join 1 or more input signals into 1 output signal
 // - input signal values will be mapped onto output signal channels
-// - duplicate channels will be merged
+// - duplicate channels will be folded
 //
 // example:
 //    join({
@@ -225,7 +225,7 @@ function Circuit(cct) {
     return {
       circuit: join,
       join: join,
-      merge: merge,
+      fold: fold,
       sample: sample,
       pure: Pure(diff),
       overlay: overlay(sig),
@@ -238,7 +238,7 @@ function Circuit(cct) {
   return {
     circuit: function(cct) {return primeInput(circuit.channel().join(cct))},
     join: function(cct) {return circuit.channel().join(cct)},
-    merge: function(cct) {return circuit.channel().merge(cct)},
+    fold: function(cct) {return circuit.channel().fold(cct)},
     sample: function(cct) {return circuit.channel().sample(cct)},
     channel: circuit.channel,
     import: circuit.import,

@@ -83,11 +83,11 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
-	test('merge - reduce', function(){
+	test('fold - reduce', function(){
 		function r(cv, v) {
 			return cv + v
 		}
-		var m = app.merge({
+		var m = app.fold({
 			a: r,
 			b: r
 		})
@@ -98,8 +98,8 @@ runTests('join', function(mock) {
 		return m.value() === 5
 	})
 
-	test('merge - context', function(){
-		var ctx,m = app.merge({
+	test('fold - context', function(){
+		var ctx,m = app.fold({
 			a: function(cv, v) {
 				ctx=cv
 				return v
@@ -113,14 +113,14 @@ runTests('join', function(mock) {
 
 	test('sample - block', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		var s2 = app.fold({inc}).sample({s1}).prime(1)
 		s2.signals.inc(1)
 		return s2.value() === 1
 	})
 
 	test('sample - pass', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		var s2 = app.fold({inc}).sample({s1}).prime(1)
 		s2.signals.inc(1)
 		s1.signal(true)
 		return s2.value() === 2
@@ -128,7 +128,7 @@ runTests('join', function(mock) {
 
 	test('sample - jp value', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).map(inc).prime(0)
+		var s2 = app.fold({inc}).sample({s1}).map(inc).prime(0)
 		s2.signals.inc(1)
 		var r1 = s2.value()
 		s1.signal(true)
