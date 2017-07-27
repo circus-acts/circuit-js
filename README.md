@@ -31,7 +31,7 @@ This channel can be connected to other channels to create a circuit...
 ```
 channel2 = new Channel().map(dbl).tap(log)
 
-circuit = new Circuit().join({
+circuit = new Circuit().assign({
   channel1,
   channel2
 })
@@ -51,9 +51,9 @@ circuit.signals.channel2('he') // logs..
 Now, when either of the channels is signalled, the circuit will output two logs - one for the channel and one for the circuit!
 
 ### Join-points
-When channels are connected together in a circuit they form a joinpoint. The ***join*** join-point used above preserves the channel structure when signals propagate through it. This is why the structure of the value logged by the circuit reflects the structure of the joinpoint connected to it.
+When channels are connected together in a circuit they form a joinpoint. The ***assign*** join-point used above preserves the channel structure when signals propagate through it. This is why the structure of the value logged by the circuit reflects the structure of the join-point connected to it.
 
-Another kind of join-point is called ***merge***. When channels are merged together, propagated values lose their channel structure and instead, are folded into the parent channel. To facilite this behaviour, functions lifted into a merged channel receive the parent channel value which acts as an accumulator, as well as the signalled value. So a new signature is required:
+Another kind of join-point is called ***fold***. When channels are folded together, propagated values lose their channel structure and instead, are folded into the parent channel. To facilite this behaviour, functions lifted into a folded channel receive the parent channel value which acts as an accumulator, as well as the signalled value. So a new signature is required:
 
 ```
 // new signature takes parent value and signalled value
@@ -62,12 +62,12 @@ dblUp = (pv = '', sv) => pv + dbl(sv)
 channel1 = new Channel().map(dblUp)
 channel2 = new Channel().map(dblUp)
 
-circuit = new Circuit().merge({
+circuit = new Circuit().fold({
   channel1,
   channel2
 }).tap(log)
 ```
-Signalling `channel1`, and then `channel2`, produces a different output. The structure preserved by the join has been replaced by the merged values returned by most recent channel.
+Signalling `channel1`, and then `channel2`, produces a different output. The structure preserved by the assign join has been replaced by the folded values returned by most recent channel.
 
 ```
 circuit.signals.channel1('ho') // logs => hoho
@@ -108,9 +108,9 @@ const view = ({items}) => {
 const app = component => render(component, document.querySelector('#todo'))
 
 // A circuit to pull it all together.
-const {join, merge} = new Circuit()
-const todos = join({
-  items: merge({add, remove})
+const {assign, fold} = new Circuit()
+const todos = assign({
+  items: fold({add, remove})
 })
 
 todos.map(view).tap(app)
@@ -124,8 +124,8 @@ todos.signal({items: ['first entry']})
 There are three channels, and consequently three signals in this app: *add*, *remove* and *items*, each correlating to a function on the object passed in to the circuit:
 
 ```javascript
-const todos = join({
-  items: merge({
+const todos = assign({
+  items: fold({
     add,
     remove
   })
@@ -147,7 +147,7 @@ The circuit is activated when either of these signals is raised. When this happe
 The circuit ***todos*** maps these values over the view, and taps *this* output (a React component) into the app. React takes control here...
 
 ### Signal propagation
-Where do propagating values end up? They bubble up through the circuit. The ***add*** channel value is merged into the ***items***  channel. The items channel value is joined to the ***circuit***, and the circuit channel value is mapped and tapped over the view and app functions respectively.
+Where do propagating values end up? They bubble up through the circuit. The ***add*** channel value is folded into the ***items***  channel. The items channel value is joined to the ***circuit***, and the circuit channel value is mapped and tapped over the view and app functions respectively.
 
 A signal propagation diagram shows what is happening in this circuit:
 

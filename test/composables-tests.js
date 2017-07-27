@@ -134,7 +134,7 @@ runTests('composables', function(mock) {
     test('zip - arrays', function() {
         var s1 = app.channel()
         var s2 = app.channel()
-        app.join({s1,s2}).zip().tap(function(v){r.push(v)})
+        app.assign({s1,s2}).zip().tap(function(v){r.push(v)})
         var a = [1,2,3],b = [4,5,6], r = []
         a.map(function(_,i){
             s1.signal(a[i])

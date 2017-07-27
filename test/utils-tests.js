@@ -28,7 +28,7 @@ runTests('utils', function(mock) {
             }
         }
 
-        signals = app.join(sigBlock);
+        signals = app.assign(sigBlock);
     })
 
     test('lens', function(){

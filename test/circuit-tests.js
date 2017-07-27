@@ -20,7 +20,7 @@ runTests('circuit', function(mock) {
 	test('circuit - propagation', function() {
 		var s1 = app.channel()
 		var s2 = app.channel()
-		var j = app.join({s1,s2})
+		var j = app.assign({s1,s2})
 		s1.signal(1)
 		s2.signal(2)
 		var r = j.value()
@@ -31,9 +31,9 @@ runTests('circuit', function(mock) {
 		var a=app.channel().map(seq(1))
 		var b=app.channel().map(seq(2))
 		var c=app.channel().map(seq(3))
-		var s1=app.merge({
-			c:app.merge({
-				b:app.merge({a}).map(b)
+		var s1=app.fold({
+			c:app.fold({
+				b:app.fold({a}).map(b)
 			}).map(c)
 		})
 		s1.signals.c.b.a([])
@@ -43,14 +43,14 @@ runTests('circuit', function(mock) {
 
 	test('circuit - fail bubbling', function() {
 		var s1 = app.channel().bind(function(ctx) {return function(){return ctx.fail(123)}})
-		var j1 = app.join({s1})
-		var r,j = app.join({j1}).fail(function(f){r=f})
+		var j1 = app.assign({s1})
+		var r,j = app.assign({j1}).fail(function(f){r=f})
 		s1.signal(2)
 		return r === 123
 	})
 
 	test('circuit - implied map', function(){
-		var s = app.join({
+		var s = app.assign({
 			a: inc
 		})
 		s.channels.a.signal(1)
@@ -61,7 +61,7 @@ runTests('circuit', function(mock) {
 	test('channel - passive', function(){
 		var a = app.channel()
 		var b = app.channel().prime(2)
-		var s = app.join({
+		var s = app.assign({
 			a: a,
 			b: b.id
 		})
@@ -76,7 +76,7 @@ runTests('circuit', function(mock) {
 	})
 
 	test('channel - always', function(){
-		var s = app.join({
+		var s = app.assign({
 			a: 123
 		})
 		s.signals.a(1)
@@ -85,7 +85,7 @@ runTests('circuit', function(mock) {
 	})
 
 	test('channel - always undefined', function(){
-		var s = app.join({
+		var s = app.assign({
 			a: undefined
 		})
 		s.signals.a(1)
@@ -95,7 +95,7 @@ runTests('circuit', function(mock) {
 
 	test('prime', function(){
 		var a=app.channel()
-		var r = app.join({
+		var r = app.assign({
 			a: a
 		}).prime({a:123})
 
@@ -104,7 +104,7 @@ runTests('circuit', function(mock) {
 
 	test('set state', function(){
 		var a=app.channel()
-		var r = app.join({
+		var r = app.assign({
 			a: a
 		}).setState({a: {$value: 123}})
 
@@ -113,7 +113,7 @@ runTests('circuit', function(mock) {
 
 	test('set state - nested state', function(){
 		var a=app.channel()
-		var r = app.join({
+		var r = app.assign({
 			b: app.channel()
 		}).setState({b: {$value: 123}})
 
@@ -132,7 +132,7 @@ runTests('circuit', function(mock) {
 
 	test('prime - deep', function(){
 		var a=app.channel()
-		var r = app.join({
+		var r = app.assign({
 			b: {
 				a: a
 			}
@@ -143,7 +143,7 @@ runTests('circuit', function(mock) {
 
 	test('prime - signal', function(){
 		var r, a=app.channel().feed(function(v) {r=v})
-		app.join({
+		app.assign({
 			b: {
 				a: a
 			}
@@ -154,7 +154,7 @@ runTests('circuit', function(mock) {
 	})
 
 	test('join - channel identity', function(){
-		var ctx,r = app.join({
+		var ctx,r = app.assign({
 			a: inc
 		}).map(function(v,channel) {
 			ctx = channel
@@ -168,7 +168,7 @@ runTests('circuit', function(mock) {
 
 	test('overlay - placeholder', function(){
 		var o = {a:inc}
-		var c = app.join({a:Channel.id}).overlay(o)
+		var c = app.assign({a:Channel.id}).overlay(o)
 		c.signals.a(1)
 		return c.channels.a.value() === 2
 	})
@@ -176,7 +176,7 @@ runTests('circuit', function(mock) {
 	test('overlay', function(){
 		var b = app.channel().map(dbl)
 		var o = {a:inc}
-		var c = app.join({a:b}).overlay(o)
+		var c = app.assign({a:b}).overlay(o)
 		c.signals.a(1)
 		return c.channels.a.value() === 3
 	})
@@ -185,7 +185,7 @@ runTests('circuit', function(mock) {
 		var a = app.channel()
 		var b = app.channel()
 		var o = {a:inc,b:inc}
-		var c = app.join({a:a}).sample({b:b}).overlay(o)
+		var c = app.assign({a:a}).sample({b:b}).overlay(o)
 		c.signals.a(1)
 		c.signals.b(1)
 		return c.channels.a.value() === 2 && c.channels.b.value() === 2
@@ -194,7 +194,7 @@ runTests('circuit', function(mock) {
 	test('overlay - signal', function(){
 		var b = app.channel().map(dbl)
 		var o = {a:app.channel().map(inc)}
-		var c = app.join({a:b}).overlay(o)
+		var c = app.assign({a:b}).overlay(o)
 		c.signals.a(1)
 		return c.channels.a.value() === 3
 	})
@@ -202,13 +202,13 @@ runTests('circuit', function(mock) {
 	test('overlay - deep', function(){
 		var b = app.channel()
 		var o = {a:{a:{a:inc}}}
-		var c = app.join({a:{a:{a:b}}}).overlay(o)
+		var c = app.assign({a:{a:{a:b}}}).overlay(o)
 		c.signals.a.a.a(1)
 		return c.channels.a.channels.a.channels.a.value() === 2
 	})
 
 	test('getState', function() {
-		var r = new Circuit().join({
+		var r = new Circuit().assign({
 			a: app.channel()
 		})
 		r.signals.a(123)

@@ -13,10 +13,10 @@ runTests('join', function(mock) {
 		channel = app.channel
 	})
 
-	test('join - channels', function() {
+	test('assign - channels', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
+		var j = app.assign({
 			k1:s1,
 			k2:s2
 		})
@@ -24,6 +24,20 @@ runTests('join', function(mock) {
 		s2.signal(2)
 		var r = j.value()
 		return Utils.deepEqual(r,{k1:1,k2:2})
+	})
+
+	test('merge - channels', function() {
+		var s1 = channel()
+		var s2 = channel()
+		var j = app.merge({
+			k1:s1,
+			k2:s2
+		})
+		j.signal({k3: 3})
+		s1.signal(1)
+		s2.signal(2)
+		var r = j.value()
+		return Utils.deepEqual(r,{k1:1,k2:2, k3:3})
 	})
 
 	test('signals - auto name spacing', function() {
@@ -34,16 +48,16 @@ runTests('join', function(mock) {
 				}
 			}
 		}
-		var s = app.join(j)
+		var s = app.assign(j)
 		s.signals.a.b.c(123)
 		return Utils.deepEqual(s.value(), {a: {b: {c: 123}}})
 	})
 
-	test('join - nested join points', function() {
+	test('assign - nested join points', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
-			k1:app.join({
+		var j = app.assign({
+			k1:app.assign({
 				k2:s2
 			})
 		})
@@ -53,12 +67,12 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:{k2:2}})
 	})
 
-	test('join - join point auto binding', function() {
-		var join = app.join
+	test('assign - join point auto binding', function() {
+		var assign = app.assign
 		var s1 = channel()
 		var s2 = channel()
-		var j = join({
-			k1:join({
+		var j = assign({
+			k1:assign({
 				k2:s2
 			})
 		})
@@ -71,7 +85,7 @@ runTests('join', function(mock) {
 	test('join - object hash syntax', function() {
 		var s1 = channel()
 		var s2 = channel()
-		var j = app.join({
+		var j = app.assign({
 			k1:s1,
 			k2:{
 				k3:s2
@@ -83,11 +97,11 @@ runTests('join', function(mock) {
 		return Utils.deepEqual(r,{k1:1,k2:{k3:2}})
 	})
 
-	test('merge - reduce', function(){
+	test('fold - reduce', function(){
 		function r(cv, v) {
 			return cv + v
 		}
-		var m = app.merge({
+		var m = app.fold({
 			a: r,
 			b: r
 		})
@@ -98,8 +112,8 @@ runTests('join', function(mock) {
 		return m.value() === 5
 	})
 
-	test('merge - context', function(){
-		var ctx,m = app.merge({
+	test('fold - context', function(){
+		var ctx,m = app.fold({
 			a: function(cv, v) {
 				ctx=cv
 				return v
@@ -111,16 +125,32 @@ runTests('join', function(mock) {
 		return ctx === 'abc' && m.value() === 123
 	})
 
+	test('latch', function(){
+		function r(cv, v) {
+			return cv + v
+		}
+		var m = app.latch({
+			a: r,
+			b: r
+		})
+		m.signal(1)
+		m.signals.a(2)
+		m.signal(1)
+
+		return m.value() === 3
+	})
+
+
 	test('sample - block', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		var s2 = app.fold({inc}).sample({s1}).prime(1)
 		s2.signals.inc(1)
 		return s2.value() === 1
 	})
 
 	test('sample - pass', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).prime(1)
+		var s2 = app.fold({inc}).sample({s1}).prime(1)
 		s2.signals.inc(1)
 		s1.signal(true)
 		return s2.value() === 2
@@ -128,7 +158,7 @@ runTests('join', function(mock) {
 
 	test('sample - jp value', function() {
 		var s1 = channel()
-		var s2 = app.merge({inc}).sample({s1}).map(inc).prime(0)
+		var s2 = app.fold({inc}).sample({s1}).map(inc).prime(0)
 		s2.signals.inc(1)
 		var r1 = s2.value()
 		s1.signal(true)
