@@ -30,7 +30,7 @@ function toSignal(app, s) {
 function overlay(s) {
   return function overlay (g) {
     return s.channel().assign(Object.keys(g).reduce(function(a, k) {
-      var o = g[k]
+      var o = g[k] === s.channels[k]? s.channel() : g[k] 
       if (o.signal || typeof o === 'function') {
         a[k] = toSignal(s, o)
         s.channels[k].feed(a[k])

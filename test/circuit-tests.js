@@ -183,6 +183,14 @@ runTests('circuit', function(mock) {
 		return o.channels.a.value() === 3
 	})
 
+	test('overlay - identity', function(){
+		var s = app.channel().map(inc)
+		var c = app.assign({a:s})
+		var o = c.overlay({a:s})
+		c.signals.a(1)
+		return o.channels.a.value() === 2
+	})
+
 	test('overlay - sample', function(){
 		var a = app.channel()
 		var b = app.channel()
