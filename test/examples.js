@@ -18,7 +18,8 @@ runTests('exaples', function() {
 		})
 
 		circuit.tap(log)
-		circuit.signals.channel2('he') // logs..
+
+		channel2.signal('he') // logs..
 		// => hehe
 		// => {channel1: 'hoho', channel2: 'hehe'}
 		return true;
@@ -38,8 +39,8 @@ runTests('exaples', function() {
 			channel2
 		}).tap(log)
 
-		circuit.signals.channel1('ho') // logs => hoho
-		circuit.signals.channel2('he') // logs => hohohehe
+		channel1.signal('ho') // logs => hoho
+		channel2.signal('he') // logs => hohohehe
 		return true;
 	})
 })

@@ -100,24 +100,27 @@ function joinPoint(sampleOnly, assignOnly, latch, merge, circuit) {
       if (channel.id) {
         channel.name = k
         channel.step = ctx.step
+        var signal = channel.signal
         // expose joins and sample channels directly, but reduce folded channels into circuit
-        var signal = sampleOnly || assignOnly? channel.signal : function(v, c1, c2) {
-          if (latch) ctx.latch = {signal: channels[k].signal, value: v}
-          switch (arguments.length) {
-            case 1: return channel.signal(_jp.value(), v)
-            case 2: return channel.signal(_jp.value(), v, c1)
-            case 3: return channel.signal(_jp.value(), v, c1, c2)
+        if (!sampleOnly && !assignOnly) {
+          channel.signal = function(v, c1, c2) {
+            if (latch) ctx.latch = {signal: signal, value: v}
+            switch (arguments.length) {
+              case 1: return signal(_jp.value(), v)
+              case 2: return signal(_jp.value(), v, c1)
+              case 3: return signal(_jp.value(), v, c1, c2)
+            }
+            return signal.apply(null, [_jp.value()].concat([].slice.call(arguments)))
           }
-          return channel.signal.apply(null, [_jp.value()].concat([].slice.call(arguments)))
         }
         // channels are simply aggregated on the circuit but care must
         // be taken not to overwrite existing channels with the same name.
         // So, duplicate signals are lifted, upstream, into the existing channel.
         if (!channels[k]) {
           channels[k] = channel.feed(into(k)).fail(ctx.fail)
-          signals[k] = _jp.signal[k] = signal
-          Object.keys(channel.signal).forEach(function(k) {
-            if (typeof channel.signal[k] === 'function') signal[k] = channel.signal[k]
+          signals[k] = _jp.signal[k] = channel.signal
+          Object.keys(channel.signals || {}).forEach(function(s) {
+            channel.signal[s] = channel.signals[s]
           })
         }
         else {
