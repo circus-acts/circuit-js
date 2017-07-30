@@ -42,35 +42,35 @@ runTests('error', function(mock) {
 
     test('async - true', function(done) {
         var m, async = (v, next) => {
-            setTimeout(next(true))
+            setTimeout(function() {next(true)})
         }
         error.test(async).tap(function(v) {done(v === 123)}).signal(123)
     })
 
     test('async - value', function(done) {
         var m, async = (v, next) => {
-            setTimeout(next(123))
+            setTimeout(function() {next(123)})
         }
         error.test(async).tap(function(v) {done(v === 123)}).signal(1)
     })
 
     test('async - fail', function(done) {
         var m, async = (v, next) => {
-            setTimeout(next(false))
+            setTimeout(function() {next(false)})
         }
         error.test(async).fail(done).signal(0)
     })
 
     test('async - fail message', function(done) {
         var m, async = (v, next) => {
-            setTimeout(next(false))
+            setTimeout(function() {next(false)})
         }
         error.test(async, 'xyz').fail(function(v) {done(v==='xyz')}).signal(0)
     })
 
     test('async - arity', function(done) {
         var m, async = (v1, v2, next) => {
-            setTimeout(next(v2 === 456))
+            setTimeout(function() {next(v2 === 456)})
         }
         error.test(async).tap(function(v) {done(v === 123)}).signal(123, 456)
     })

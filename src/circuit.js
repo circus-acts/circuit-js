@@ -5,6 +5,12 @@ import Pure from './pure'
 
 var objConstructor = {}.constructor
 
+function copy(o) {
+  return Object.keys(o || {}).reduce(function(a, k){
+    a[k] = o[k]
+    return a
+  }, {})
+}
 function diff(v1,v2) {
   // keep open until first signal
   if (v1 === undefined || v2 === undefined ||
@@ -30,7 +36,7 @@ function toSignal(app, s) {
 function overlay(s) {
   return function overlay (g) {
     return s.channel().assign(Object.keys(g).reduce(function(a, k) {
-      var o = g[k] === s.channels[k]? s.channel() : g[k] 
+      var o = g[k] === s.channels[k]? s.channel() : g[k]
       if (o.signal || typeof o === 'function') {
         a[k] = toSignal(s, o)
         s.channels[k].feed(a[k])
@@ -139,7 +145,7 @@ function joinPoint(sampleOnly, assignOnly, latch, merge, circuit) {
         var jv = assignOnly && joinPoints.reduce(function(jv, s) {
           jv[s.name] = s.value()
           return jv
-        }, merge? _jp.value() : {}) || v
+        }, merge? copy(_jp.value()) : {}) || v
         // need to take the value when no primary state available. Worth warning about..
         // todo: re-evaluate after priming has been fixed to state
         if (process.env.NODE_ENV==='development') {
